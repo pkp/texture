@@ -1,0 +1,28 @@
+body { overflow: hidden; }
+html, body { height: 100%; }
+.sc-app {
+	height: 100%;
+}
+
+input.save-btn {
+	color: #fff;
+	background-color: #5a6268;
+	border-color: #545b62;
+	font-weight: 400;
+	text-align: center;
+	border: 1px solid transparent;
+	padding: .375rem .75rem;
+	font-size: 1rem;
+	border-radius: .25rem;
+	margin:0 auto;
+}
+
+div#toolbar {
+	margin-top:5px;
+}
+
+div#feedback {
+	background-color:yellow;
+	text-align:center;
+	font-size: smaller;
+}

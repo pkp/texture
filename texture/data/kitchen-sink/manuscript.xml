@@ -1,0 +1,562 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "TextureArticle 0.1.0" "http://substance.io/TextureArticle-1.0.0.dtd">
+<article id="article" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <front id="front-1">
+    <article-meta id="article-meta-1">
+      <title-group id="title-group-1">
+        <article-title id="article-title-1">Object vision to hand action in macaque parietal, premotor, and motor cortices</article-title>
+      </title-group>
+      <contrib-group id="contrib-group-1" content-type="author">
+        <contrib id="contrib-1" contrib-type="person">
+          <name>
+            <surname>Schaffelhofer</surname>
+            <given-names>Stefan</given-names>
+          </name>
+          <xref ref-type="aff" rid="aff1" />
+          <xref ref-type="aff" rid="aff2" />
+        </contrib>
+        <contrib id="contrib-2" contrib-type="person">
+          <name>
+            <surname>Scherberger</surname>
+            <given-names>Hansjörg</given-names>
+          </name>
+          <xref ref-type="aff" rid="aff1" />
+          <xref ref-type="aff" rid="aff3" />
+        </contrib>
+      </contrib-group>
+      <contrib-group id="contrib-group-2" content-type="editor">
+        <contrib id="contrib-3" contrib-type="person">
+          <name>
+            <surname>Kastner</surname>
+            <given-names>Sabine</given-names>
+          </name>
+          <xref ref-type="aff" rid="aff1" />
+        </contrib>
+      </contrib-group>
+      <aff id="aff1">
+        <institution content-type="orgname">German Primate Center GmbH</institution>
+        <institution content-type="orgdiv1">Neurobiology Laboratory</institution>
+        <city>Göttingen</city>
+        <country>Germany</country>
+      </aff>
+      <aff id="aff2">
+        <institution content-type="orgname">The Rockefeller University</institution>
+        <institution content-type="orgdiv1">Laboratory of Neural Systems</institution>
+        <city>New York</city>
+        <country>United States</country>
+      </aff>
+      <aff id="aff3">
+        <institution content-type="orgname">University of Göttingen</institution>
+        <institution content-type="orgdiv1">Department of Biology</institution>
+        <city>Göttingen</city>
+        <country>Germany</country>
+      </aff>
+      <aff id="aff4">
+        <institution content-type="orgname">Princeton University</institution>
+        <city>Princeton</city>
+        <country>United States</country>
+      </aff>
+      <pub-date id="date-5" publication-format="print" date-type="pub" iso-8601-date="1999-01-29">
+        <day id="day-5">29</day>
+        <month id="month-5">01</month>
+        <year id="year-5">1999</year>
+      </pub-date>
+      <volume id="volume-1">318</volume>
+      <issue id="issue-1">7187</issue>
+      <fpage id="fpage-1">837</fpage>
+      <lpage id="lpage-1">841</lpage>
+      <history id="history-1">
+        <date id="date-1" date-type="received" iso-8601-date="1998-01-05">
+          <day id="day-1">05</day>
+          <month id="month-1">01</month>
+          <year id="year-1">1998</year>
+        </date>
+        <date id="date-2" date-type="rev-request" iso-8601-date="1998-03-14">
+          <day id="day-2">14</day>
+          <month id="month-2">03</month>
+          <year id="year-2">1998</year>
+        </date>
+        <date id="date-3" date-type="rev-received" iso-8601-date="1998-05-24">
+          <day id="day-3">24</day>
+          <month id="month-3">05</month>
+          <year id="year-3">1998</year>
+        </date>
+        <date id="date-4" date-type="accepted" iso-8601-date="1998-06-06">
+          <day id="day-4">06</day>
+          <month id="month-4">06</month>
+          <year id="year-4">1998</year>
+        </date>
+      </history>
+      <abstract id="abstract-1">
+        <p id="p-1"><bold id="bold-1">Please note, this article uses content from different open access articles (eLife) for demoing purposes</bold>. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi id nibh id ipsum ultrices vehicula in et ante. <xref id="xref-1" ref-type="bibr" rid="r7">[1]</xref></p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body id="body-1">
+    <sec id="heading-1">
+      <title>Quisque malesuada</title>
+      <table-wrap id="table1">
+        <label>Table 1</label>
+        <caption id="t1_caption">
+          <title id="t1_caption_title">Example Table</title>
+          <p id="t1_caption_content">This is a table example.</p>
+        </caption>
+        <table id="t1">
+          <tbody>
+            <tr id="t1_1">
+              <th id="t1_1_1">A</th>
+              <th id="t1_1_2">B</th>
+              <th id="t1_1_3">C</th>
+              <th id="t1_1_4">D</th>
+            </tr>
+            <tr id="t1_2">
+              <td id="t1_2_1">1</td>
+              <td id="t1_2_2">2</td>
+              <td id="t1_2_3">3</td>
+              <td id="t1_2_4">4</td>
+            </tr>
+            <tr id="t1_3">
+              <td id="t1_3_1">5</td>
+              <td id="t1_3_2">6</td>
+              <td id="t1_3_3">7</td>
+              <td id="t1_3_4">8</td>
+            </tr>
+            <tr id="t1_4">
+              <td id="t1_4_1">9</td>
+              <td id="t1_4_2">10</td>
+              <td id="t1_4_3">11</td>
+              <td id="t1_4_4">12</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <p id="p-2">Lorem ipsum <xref id="xref-2" ref-type="bibr" rid="book1">[2]</xref> dolor <ext-link id="ext-link-1" ext-link-type="uri" xlink:href="http://substance.io">sit amet</ext-link>. Integer eget augue consequat, rhoncus velit nec, vehicula purus. Quisque malesuada feugiat tempus. Suspendisse massa neque, mollis at commodo vel, ornare vel felis. Nulla sit amet sodales erat. Suspendisse potenti. Suspendisse porttitor ullamcorper mollis. Sed tincidunt, leo nec egestas tincidunt, ipsum sapien efficitur magna, sit amet tempor sem urna vitae dui.</p>
+      <sec id="heading-2">
+        <title>Orci varius natoque penatibus et magnis</title>
+        <p id="p-3">Lorem <xref id="xref-3" ref-type="fig" rid="fig1">Figure 1</xref> ipsum dolor<xref id="xref-4" ref-type="fn" rid="fn1">1</xref> sit amet <xref id="xref-5" ref-type="bibr" rid="book1 r7">[1,2]</xref>. Integer eget augue consequat, rhoncus velit nec, vehicula purus. Quisque malesuada feugiat tempus. Suspendisse massa neque, mollis at commodo vel, ornare vel felis. Nulla sit amet sodales erat. Suspendisse potenti. Suspendisse porttitor ullamcorper mollis. Sed tincidunt, leo nec egestas tincidunt, ipsum sapien efficitur magna, sit amet tempor sem urna vitae dui.</p>
+        <fig id="fig1">
+          <label>Figure 1</label>
+          <caption id="caption-1">
+            <title id="title-1">Behavioural design and implantation details.</title>
+            <p id="p-4">Lorem ipsum dolor sit amet, ea ludus intellegat his, graece fastidii phaedrum ea mea, ne duo esse omnium. Ne mel quas quodsi. Ea pri semper nostrum necessitatibus. Mea salutatus gloriatur persecuti eu, augue oportere efficiendi at eum. Ex eam mutat falli dicit.</p>
+          </caption>
+          <graphic id="graphic-1" mime-subtype="jpeg" mimetype="image" xlink:href="fig1.jpg" />
+        </fig>
+        <p id="p-5">Integer eget augue consequat, rhoncus velit nec, vehicula purus. Quisque malesuada feugiat tempus. Suspendisse massa neque, mollis at commodo vel, ornare vel felis. Nulla sit amet sodales erat. Suspendisse potenti. Suspendisse porttitor ullamcorper mollis. Sed tincidunt, leo nec egestas tincidunt, ipsum sapien efficitur magna, sit amet tempor sem urna vitae dui..</p>
+        <fig id="fig2">
+          <label>Figure 2</label>
+          <caption id="caption-2">
+            <title id="title-2">Visual object processing in area AIP.</title>
+            <p id="p-6" />
+          </caption>
+          <graphic id="graphic-2" mime-subtype="jpeg" mimetype="image" xlink:href="fig2.jpg" />
+        </fig>
+        <disp-quote id="disp-quote-1">
+          <p id="p-7">Curabitur vehicula mattis sodales. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Sed id nulla eget neque laoreet cursus id non urna. Aenean felis massa, mattis non laoreet ut, ultrices et velit. Fusce imperdiet auctor porttitor. Maecenas sed varius est. Etiam auctor consequat nunc quis pretium. Fusce sollicitudin euismod nisl, id ullamcorper leo. Nunc interdum, nisl sit amet gravida interdum, nibh nunc cursus nunc, sed viverra metus lorem vitae nisi.</p>
+        </disp-quote>
+        <p id="p-8">Morbi malesuada urna nibh, a blandit felis tempus id. Suspendisse libero risus, sagittis sit amet faucibus quis, eleifend eu orci. Etiam ac suscipit ante. In ut odio est. Morbi nisl ex, tincidunt sit amet lorem eget, gravida mattis nunc. Fusce sed quam et felis rhoncus convallis at nec urna. Vestibulum ultricies volutpat odio. Aenean facilisis diam nec neque accumsan, eu faucibus est efficitur <xref id="xref-6" ref-type="table" rid="table1">Table 1</xref>.</p>
+        <p id="p-81">Math as part of the text <inline-formula id="inline-formula-1" content-type="math/tex"><tex-math id="tex-math-1">\sqrt(13)</tex-math></inline-formula>.</p>
+        <list list-type="bullet" id="list-a2ab342b221036d8a7f15f065ef3e319">
+          <list-item>
+            <p>asd</p>
+            <list list-type="order">
+              <list-item>
+                <p>asd</p>
+              </list-item>
+              <list-item>
+                <p>asd</p>
+              </list-item>
+            </list>
+          </list-item>
+          <list-item>
+            <p>asd</p>
+            <list list-type="order">
+              <list-item>
+                <p>asd</p>
+              </list-item>
+              <list-item>
+                <p>asd</p>
+                <list list-type="bullet">
+                  <list-item>
+                    <p>asd</p>
+                  </list-item>
+                  <list-item>
+                    <p>asd</p>
+                  </list-item>
+                </list>
+              </list-item>
+            </list>
+          </list-item>
+          <list-item>
+            <p>asd</p>
+          </list-item>
+        </list>
+      </sec>
+    </sec>
+  </body>
+  <back id="back-1">
+    <fn-group id="fn-group-1">
+      <fn id="fn1">
+        <p id="p-10">Lorem ipsum dolor sit amet, ea ludus intellegat his, graece fastidii phaedrum ea mea, ne duo esse omnium. Ne mel quas quodsi. Ea pri semper nostrum necessitatibus. Mea salutatus gloriatur persecuti eu, augue oportere efficiendi at eum. Ex eam mutat falli dicit.</p>
+      </fn>
+      <fn id="fn2">
+        <p id="p-11">Phasellus ex nulla, interdum condimentum pretium ac, auctor et tellus. Maecenas eu est a neque vestibulum laoreet. Mauris libero nulla, pretium eu iaculis id, mollis ac erat. Suspendisse rutrum gravida malesuada</p>
+      </fn>
+    </fn-group>
+    <ref-list id="ref-list-1">
+      <ref id="r7">
+        <element-citation publication-type="journal">
+          <day>5</day>
+          <fpage>6436</fpage>
+          <lpage>6448</lpage>
+          <month>10</month>
+          <page-range>6436-6448</page-range>
+          <volume>29</volume>
+          <year>2009</year>
+          <pub-id pub-id-type="doi">10.1523/JNEUROSCI.5479-08.2009</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Baumann</surname>
+              <given-names>Markus A.</given-names>
+            </name>
+            <name>
+              <surname>Fluet</surname>
+              <given-names>Marie-Christine</given-names>
+            </name>
+            <name>
+              <surname>Scherberger</surname>
+              <given-names>Hansjörg</given-names>
+            </name>
+          </person-group>
+          <source>Journal of Neuroscience</source>
+          <article-title>Context-specific grasp movement representation in the macaque anterior intraparietal area</article-title>
+        </element-citation>
+      </ref>
+      <ref id="book1">
+        <element-citation publication-type="book">
+          <publisher-loc>Cambridge</publisher-loc>
+          <publisher-name>Cambridge University Press</publisher-name>
+          <year>2004</year>
+          <person-group person-group-type="editor">
+            <name>
+              <surname>Cardé</surname>
+              <given-names>RT</given-names>
+            </name>
+            <name>
+              <surname>Millar</surname>
+              <given-names>JG</given-names>
+            </name>
+          </person-group>
+          <source>Advances in insect chemical ecology</source>
+        </element-citation>
+      </ref>
+      <ref id="book2">
+        <element-citation publication-type="book">
+          <edition>2</edition>
+          <publisher-name>Wiley-Blackwell</publisher-name>
+          <year>2008</year>
+          <person-group person-group-type="editor">
+            <name>
+              <surname>Chmeil</surname>
+              <given-names>N</given-names>
+            </name>
+          </person-group>
+          <source>An Introduction to Work and Organizational Psychology: A European Perspective</source>
+        </element-citation>
+      </ref>
+      <ref id="book3">
+        <element-citation publication-type="book">
+          <publisher-loc>Sunderland, MA</publisher-loc>
+          <publisher-name>Sinauer Associates</publisher-name>
+          <year>1989</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Coyne</surname>
+              <given-names>JA</given-names>
+            </name>
+            <name>
+              <surname>Orr</surname>
+              <given-names>HA</given-names>
+            </name>
+          </person-group>
+          <person-group person-group-type="editor">
+            <name>
+              <surname>Otte</surname>
+              <given-names>D</given-names>
+            </name>
+            <name>
+              <surname>Endler</surname>
+              <given-names>JA</given-names>
+            </name>
+          </person-group>
+          <source>Speciation and its consequences</source>
+        </element-citation>
+      </ref>
+      <ref id="book4">
+        <element-citation publication-type="book">
+          <publisher-loc>Victoria</publisher-loc>
+          <publisher-name>Landlinks Press</publisher-name>
+          <year>2008</year>
+          <pub-id pub-id-type="isbn">9780643092570</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Horne</surname>
+              <given-names>P</given-names>
+            </name>
+            <name>
+              <surname>Page</surname>
+              <given-names>J</given-names>
+            </name>
+          </person-group>
+          <source>Integrated pest management for crops and pastures</source>
+        </element-citation>
+      </ref>
+      <ref id="book5">
+        <element-citation publication-type="book">
+          <publisher-name>Mcgraw-Hill Book Company</publisher-name>
+          <volume>3: Formulations of the Person and the Social Context</volume>
+          <year>1959</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Koch</surname>
+              <given-names>S</given-names>
+            </name>
+          </person-group>
+          <source>Psychology A Study Of A Science</source>
+        </element-citation>
+      </ref>
+      <ref id="chapter1">
+        <element-citation publication-type="chapter">
+          <fpage>21</fpage>
+          <lpage>75</lpage>
+          <publisher-loc>Cambridge</publisher-loc>
+          <publisher-name>Cambridge University Press</publisher-name>
+          <year>2004a</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Turlings</surname>
+              <given-names>TCJ</given-names>
+            </name>
+            <name>
+              <surname>Wäckers</surname>
+              <given-names>FL</given-names>
+            </name>
+          </person-group>
+          <person-group person-group-type="editor">
+            <name>
+              <surname>Cardé</surname>
+              <given-names>RT</given-names>
+            </name>
+            <name>
+              <surname>Millar</surname>
+              <given-names>JG</given-names>
+            </name>
+          </person-group>
+          <source>Advances in insect chemical ecology</source>
+          <chapter-title>Recruitment of predators and parasitoids by herbivore-injured plants</chapter-title>
+        </element-citation>
+      </ref>
+      <ref id="book7">
+        <element-citation publication-type="book">
+          <publisher-name>Cambridge University Press</publisher-name>
+          <year>2004b</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Turlings</surname>
+              <given-names>TCJ</given-names>
+            </name>
+            <name>
+              <surname>Wäckers</surname>
+              <given-names>FL</given-names>
+            </name>
+          </person-group>
+          <person-group person-group-type="editor">
+            <name>
+              <surname>Cardé</surname>
+              <given-names>RT</given-names>
+            </name>
+            <name>
+              <surname>Millar</surname>
+              <given-names>JG</given-names>
+            </name>
+          </person-group>
+          <source>Advances in insect chemical ecology</source>
+        </element-citation>
+      </ref>
+      <ref id="r2">
+        <element-citation publication-type="report">
+          <day>7</day>
+          <month>4</month>
+          <year>2018</year>
+          <pub-id pub-id-type="doi">https://arxiv.org/abs/1804.02385</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>de Grey</surname>
+              <given-names>Aubrey D. N. J.</given-names>
+            </name>
+          </person-group>
+        </element-citation>
+      </ref>
+      <ref id="r3">
+        <element-citation publication-type="report">
+          <day>5</day>
+          <month>10</month>
+          <year>2010</year>
+          <person-group person-group-type="sponsor">
+            <name>
+              <surname>Doe</surname>
+              <given-names>John</given-names>
+            </name>
+          </person-group>
+          <source>Pre-print journal</source>
+        </element-citation>
+      </ref>
+      <ref id="r4">
+        <element-citation publication-type="confproc">
+          <conf-name>2016 IEEE Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)</conf-name>
+          <conf-loc>Las Vegas, NV, USA</conf-loc>
+          <fpage>533</fpage>
+          <lpage>540</lpage>
+          <year>2016</year>
+          <pub-id pub-id-type="doi">10.1109/CVPRW.2016.73</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Prokopetc</surname>
+              <given-names>Kristina</given-names>
+            </name>
+            <name>
+              <surname>Bartoli</surname>
+              <given-names>Adrien</given-names>
+            </name>
+          </person-group>
+          <article-title>Reducing Drift in Mosaicing Slit-Lamp Retinal Images</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r5">
+        <element-citation publication-type="data">
+          <day>5</day>
+          <month>10</month>
+          <year>2010</year>
+          <pub-id pub-id-type="accession">ACCESSION_ID</pub-id>
+          <pub-id pub-id-type="ark">ARK_ID</pub-id>
+          <pub-id pub-id-type="archive">ARCHIVE_ID</pub-id>
+          <pub-id pub-id-type="doi">10.1523/JNEUROSCI.5479-08.2009</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Doe</surname>
+              <given-names>John</given-names>
+            </name>
+          </person-group>
+          <source>World Bank</source>
+        </element-citation>
+      </ref>
+      <ref id="r6">
+        <element-citation publication-type="newspaper">
+          <day>27</day>
+          <edition>International Edition</edition>
+          <month>4</month>
+          <page-range>21</page-range>
+          <part-title>Film</part-title>
+          <year>2018</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Rose</surname>
+              <given-names>Steve</given-names>
+            </name>
+          </person-group>
+          <source>The Guardian</source>
+          <article-title>What if superheroes aren’t really the good guys?</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r8">
+        <element-citation publication-type="patent">
+          <collab collab-type="assignee">Hospira, Inc.</collab>
+          <day>5</day>
+          <month>10</month>
+          <patent country="US">US 6,980,855</patent>
+          <year>2009</year>
+          <person-group person-group-type="inventor">
+            <name>
+              <surname>Doe</surname>
+              <given-names>John</given-names>
+            </name>
+          </person-group>
+          <source>United States patent</source>
+          <article-title>Patent title</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r9">
+        <element-citation publication-type="report">
+          <day>5</day>
+          <month>10</month>
+          <publisher-loc>Publisher location</publisher-loc>
+          <publisher-name>Publisher name</publisher-name>
+          <year>2009</year>
+          <pub-id pub-id-type="isbn">ISBN_NUMBER</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Doe</surname>
+              <given-names>John</given-names>
+            </name>
+          </person-group>
+        </element-citation>
+      </ref>
+      <ref id="r10">
+        <element-citation publication-type="software">
+          <day>19</day>
+          <month>3</month>
+          <publisher-name>Zenodo</publisher-name>
+          <version>2.0.1</version>
+          <year>2018</year>
+          <pub-id pub-id-type="doi">10.5281/zenodo.1203712</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Willner</surname>
+              <given-names>Sven</given-names>
+            </name>
+            <name>
+              <surname>Gieseke</surname>
+              <given-names>Robert</given-names>
+            </name>
+          </person-group>
+          <source>pyhector</source>
+        </element-citation>
+      </ref>
+      <ref id="r11">
+        <element-citation publication-type="thesis">
+          <day>5</day>
+          <month>10</month>
+          <publisher-loc>First software publisher location</publisher-loc>
+          <publisher-loc>Second software publisher location</publisher-loc>
+          <publisher-name>First software publisher name</publisher-name>
+          <publisher-name>Second software publisher name</publisher-name>
+          <year>2009</year>
+          <pub-id pub-id-type="doi">THESIS_DOI</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Doe</surname>
+              <given-names>John</given-names>
+            </name>
+          </person-group>
+          <article-title>Thesis title</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r12">
+        <element-citation publication-type="webpage">
+          <day>5</day>
+          <month>10</month>
+          <publisher-loc>Website publisher location?</publisher-loc>
+          <uri>http://example.com/example-page.html</uri>
+          <year>2009</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Doe</surname>
+              <given-names>John</given-names>
+            </name>
+          </person-group>
+          <article-title>Webpage title</article-title>
+        </element-citation>
+      </ref>
+    </ref-list>
+  </back>
+</article>
