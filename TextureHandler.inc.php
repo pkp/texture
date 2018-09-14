@@ -57,7 +57,7 @@ class TextureHandler extends Handler {
 		}
 		
 		$fileId = $submissionFile->getFileId();
-		$editorTemplateFile = $this->_plugin->getTemplateResource('editor.tpl');
+		$editorTemplateFile = method_exists($this->_plugin, 'getTemplateResource')?$this->_plugin->getTemplateResource('editor.tpl'):($this->_plugin->getTemplateResourceName() . ':templates/editor.tpl');
 		$router = $request->getRouter();
 		$documentUrl = $router->url($request, null, 'texture', 'json', null, 
 			array(
