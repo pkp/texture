@@ -46,6 +46,8 @@ class TexturePlugin extends GenericPlugin {
 				// Register callbacks.
 				HookRegistry::register('LoadHandler', array($this, 'callbackLoadHandler'));
 				HookRegistry::register('TemplateManager::fetch', array($this, 'templateFetchCallback'));
+
+				$this->_registerTemplateResource();
 			}
 			return true;
 		}
