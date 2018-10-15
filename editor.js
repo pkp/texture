@@ -35,8 +35,8 @@
 		
 		_init() {
 			let storageUrl = document.querySelector('meta[name=jobId').getAttribute('content');
-			let storage = new substance.HttpStorageClient(storageUrl);
-			let buffer = new substance.InMemoryDarBuffer();
+			let storage = new texture.HttpStorageClient(storageUrl);
+			let buffer = new texture.InMemoryDarBuffer();
 			let archive = new substanceTexture.TextureArchive(storage, buffer);
 			window.archive = archive
 			window.buffer = buffer
