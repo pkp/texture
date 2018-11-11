@@ -23,10 +23,7 @@
 
 		{* Texture plugin additions *}
 		<link href="{$texturePluginUrl|escape}/editor.css" rel="stylesheet" type="text/css"/>
-	</head>
-	<body>
 
-		<div id="editor"></div>
 
 		{* Texture dependencies (see index.html in Texture distribution) *}
 		<script type="text/javascript" src="{$textureUrl|escape}/substance/dist/substance.js"></script>
@@ -35,8 +32,15 @@
 		<script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script>
 
 
+
+
+		<script type="text/javascript" src="{$baseUrl|escape}/lib/pkp/lib/components/jquery/jquery.min.js"></script>
+
 		{* Texture plugin additions *}
 		<script type="text/javascript" src="{$texturePluginUrl|escape}/editor.js"></script>
+		<script type="text/javascript" src="{$texturePluginUrl|escape}/app.js"></script>
 
+	</head>
+	<body>
 	</body>
 </html>
