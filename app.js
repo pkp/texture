@@ -3,14 +3,16 @@ Custom functions and hooks to texture editor
  */
 
 
-// adds  custom Event Lister to Save Button
 
 function saveButtonEventListner () {
+
 	let saveButton = $('div.sm-save');
+
 	if (saveButton !== undefined) {
 		saveButton[0].addEventListener('click', function (event) {
 			event.preventDefault();
 			saveToPKPDocumnetStore();
+
 
 		}, true);
 	}
@@ -24,11 +26,31 @@ function saveButtonEventListner () {
 
 
 function saveToPKPDocumnetStore () {
-	let sessions = app.state.archive._sessions;
-	let manuscript = sessions.manuscript;
-	let archive = new texture.TextureArchive();
-	let document = archive._exportDocument('article', manuscript, sessions);
 
+    let archive = app.state.archive;
+    let buffer = archive.buffer;
+    let config = null;
+    let context = null;
+    let resources = archive._upstreamArchive.resources;
+    let sessions = archive._sessions;
+    let storage = archive.storage;
+
+    let textureArchive = new texture.TextureArchive(storage, buffer, context, config);
+    textureArchive._sessions  = sessions;
+    textureArchive._archiveId  = archive.archiveId;
+    textureArchive._upstreamArchive  = archive._upstreamArchive;
+
+    let doc = textureArchive._exportChanges(sessions, buffer);
+    resources["manuscript.xml"]["data"] = doc.resources["manuscript.xml"].data;
+
+   	let rawArchive = {
+        version: buffer.getVersion(),
+        diff: buffer.getChanges(),
+        resources: resources
+    };
+
+
+	console.log("raw",rawArchive);
 
 }
 
