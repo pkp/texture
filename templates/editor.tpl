@@ -31,14 +31,9 @@
 		<script type="text/javascript" src="{$textureUrl|escape}/texture.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script>
 
-
-
-
-		<script type="text/javascript" src="{$baseUrl|escape}/lib/pkp/lib/components/jquery/jquery.min.js"></script>
-
 		{* Texture plugin additions *}
 		<script type="text/javascript" src="{$texturePluginUrl|escape}/editor.js"></script>
-		<script type="text/javascript" src="{$texturePluginUrl|escape}/app.js"></script>
+
 
 	</head>
 	<body>
