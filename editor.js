@@ -16,10 +16,28 @@
             let app = OJSTextureEditor.mount(props, window.document.body);
             setTimeout(() => {
                 window.app = app;
-              }, 500);
+            }, 500);
         });
     });
 
+    class OJSTextureStorage extends substanceTexture.HttpStorageClient {
+        write(archiveId, data, cb) {
+            let url = this.apiUrl;
+            if (archiveId) {
+                url = url + '/' + archiveId;
+            }
+            return substance.sendRequest({
+                method: 'PUT',
+                url,
+                data: data
+            }).then(response => {
+                cb(null, response);
+            }).catch(err => {
+                cb(err);
+            })
+        }
+
+    }
 
     class OJSTextureEditor extends substanceTexture.TextureWebApp {
         save() {
@@ -32,10 +50,7 @@
 
         _getStorage(storageType) {
             let storage = super._getStorage(storageType);
-            if (storageType === 'vfs') {
-                substanceTexture.vfsSaveHook(storage, substanceTexture.TextureArchive);
-            }
-            return storage
+            return new OJSTextureStorage(this.props.storageUrl);
         }
 
         _getArticleConfig() {
