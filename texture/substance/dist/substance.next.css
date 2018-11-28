@@ -91,95 +91,63 @@
   /* RGB #A3CDFD = HSB 209,29,80 */
   --local-selection-color: #2A8CFF;
 }
+.sc-inline-node {
+  cursor: default;
+  /* webkit disables selection for draggable elements */
+  -webkit-user-select: text;
+  position: relative;
+}
+.sc-isolated-node {
+  position: relative;
+}
+.sc-isolated-node.sm-default-style.sm-selected,
+.sc-isolated-node.sm-default-style.sm-co-selected {
+  /*background: rgba(163,205,253, 0.6);*/
+  outline: 2px solid;
+  outline-color: var(--local-selection-color);
+}
+.sc-isolated-node.sm-default-style.sm-focused,
+.sc-isolated-node.sm-default-style.sm-co-focused {
+  outline: 2px solid;
+  outline-color: var(--local-selection-color);
+}
+/* Hide selection fragments when in selected-state */
+.sc-isolated-node.sm-selected ::selection {
+  background: transparent;
+}
+.sc-isolated-node.sm-selected {
+  outline: 2px solid;
+  outline-color: var(--local-selection-color);
+}
+.sc-isolated-node-blocker {
+  position: absolute;
+  top: 0px; bottom: 0px; left: 0px; right: 0px;
+  cursor: default;
+}
+.sc-isolated-node.sm-no-blocker .sc-isolated-node-blocker {
+  display: none;
+}
+.sc-isolated-node > .se-bracket {
+  height: 1px;
+  width: 1px;
+  opacity: 0;
+}
+.sc-isolated-node.sm-no-blocker > .se-bracket {
+  visibility: hidden;
+}
+.sc-isolated-node.sm-no-blocker.sm-selected > .se-bracket,
+.sc-isolated-node.sm-no-blocker.sm-co-selected > .se-bracket {
+  /*
+    ATTENTION: we must not have brackets hidden
+     when rendering a node selection, otherwise Chrome's DOM selection
+     'leaks' into the previous/next line
+  */
+  visibility: visible;
+}
 .sc-text-block.sm-align-center {
   text-align: center;
 }
 .sc-text-block.sm-align-right {
-  text-align: right;
-}
-.sc-tool-dropdown {
-  position: relative;
-}
-.sc-tool-dropdown > .se-choices {
-  position: absolute;
-  top: 30px;
-  left: -3px;
-}
-/* Position tooltip */
-.sc-tool-dropdown > .sc-tooltip {
-  display: none;
-  position: absolute;
-  top: 35px;
-  left: 50%;
-  transform: translate(-50%);
-}
-.sc-tool-dropdown:hover > .sc-tooltip {
-  display: block;
-}
-.sc-toggle-tool {
-  position: relative;
-}
-/* Position tooltip */
-.sc-toggle-tool > .sc-tooltip {
-  display: none;
-  position: absolute;
-  top: 35px;
-  left: 50%;
-  transform: translate(-50%);
-}
-.sc-toggle-tool:hover > .sc-tooltip {
-  display: block;
-}
-.sc-tool-group {
-  /* Styled by embedding context: See: _overlay.css, _toolbar.css */
-}
-.sc-menu {
-  background: #fff;
-  box-shadow: var(--default-box-shadow);
-  padding: 3px;
-  border-radius: 3px;
-}
-.sc-menu-item {
-  display: flex;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  background: none;
-  border: none;
-  text-align: left;
-  line-height: 24px;
-  font-size: 11px;
-  font-weight: 600;
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 0px 5px;
-}
-.sc-menu-item:hover {
-  background: #F7F7F9;
-}
-.sc-menu-item[disabled=true] {
-  opacity: 0.3;
-}
-.sc-menu-item.sm-active {
-  background: #eee;
-  color: inherit;
-}
-.sc-menu-item.sm-active .se-keyboard-shortcut {
-  color: rgba(0,0,0,0.4);
-}
-.sc-menu-item .se-icon {
-  flex: 0 0 0;
-  padding-right: 7px;
-}
-.sc-menu-item .se-label {
-  flex: 0 0 0;
-}
-.sc-menu-item .se-keyboard-shortcut {
-  flex: 100 0 0;
-  font-weight: normal;
-  font-size: 10px;
-  padding-left: 20px;
-  color: rgba(255,255,255,0.4);
   text-align: right;
 }
 .sc-tooltip {
@@ -190,28 +158,6 @@
   font-size: 12px;
   white-space: nowrap;
   box-shadow: 0 1px 2px rgba(0,0,0,0.5)
-}
-.sc-toolbar > .se-active-tools {
-  display: flex;
-  /*flex-wrap: nowrap;*/
-  padding: 2px;
-}
-.sc-toolbar > .se-active-tools .sc-tool-group {
-  flex: 0 0 0;
-  display: flex;
-}
-.sc-toolbar > .se-active-tools .sc-tool-group .sc-button {
-  flex: 0 0 0;
-  margin: 2px;
-}
-.sc-toolbar > .se-active-tools .sc-tool-dropdown .sc-button {
-  margin: 2px;
-}
-.sc-toolbar .sc-tool-group {
-  display: inline-block;
-}
-.sc-toolbar .sc-tool-group .sc-button {
-  margin: 0px 1px;
 }
 /* blockquote */
 .sc-blockquote {
@@ -448,61 +394,6 @@
 .sc-match {
   background: rgba(42, 140, 255, 0.3)
 }
-/* grid */
-/* See: http://www.sitepoint.com/understanding-css-grid-systems */
-.sc-grid {}
-/* Make sure we use the border box model */
-.sc-grid > .se-row,
-.sc-grid > .se-cell { box-sizing: border-box; }
-.sc-grid > .se-row:before,
-.sc-grid > .se-row:after { content: " "; display: table; }
-.sc-grid > .se-row:after { clear: both; }
-/* Row styles */
-.sc-grid > .se-row { /* overflow: hidden; clear floats */ }
-.sc-grid > .se-row > .se-cell { position: relative; position: relative; }
-/*
-  scw = single column width
-  m = margin (1.6%)
-  mc = maximum columns (12)
-  cw = column width for a particular column (1-12)
-  scw = (100 – (m * (mc – 1))) / mc
-  cw = (scw * cs) + (m * (cs – 1))
-*/
-.sc-grid > .se-row > .se-cell.sm-column-1  { float:left; width: 6.86666666667%; }
-.sc-grid > .se-row > .se-cell.sm-column-2  { float:left; width: 15.3333333333%; }
-.sc-grid > .se-row > .se-cell.sm-column-3  { float:left; width: 23.8%; }
-.sc-grid > .se-row > .se-cell.sm-column-4  { float:left; width: 32.2666666667%; }
-.sc-grid > .se-row > .se-cell.sm-column-5  { float:left; width: 40.7333333333%; }
-.sc-grid > .se-row > .se-cell.sm-column-6  { float:left; width: 49.2%; }
-.sc-grid > .se-row > .se-cell.sm-column-7  { float:left; width: 57.6666666667%; }
-.sc-grid > .se-row > .se-cell.sm-column-8  { float:left; width: 66.1333333333%; }
-.sc-grid > .se-row > .se-cell.sm-column-9  { float:left; width: 74.6%; }
-.sc-grid > .se-row > .se-cell.sm-column-10 { float:left; width: 83.0666666667%; }
-.sc-grid > .se-row > .se-cell.sm-column-11 { float:left; width: 91.5333333333%; }
-.sc-grid > .se-row > .se-cell.sm-column-12 { width:100%; display:block; }
-.sc-grid > .se-row > .se-cell + .se-cell { margin-left: 1.6%; }
-/* Override for mobile */
-.sc-grid.sm-mobile {}
-.sc-grid.sm-mobile > .se-row {}
-.sc-grid.sm-mobile > .se-row > .se-cell + .se-cell { margin-left: 0; }
-.sc-grid.sm-mobile > .se-row > .se-cell { float: none; width: auto; }
-/* gutter */
-.sc-gutter { z-index: 200; position: absolute; }
-.sc-gutter.sm-hidden { visibility: hidden; position: fixed; }
-.sc-gutter.sm-theme-dark::before {
-  content: '';
-  display: block;
-  margin: 0 auto;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 4px 8px 4px;
-  border-color: transparent transparent #2E2E2C transparent;
-}
-.sc-gutter.sm-theme-dark > .se-active-tools {
-  background: #2E2E2C;
-  padding: 5px;
-}
 /* heading */
 .sc-heading {
   font-weight: var(--strong-font-weight);
@@ -552,98 +443,6 @@
 .sc-insert-image-tool > input {
   display: none;
 }
-/* inline-node */
-.sc-inline-node {
-  cursor: default;
-  /* webkit disables selection for draggable elements */
-  -webkit-user-select: text;
-  position: relative;
-}
-/* inline-wrapper */
-.sc-inline-wrapper { display: block; margin-top: 10px; }
-.sc-inline-wrapper > .se-container { display: block; }
-.sc-inline-wrapper.sm-default-style.sm-selected > .se-container,
-.sc-inline-wrapper.sm-default-style.sm-co-selected > .se-container {
-  background: rgba(163,205,253, 0.6);
-  outline: 2px solid;
-  outline-color: var(--local-selection-color);
-}
-.sc-inline-wrapper.sm-default-style.sm-focused > .se-container,
-.sc-inline-wrapper.sm-default-style.sm-co-focused > .se-container {
-  outline: 2px solid;
-  outline-color: var(--local-selection-color);
-}
-/* isolated-node */
-.sc-isolated-node {
-  position: relative;
-}
-.sc-isolated-node.sm-default-style.sm-selected,
-.sc-isolated-node.sm-default-style.sm-co-selected {
-  /*background: rgba(163,205,253, 0.6);*/
-  outline: 2px solid;
-  outline-color: var(--local-selection-color);
-}
-.sc-isolated-node.sm-default-style.sm-focused,
-.sc-isolated-node.sm-default-style.sm-co-focused {
-  outline: 2px solid;
-  outline-color: var(--local-selection-color);
-}
-/* Hide selection fragments when in selected-state */
-.sc-isolated-node.sm-selected ::selection {
-  background: transparent;
-}
-.sc-isolated-node.sm-selected {
-  outline: 2px solid;
-  outline-color: var(--local-selection-color);
-}
-.sc-isolated-node-blocker {
-  position: absolute;
-  top: 0px; bottom: 0px; left: 0px; right: 0px;
-  cursor: default;
-}
-.sc-isolated-node.sm-no-blocker .sc-isolated-node-blocker {
-  display: none;
-}
-.sc-isolated-node > .se-bracket {
-  height: 1px;
-  width: 1px;
-  opacity: 0;
-}
-.sc-isolated-node.sm-no-blocker > .se-bracket {
-  visibility: hidden;
-}
-.sc-isolated-node.sm-no-blocker.sm-selected > .se-bracket,
-.sc-isolated-node.sm-no-blocker.sm-co-selected > .se-bracket {
-  /*
-    ATTENTION: we must not have brackets hidden
-     when rendering a node selection, otherwise Chrome's DOM selection
-     'leaks' into the previous/next line
-  */
-  visibility: visible;
-}
-/* layout */
-.sc-layout {
-  width: 100%; /* by default takes the full width */
-  padding: 40px;
-}
-.sc-layout.sm-no-padding { padding: 0; }
-.sc-layout.sm-text-align-center { text-align: center; }
-.sc-layout.sm-text-align-right { text-align: right;}
-.sc-layout.sm-width-small { max-width: var(--small-layout-width); margin: 0px auto; }
-.sc-layout.sm-width-medium { max-width: var(--medium-layout-width); margin: 0px auto; }
-.sc-layout.sm-width-large { max-width: var(--large-layout-width); margin: 0px auto; }
-/*
-  When used inside layouts paragraphs and headings get some
-  padding by default.
-
-  TODO: maybe this should be activated explicitly through a
-  Prose component that turns on the text paddings.
-*/
-.sc-layout > p { margin-bottom: var(--default-padding); }
-.sc-layout > h1,
-.sc-layout > h2,
-.sc-layout > h3,
-.sc-layout > h4 { margin-bottom: var(--default-padding); }
 /* link */
 .sc-link {
   color: #2079DC;
@@ -927,6 +726,113 @@ Don't grow, don't shrink, use width or height for size determination */
 }
 .sc-text-align-tool {
   border-left: 1px solid rgba(0,0,0,0.3);
+}
+.sc-tool-dropdown {
+  position: relative;
+}
+.sc-tool-dropdown > .se-choices {
+  position: absolute;
+  top: 30px;
+  left: -3px;
+}
+/* Position tooltip */
+.sc-tool-dropdown > .sc-tooltip {
+  display: none;
+  position: absolute;
+  top: 35px;
+  left: 50%;
+  transform: translate(-50%);
+}
+.sc-tool-dropdown:hover > .sc-tooltip {
+  display: block;
+}
+.sc-toggle-tool {
+  position: relative;
+}
+/* Position tooltip */
+.sc-toggle-tool > .sc-tooltip {
+  display: none;
+  position: absolute;
+  top: 35px;
+  left: 50%;
+  transform: translate(-50%);
+}
+.sc-toggle-tool:hover > .sc-tooltip {
+  display: block;
+}
+.sc-tool-group {
+  /* Styled by embedding context: See: _overlay.css, _toolbar.css */
+}
+.sc-menu {
+  background: #fff;
+  box-shadow: var(--default-box-shadow);
+  padding: 3px;
+  border-radius: 3px;
+}
+.sc-menu-item {
+  display: flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  text-align: left;
+  line-height: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0px 5px;
+}
+.sc-menu-item:hover {
+  background: #F7F7F9;
+}
+.sc-menu-item[disabled=true] {
+  opacity: 0.3;
+}
+.sc-menu-item.sm-active {
+  background: #eee;
+  color: inherit;
+}
+.sc-menu-item.sm-active .se-keyboard-shortcut {
+  color: rgba(0,0,0,0.4);
+}
+.sc-menu-item .se-icon {
+  flex: 0 0 0;
+  padding-right: 7px;
+}
+.sc-menu-item .se-label {
+  flex: 0 0 0;
+}
+.sc-menu-item .se-keyboard-shortcut {
+  flex: 100 0 0;
+  font-weight: normal;
+  font-size: 10px;
+  padding-left: 20px;
+  color: rgba(255,255,255,0.4);
+  text-align: right;
+}
+.sc-toolbar > .se-active-tools {
+  display: flex;
+  /*flex-wrap: nowrap;*/
+  padding: 2px;
+}
+.sc-toolbar > .se-active-tools .sc-tool-group {
+  flex: 0 0 0;
+  display: flex;
+}
+.sc-toolbar > .se-active-tools .sc-tool-group .sc-button {
+  flex: 0 0 0;
+  margin: 2px;
+}
+.sc-toolbar > .se-active-tools .sc-tool-dropdown .sc-button {
+  margin: 2px;
+}
+.sc-toolbar .sc-tool-group {
+  display: inline-block;
+}
+.sc-toolbar .sc-tool-group .sc-button {
+  margin: 0px 1px;
 }
 
 /*# sourceMappingURL=substance.next.css.map */

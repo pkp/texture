@@ -18,7 +18,7 @@ import('classes.handler.Handler');
 class TextureHandler extends Handler {
 	/** @var MarkupPlugin The Texture plugin */
 	protected $_plugin;
-	
+
 	/**
 	 * Constructor
 	 */
@@ -29,7 +29,7 @@ class TextureHandler extends Handler {
 			array(ROLE_ID_MANAGER, ROLE_ID_SUB_EDITOR, ROLE_ID_ASSISTANT, ROLE_ID_REVIEWER, ROLE_ID_AUTHOR),
 			array('editor', 'json', 'media')
 		);
-	}	
+	}
 
 	/**
 	 * @copydoc PKPHandler::authorize()
@@ -39,34 +39,34 @@ class TextureHandler extends Handler {
 		$this->addPolicy(new SubmissionFileAccessPolicy($request, $args, $roleAssignments, SUBMISSION_FILE_ACCESS_READ));
 		return parent::authorize($request, $args, $roleAssignments);
 	}
-	
+
 	/**
 	 * Display substance editor
-	 * 
+	 *
 	 * @param $args array
 	 * @param $request PKPRequest
-	 * 
+	 *
 	 * @return string
 	 */
 	public function editor($args, $request) {
 		$stageId = (int) $request->getUserVar('stageId');
-		
+
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
 		if (!$submissionFile) {
 			fatalError('Invalid request');
 		}
-		
+
 		$fileId = $submissionFile->getFileId();
 		$editorTemplateFile = method_exists($this->_plugin, 'getTemplateResource')?$this->_plugin->getTemplateResource('editor.tpl'):($this->_plugin->getTemplateResourceName() . ':templates/editor.tpl');
 		$router = $request->getRouter();
-		$documentUrl = $router->url($request, null, 'texture', 'json', null, 
+		$documentUrl = $router->url($request, null, 'texture', 'json', null,
 			array(
-				'submissionId' => $submissionFile->getSubmissionId(), 
+				'submissionId' => $submissionFile->getSubmissionId(),
 				'fileId' => $fileId,
 				'stageId' => $stageId,
 			)
 		);
-		
+
 		AppLocale::requireComponents(LOCALE_COMPONENT_APP_COMMON,  LOCALE_COMPONENT_PKP_MANAGER);
 		$templateMgr = TemplateManager::getManager($request);
 		$templateMgr->assign(array(
@@ -76,13 +76,13 @@ class TextureHandler extends Handler {
 		));
 		return $templateMgr->fetch($editorTemplateFile);
 	}
-	
+
 	/**
-	 * fetch json archive 
-	 * 
+	 * fetch json archive
+	 *
 	 * @param $args array
 	 * @param $request PKPRequest
-	 * 
+	 *
 	 * @return string
 	 */
 	public function json($args, $request) {
@@ -92,21 +92,22 @@ class TextureHandler extends Handler {
 		if (!$submissionFile) {
 			fatalError('Invalid request');
 		}
-		
+
 		$fileId = $submissionFile->getFileId();
 		$stageId = (int) $request->getUserVar('stageId');
-		
+
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		if (empty($submissionFile)) {
 			echo __('plugins.generic.texture.archive.noArticle'); // TODO custom message
 			exit;
 		}
-		
+
 		$filePath = $submissionFile->getFilePath();
-		$postData = $this->_parseRawHttpRequest();
+		//$postData = $this->_parseRawHttpRequest();
+		$postData = file_get_contents('php://input');
 		if (!empty($postData)) {
-			$archive = json_decode($postData['_archive']);
-			$resources = (array) $archive->resources;
+			//$archive = json_decode($postData['_archive']);
+			$resources = (array)json_decode($postData)->resources;
 			if (isset($resources['manuscript.xml']) && is_object($resources['manuscript.xml'])) {
 				$manuscriptXml = $resources['manuscript.xml']->data;
 				// save xml to temp file
@@ -118,7 +119,7 @@ class TextureHandler extends Handler {
 				$submission = $submissionDao->getById($submissionId);
 				$genreId = $submissionFile->getGenreId();
 				$fileSize = filesize($tmpfname);
-				
+
 				$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 				$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
 				$newSubmissionFile->setSubmissionId($submission->getId());
@@ -136,8 +137,8 @@ class TextureHandler extends Handler {
 				$newSubmissionFile->setFileId($submissionFile->getFileId());
 				$newSubmissionFile->setRevision($submissionFile->getRevision()+1);
 				$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
-				
-				
+
+
 				return new JSONMessage(true, array(
 					'submissionId' => $insertedSubmissionFile->getSubmissionId(),
 					'fileId' => $insertedSubmissionFile->getFileIdAndRevision(),
@@ -215,7 +216,7 @@ class TextureHandler extends Handler {
 
 	/**
 	 * Build media info
-	 * 
+	 *
 	 * @param $request PKPRquest
 	 * @param $assets array
 	 * @return array
@@ -339,9 +340,9 @@ class TextureHandler extends Handler {
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
 		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
-			ASSOC_TYPE_SUBMISSION_FILE, 
-			$submissionFile->getFileId(), 
-			$submissionFile->getSubmissionId(), 
+			ASSOC_TYPE_SUBMISSION_FILE,
+			$submissionFile->getFileId(),
+			$submissionFile->getSubmissionId(),
 			SUBMISSION_FILE_DEPENDENT
 		);
 
