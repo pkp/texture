@@ -102,14 +102,14 @@ class TextureHandler extends Handler {
 			exit;
 		}
 
-        $filePath = $submissionFile->getFilePath();
-        //$postData = $this->_parseRawHttpRequest();
-        $postData = file_get_contents('php://input');
-        if (!empty($postData)) {
-            //$archive = json_decode($postData['_archive']);
-            $resources = (array)json_decode($postData)->resources;
-            if (isset($resources['manuscript.xml']) && is_object($resources['manuscript.xml'])) {
-                $manuscriptXml = $resources['manuscript.xml']->data;
+		$filePath = $submissionFile->getFilePath();
+		//$postData = $this->_parseRawHttpRequest();
+		$postData = file_get_contents('php://input');
+		if (!empty($postData)) {
+			//$archive = json_decode($postData['_archive']);
+			$resources = (array)json_decode($postData)->resources;
+			if (isset($resources['manuscript.xml']) && is_object($resources['manuscript.xml'])) {
+				$manuscriptXml = $resources['manuscript.xml']->data;
 				// save xml to temp file
 				$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 				file_put_contents($tmpfname, $manuscriptXml);
