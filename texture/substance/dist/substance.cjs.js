@@ -638,11 +638,25 @@ function map (iteratee, func) {
   if (!func) func = function (item) { return item };
   if (Array.isArray(iteratee)) {
     return iteratee.map(func)
-  } else {
-    return Object.keys(iteratee).map(function (key) {
-      return func(iteratee[key], key)
-    })
   }
+  if (iteratee instanceof Map) {
+    let result = [];
+    for (let [name, val] of iteratee) {
+      result.push(func(val, name));
+    }
+    return result
+  }
+  if (iteratee instanceof Set) {
+    let result = [];
+    let idx = 0;
+    iteratee.forEach(item => {
+      result.push(func(item, idx++));
+    });
+    return result
+  }
+  return Object.keys(iteratee).map(function (key) {
+    return func(iteratee[key], key)
+  })
 }
 
 function isPlainObject (o) {
@@ -679,7 +693,11 @@ const platform = {
 
   isFF: false,
 
+  isOpera: false,
+
   isWebkit: false,
+
+  isChromium: false,
 
   
   version: -1,
@@ -703,9 +721,12 @@ function detect () {
 
     
     const ua = window.navigator.userAgent;
+    const vn = window.navigator.vendor;
     const msie = ua.indexOf('MSIE ');
     const trident = ua.indexOf('Trident/');
     const edge = ua.indexOf('Edge/');
+    const opera = window.opr;
+    const chrome = window.chrome;
 
     if (msie > 0) {
       
@@ -735,6 +756,12 @@ function detect () {
 
     
     platform.isWebkit = !platform.isFF && !platform.isIE;
+
+    
+    platform.isOpera = typeof opera !== 'undefined';
+
+    
+    platform.isChromium = !!chrome && vn === 'Google Inc.' && !platform.isOpera && !platform.isEdge;
   } else {
     platform.inBrowser = false;
   }
@@ -3835,10 +3862,38 @@ class TextOperation {
   toString () {
     return ['(', (this.isInsert() ? INSERT : DELETE), ',', this.pos, ",'", this.str, "')"].join('')
   }
-}
 
-TextOperation.prototype._isOperation = true;
-TextOperation.prototype._isTextOperation = true;
+  
+  get _isOperation () { return true }
+  get _isTextOperation () { return true }
+
+  static transform (a, b, options) {
+    return transform(a, b, options)
+  }
+
+  static hasConflict (a, b) {
+    return _hasConflict(a, b)
+  }
+
+  
+
+  static Insert (pos, str) {
+    return new TextOperation({ type: INSERT, pos: pos, str: str })
+  }
+
+  static Delete (pos, str) {
+    return new TextOperation({ type: DELETE, pos: pos, str: str })
+  }
+
+  static fromJSON (data) {
+    return new TextOperation(data)
+  }
+
+  
+  
+  static get INSERT () { return INSERT }
+  static get DELETE () { return DELETE }
+}
 
 function _hasConflict (a, b) {
   
@@ -3946,27 +4001,6 @@ function transform (a, b, options) {
   return [a, b]
 }
 
-TextOperation.transform = function () {
-  return transform.apply(null, arguments)
-};
-
-
-
-TextOperation.Insert = function (pos, str) {
-  return new TextOperation({ type: INSERT, pos: pos, str: str })
-};
-
-TextOperation.Delete = function (pos, str) {
-  return new TextOperation({ type: DELETE, pos: pos, str: str })
-};
-
-TextOperation.INSERT = INSERT;
-TextOperation.DELETE = DELETE;
-
-TextOperation.fromJSON = function (data) {
-  return new TextOperation(data)
-};
-
 const NOP = 'NOP';
 const DELETE$1 = 'delete';
 const INSERT$1 = 'insert';
@@ -4068,10 +4102,45 @@ class ArrayOperation {
   toString () {
     return ['(', (this.isInsert() ? INSERT$1 : DELETE$1), ',', this.getOffset(), ",'", this.getValue(), "')"].join('')
   }
-}
 
-ArrayOperation.prototype._isOperation = true;
-ArrayOperation.prototype._isArrayOperation = true;
+  
+
+  get _isOperation () { return true }
+
+  get _isArrayOperation () { return true }
+
+  static transform (a, b, options) {
+    return transform$1(a, b, options)
+  }
+
+  static hasConflict (a, b) {
+    return hasConflict(a, b)
+  }
+
+  
+  static Insert (pos, val) {
+    return new ArrayOperation({type: INSERT$1, pos: pos, val: val})
+  }
+
+  static Delete (pos, val) {
+    return new ArrayOperation({ type: DELETE$1, pos: pos, val: val })
+  }
+
+  static Nop () {
+    return new ArrayOperation({type: NOP})
+  }
+
+  static fromJSON (data) {
+    return new ArrayOperation(data)
+  }
+
+  
+  static get NOP () { return NOP }
+
+  static get DELETE () { return DELETE$1 }
+
+  static get INSERT () { return INSERT$1 }
+}
 
 function hasConflict (a, b) {
   if (a.type === NOP || b.type === NOP) return false
@@ -4143,27 +4212,6 @@ var transform$1 = function (a, b, options) {
   }
   return [a, b]
 };
-
-ArrayOperation.transform = transform$1;
-ArrayOperation.hasConflict = hasConflict;
-
-
-
-ArrayOperation.Insert = function (pos, val) {
-  return new ArrayOperation({type: INSERT$1, pos: pos, val: val})
-};
-
-ArrayOperation.Delete = function (pos, val) {
-  return new ArrayOperation({ type: DELETE$1, pos: pos, val: val })
-};
-
-ArrayOperation.fromJSON = function (data) {
-  return new ArrayOperation(data)
-};
-
-ArrayOperation.NOP = NOP;
-ArrayOperation.DELETE = DELETE$1;
-ArrayOperation.INSERT = INSERT$1;
 
 const SHIFT = 'shift';
 
@@ -4237,10 +4285,29 @@ class CoordinateOperation {
   toString () {
     return ['(', (this.type), ',', this.val, "')"].join('')
   }
-}
 
-CoordinateOperation.prototype._isOperation = true;
-CoordinateOperation.prototype._isCoordinateOperation = true;
+  
+  get _isOperation () { return true }
+
+  get _isCoordinateOperation () { return true }
+
+  static transform (a, b, options) {
+    return transform$2(a, b, options)
+  }
+
+  static fromJSON (data) {
+    return new CoordinateOperation(data)
+  }
+
+  static Shift (val) {
+    return new CoordinateOperation({
+      type: SHIFT,
+      val: val
+    })
+  }
+
+  static get SHIFT () { return SHIFT }
+}
 
 function transformShiftShift (a, b) {
   a.val += b.val;
@@ -4261,21 +4328,6 @@ function transform$2 (a, b, options) {
   }
   return [a, b]
 }
-
-CoordinateOperation.transform = function (...args) {
-  return transform$2(...args)
-};
-
-CoordinateOperation.fromJSON = function (json) {
-  return new CoordinateOperation(json)
-};
-
-CoordinateOperation.Shift = function (val) {
-  return new CoordinateOperation({
-    type: SHIFT,
-    val: val
-  })
-};
 
 const NOP$1 = 'NOP';
 const CREATE = 'create';
@@ -4512,10 +4564,87 @@ class ObjectOperation {
         throw new Error('Invalid type')
     }
   }
-}
 
-ObjectOperation.prototype._isOperation = true;
-ObjectOperation.prototype._isObjectOperation = true;
+  static transform (a, b, options) {
+    return transform$3(a, b, options)
+  }
+
+  static hasConflict (a, b) {
+    return hasConflict$1(a, b)
+  }
+
+  
+
+  static Create (idOrPath, val) {
+    var path;
+    if (isString(idOrPath)) {
+      path = [idOrPath];
+    } else {
+      path = idOrPath;
+    }
+    return new ObjectOperation({type: CREATE, path: path, val: val})
+  }
+
+  static Delete (idOrPath, val) {
+    var path;
+    if (isString(idOrPath)) {
+      path = [idOrPath];
+    } else {
+      path = idOrPath;
+    }
+    return new ObjectOperation({type: DELETE$2, path: path, val: val})
+  }
+
+  static Update (path, op) {
+    return new ObjectOperation({
+      type: UPDATE,
+      path: path,
+      diff: op
+    })
+  }
+
+  static Set (path, oldVal, newVal) {
+    return new ObjectOperation({
+      type: SET,
+      path: path,
+      val: cloneDeep(newVal),
+      original: cloneDeep(oldVal)
+    })
+  }
+
+  static fromJSON (data) {
+    data = cloneDeep(data);
+    if (data.type === 'update') {
+      switch (data.propertyType) {
+        case 'string':
+          data.diff = TextOperation.fromJSON(data.diff);
+          break
+        case 'array':
+          data.diff = ArrayOperation.fromJSON(data.diff);
+          break
+        case 'coordinate':
+          data.diff = CoordinateOperation.fromJSON(data.diff);
+          break
+        default:
+          throw new Error('Unsupported update diff:' + JSON.stringify(data.diff))
+      }
+    }
+    let op = new ObjectOperation(data);
+    return op
+  }
+
+  
+  
+  static get NOP () { return NOP$1 }
+  static get CREATE () { return CREATE }
+  static get DELETE () { return DELETE$2 }
+  static get UPDATE () { return UPDATE }
+  static get SET () { return SET }
+
+  
+  get _isOperation () { return true }
+  get _isObjectOperation () { return true }
+}
 
 
 
@@ -4677,75 +4806,6 @@ function transform$3 (a, b, options) {
   }
   return [a, b]
 }
-
-ObjectOperation.transform = transform$3;
-ObjectOperation.hasConflict = hasConflict$1;
-
-
-
-ObjectOperation.Create = function (idOrPath, val) {
-  var path;
-  if (isString(idOrPath)) {
-    path = [idOrPath];
-  } else {
-    path = idOrPath;
-  }
-  return new ObjectOperation({type: CREATE, path: path, val: val})
-};
-
-ObjectOperation.Delete = function (idOrPath, val) {
-  var path;
-  if (isString(idOrPath)) {
-    path = [idOrPath];
-  } else {
-    path = idOrPath;
-  }
-  return new ObjectOperation({type: DELETE$2, path: path, val: val})
-};
-
-ObjectOperation.Update = function (path, op) {
-  return new ObjectOperation({
-    type: UPDATE,
-    path: path,
-    diff: op
-  })
-};
-
-ObjectOperation.Set = function (path, oldVal, newVal) {
-  return new ObjectOperation({
-    type: SET,
-    path: path,
-    val: cloneDeep(newVal),
-    original: cloneDeep(oldVal)
-  })
-};
-
-ObjectOperation.fromJSON = function (data) {
-  data = cloneDeep(data);
-  if (data.type === 'update') {
-    switch (data.propertyType) {
-      case 'string':
-        data.diff = TextOperation.fromJSON(data.diff);
-        break
-      case 'array':
-        data.diff = ArrayOperation.fromJSON(data.diff);
-        break
-      case 'coordinate':
-        data.diff = CoordinateOperation.fromJSON(data.diff);
-        break
-      default:
-        throw new Error('Unsupported update diff:' + JSON.stringify(data.diff))
-    }
-  }
-  var op = new ObjectOperation(data);
-  return op
-};
-
-ObjectOperation.NOP = NOP$1;
-ObjectOperation.CREATE = CREATE;
-ObjectOperation.DELETE = DELETE$2;
-ObjectOperation.UPDATE = UPDATE;
-ObjectOperation.SET = SET;
 
 class OperationSerializer {
   constructor () {
@@ -5059,10 +5119,12 @@ class Selection {
     Object.assign(data, update);
     return SelectionClass.fromJSON(data)
   }
+
+  
+  get _isSelection () { return true }
+
+  static get nullSelection () { return NULL_SELECTION }
 }
-
-
-Selection.prototype._isSelection = true;
 
 
 class NullSelection extends Selection {
@@ -5084,8 +5146,7 @@ class NullSelection extends Selection {
 }
 
 
-
-Selection.nullSelection = Object.freeze(new NullSelection());
+const NULL_SELECTION = Object.freeze(new NullSelection());
 
 function isArrayEqual (arr1, arr2) {
   if (arr1 === arr2) return true
@@ -5162,9 +5223,10 @@ class Coordinate {
   hasSamePath (other) {
     return isArrayEqual(this.path, other.path)
   }
-}
 
-Coordinate.prototype._isCoordinate = true;
+  
+  get _isCoordinate () { return true }
+}
 
 class PropertySelection extends Selection {
   
@@ -5746,14 +5808,14 @@ class ContainerSelection extends Selection {
   get path () {
     throw new Error('ContainerSelection has no path property. Use startPath and endPath instead')
   }
+
+  get _isContainerSelection () { return true }
+
+  static fromJSON (properties) {
+    let sel = new ContainerSelection(properties);
+    return sel
+  }
 }
-
-ContainerSelection.prototype._isContainerSelection = true;
-
-ContainerSelection.fromJSON = function (properties) {
-  let sel = new ContainerSelection(properties);
-  return sel
-};
 
 function _createNewSelection (containerSel, start, end) {
   let newSel;
@@ -5900,21 +5962,21 @@ class NodeSelection extends Selection {
   _clone () {
     return new NodeSelection(this)
   }
+
+  static fromJSON (data) {
+    return new NodeSelection(data)
+  }
+
+  
+  static _createFromCoordinate (coor) {
+    var containerId = coor.containerId;
+    var nodeId = coor.getNodeId();
+    var mode = coor.offset === 0 ? 'before' : 'after';
+    return new NodeSelection(containerId, nodeId, mode, false)
+  }
+
+  get _isNodeSelection () { return true }
 }
-
-NodeSelection.prototype._isNodeSelection = true;
-
-NodeSelection.fromJSON = function (json) {
-  return new NodeSelection(json)
-};
-
-
-NodeSelection._createFromCoordinate = function (coor) {
-  var containerId = coor.containerId;
-  var nodeId = coor.getNodeId();
-  var mode = coor.offset === 0 ? 'before' : 'after';
-  return new NodeSelection(containerId, nodeId, mode, false)
-};
 
 class CustomSelection extends Selection {
   constructor (customType, data, surfaceId) {
@@ -5974,13 +6036,13 @@ class CustomSelection extends Selection {
   _clone () {
     return new CustomSelection(this)
   }
+
+  get _isCustomSelection () { return true }
+
+  static fromJSON (data) {
+    return new CustomSelection(data)
+  }
 }
-
-CustomSelection.prototype._isCustomSelection = true;
-
-CustomSelection.fromJSON = function (json) {
-  return new CustomSelection(json)
-};
 
 function fromJSON (json) {
   if (!json) return Selection.nullSelection
@@ -6263,7 +6325,7 @@ class DocumentChange {
         }
         default:
           
-          throw new Error('Illegal state')
+          
       }
     }
 
@@ -7450,3659 +7512,12 @@ class DocumentServer {
   }
 }
 
-function isFunction$1 (f) {
-  return typeof f === 'function'
-}
-
-function deleteFromArray (array, value) {
-  if (!array) return
-  for (var i = 0; i < array.length; i++) {
-    if (array[i] === value) {
-      array.splice(i, 1);
-      i--;
-    }
-  }
-}
-
-class TreeNode {}
-
-
-
-class TreeIndex {
-  
-  get (path) {
-    if (arguments.length > 1) {
-      path = Array.prototype.slice(arguments, 0);
-    }
-    if (isString(path)) {
-      path = [path];
-    }
-    return get(this, path)
-  }
-
-  getAll (path) {
-    if (arguments.length > 1) {
-      path = Array.prototype.slice(arguments, 0);
-    }
-    if (isString(path)) {
-      path = [path];
-    }
-    if (!isArray(path)) {
-      throw new Error('Illegal argument for TreeIndex.get()')
-    }
-    var node = get(this, path);
-    return this._collectValues(node)
-  }
-
-  set (path, value) {
-    if (isString(path)) {
-      path = [path];
-    }
-    setWith(this, path, value, function (val) {
-      if (!val) return new TreeNode()
-    });
-  }
-
-  delete (path) {
-    if (isString(path)) {
-      delete this[path];
-    } else if (path.length === 1) {
-      delete this[path[0]];
-    } else {
-      var key = path[path.length - 1];
-      path = path.slice(0, -1);
-      var parent = get(this, path);
-      if (parent) {
-        delete parent[key];
-      }
-    }
-  }
-
-  clear () {
-    var root = this;
-    for (var key in root) {
-      if (root.hasOwnProperty(key)) {
-        delete root[key];
-      }
-    }
-  }
-
-  traverse (fn) {
-    this._traverse(this, [], fn);
-  }
-
-  forEach (...args) {
-    this.traverse(...args);
-  }
-
-  _traverse (root, path, fn) {
-    var id;
-    for (id in root) {
-      if (!root.hasOwnProperty(id)) continue
-      var child = root[id];
-      var childPath = path.concat([id]);
-      if (child instanceof TreeNode) {
-        this._traverse(child, childPath, fn);
-      } else {
-        fn(child, childPath);
-      }
-    }
-  }
-
-  _collectValues (root) {
-    
-    
-    var vals = {};
-    this._traverse(root, [], function (val, path) {
-      var key = path[path.length - 1];
-      vals[key] = val;
-    });
-    return vals
-  }
-}
-
-class TreeIndexArrays extends TreeIndex {
-  contains (path) {
-    let val = super.get(path);
-    return Boolean(val)
-  }
-
-  get (path) {
-    let val = super.get(path);
-    if (val instanceof TreeNode) {
-      val = val.__values__ || [];
-    }
-    return val
-  }
-
-  set (path, arr) {
-    let val = super.get(path);
-    val.__values__ = arr;
-  }
-
-  add (path, value) {
-    if (isString(path)) {
-      path = [path];
-    }
-    if (!isArray(path)) {
-      throw new Error('Illegal arguments.')
-    }
-    var arr;
-
-    
-    
-    
-    
-    
-    
-    setWith(this, path.concat(['__values__', '__dummy__']), undefined, function (val, key) {
-      if (key === '__values__') {
-        if (!val) val = [];
-        arr = val;
-      } else if (!val) {
-        val = new TreeNode();
-      }
-      return val
-    });
-    delete arr.__dummy__;
-    arr.push(value);
-  }
-
-  remove (path, value) {
-    var arr = get(this, path);
-    if (arr instanceof TreeNode) {
-      if (arguments.length === 1) {
-        delete arr.__values__;
-      } else {
-        deleteFromArray(arr.__values__, value);
-      }
-    }
-  }
-
-  _collectValues (root) {
-    var vals = [];
-    this._traverse(root, [], function (val) {
-      vals.push(val);
-    });
-    vals = Array.prototype.concat.apply([], vals);
-    return vals
-  }
-}
-
-TreeIndex.Arrays = TreeIndexArrays;
-
-function filter (iteratee, fn) {
-  if (!iteratee) return []
-  if (iteratee.constructor.prototype.filter && isFunction$1(iteratee.constructor.prototype.filter)) {
-    return iteratee.filter(fn)
-  }
-  let result = [];
-  forEach(iteratee, (val, key) => {
-    if (fn(val, key)) {
-      result.push(val);
-    }
-  });
-  return result
-}
-
-function flatten (arr) {
-  return Array.prototype.concat.apply([], arr)
-}
-
-function flattenOften (arr, max) {
-  if (!(max > 0)) throw new Error("'max' must be a positive number")
-  let l = arr.length;
-  arr = flatten(arr);
-  let round = 1;
-  while (round < max && l < arr.length) {
-    l = arr.length;
-    arr = flatten(arr);
-    round++;
-  }
-  return arr
-}
-
-class NodeIndex {
-  
-  select (node) { 
-    throw new Error('This method is abstract.')
-  }
-
-  clear () {
-    throw new Error('This method is abstract')
-  }
-
-  
-  create (node) { 
-    throw new Error('This method is abstract.')
-  }
-
-  
-  delete (node) { 
-    throw new Error('This method is abstract.')
-  }
-
-  set (node, path, newValue, oldValue) {
-    this.update(node, path, newValue, oldValue);
-  }
-
-  
-  update (node, path, newValue, oldValue) { 
-    throw new Error('This method is abstract.')
-  }
-
-  
-  reset (data) {
-    this.clear();
-    this._initialize(data);
-  }
-
-  
-  clone () {
-    var NodeIndexClass = this.constructor;
-    var clone = new NodeIndexClass();
-    return clone
-  }
-
-  _initialize (data) {
-    forEach(data.getNodes(), function (node) {
-      if (this.select(node)) {
-        this.create(node);
-      }
-    }.bind(this));
-  }
-}
-
-
-NodeIndex.create = function (prototype) {
-  var index = Object.assign(new NodeIndex(), prototype);
-  index.clone = function () {
-    return NodeIndex.create(prototype)
-  };
-  return index
-};
-
-
-NodeIndex.filterByType = function (type) {
-  return function (node) {
-    return node.isInstanceOf(type)
-  }
-};
-
-class DocumentIndex extends NodeIndex {}
-
-var annotationHelpers = {
-  insertedText,
-  deletedText,
-  transferAnnotations,
-  expandAnnotation,
-  fuseAnnotation,
-  truncateAnnotation
-}
-
-function insertedText (doc, coordinate, length) {
-  if (!length) return
-  var index = doc.getIndex('annotations');
-  var annotations = index.get(coordinate.path);
-  for (let i = 0; i < annotations.length; i++) {
-    let anno = annotations[i];
-    var pos = coordinate.offset;
-    var start = anno.start.offset;
-    var end = anno.end.offset;
-    var newStart = start;
-    var newEnd = end;
-    if ((pos < start) ||
-         (pos === start)) {
-      newStart += length;
-    }
-    
-    if ((pos < end) ||
-         (pos === end && !anno.isInline())) {
-      newEnd += length;
-    }
-    
-    if (newStart !== start) {
-      doc.set([anno.id, 'start', 'offset'], newStart);
-    }
-    if (newEnd !== end) {
-      doc.set([anno.id, 'end', 'offset'], newEnd);
-    }
-  }
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-}
-
-function deletedText (doc, path, startOffset, endOffset) {
-  if (startOffset === endOffset) return
-  var index = doc.getIndex('annotations');
-  var annotations = index.get(path);
-  var length = endOffset - startOffset;
-  for (let i = 0; i < annotations.length; i++) {
-    let anno = annotations[i];
-    var pos1 = startOffset;
-    var pos2 = endOffset;
-    var start = anno.start.offset;
-    var end = anno.end.offset;
-    var newStart = start;
-    var newEnd = end;
-    if (pos2 <= start) {
-      newStart -= length;
-      newEnd -= length;
-      doc.set([anno.id, 'start', 'offset'], newStart);
-      doc.set([anno.id, 'end', 'offset'], newEnd);
-    } else {
-      if (pos1 <= start) {
-        newStart = start - Math.min(pos2 - pos1, start - pos1);
-      }
-      if (pos1 <= end) {
-        newEnd = end - Math.min(pos2 - pos1, end - pos1);
-      }
-      
-      if (start !== end && newStart === newEnd) {
-        doc.delete(anno.id);
-      } else {
-        
-        if (start !== newStart) {
-          doc.set([anno.id, 'start', 'offset'], newStart);
-        }
-        if (end !== newEnd) {
-          doc.set([anno.id, 'end', 'offset'], newEnd);
-        }
-      }
-    }
-  }
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-}
-
-
-function transferAnnotations (doc, path, offset, newPath, newOffset) {
-  var index = doc.getIndex('annotations');
-  var annotations = index.get(path, offset);
-  for (let i = 0; i < annotations.length; i++) {
-    let a = annotations[i];
-    var isInside = (offset > a.start.offset && offset < a.end.offset);
-    var start = a.start.offset;
-    var end = a.end.offset;
-    
-    if (isInside) {
-      
-      if (a.canSplit()) {
-        let newAnno = a.toJSON();
-        newAnno.id = uuid(a.type + '_');
-        newAnno.start.path = newPath;
-        newAnno.start.offset = newOffset;
-        newAnno.end.path = newPath;
-        newAnno.end.offset = newOffset + a.end.offset - offset;
-        doc.create(newAnno);
-      }
-      
-      let newStartOffset = a.start.offset;
-      let newEndOffset = offset;
-      
-      if (newEndOffset === newStartOffset) {
-        doc.delete(a.id);
-      
-      } else {
-        
-        if (newStartOffset !== start) {
-          doc.set([a.id, 'start', 'offset'], newStartOffset);
-        }
-        if (newEndOffset !== end) {
-          doc.set([a.id, 'end', 'offset'], newEndOffset);
-        }
-      }
-    
-    } else if (a.start.offset >= offset) {
-      
-      
-      
-      doc.set([a.id, 'start', 'path'], newPath);
-      doc.set([a.id, 'start', 'offset'], newOffset + a.start.offset - offset);
-      doc.set([a.id, 'end', 'path'], newPath);
-      doc.set([a.id, 'end', 'offset'], newOffset + a.end.offset - offset);
-    }
-  }
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-}
-
-
-function truncateAnnotation (tx, anno, sel) {
-  if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
-  if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
-  let annoSel = anno.getSelection();
-  let newAnnoSel = annoSel.truncateWith(sel);
-  anno._updateRange(tx, newAnnoSel);
-  return anno
-}
-
-
-function expandAnnotation (tx, anno, sel) {
-  if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
-  if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
-  let annoSel = anno.getSelection();
-  let newAnnoSel = annoSel.expand(sel);
-  anno._updateRange(tx, newAnnoSel);
-  return anno
-}
-
-
-function fuseAnnotation (tx, annos) {
-  if (!isArray(annos) || annos.length < 2) {
-    throw new Error('fuseAnnotation(): at least two annotations are necessary.')
-  }
-  let sel, annoType;
-  annos.forEach(function (anno, idx) {
-    if (idx === 0) {
-      sel = anno.getSelection();
-      annoType = anno.type;
-    } else {
-      if (anno.type !== annoType) {
-        throw new Error('fuseAnnotation(): all annotations must be of the same type.')
-      }
-      sel = sel.expand(anno.getSelection());
-    }
-  });
-  
-  for (var i = 1; i < annos.length; i++) {
-    tx.delete(annos[i].id);
-  }
-  expandAnnotation(tx, annos[0], sel);
-  tx.setSelection(sel);
-}
-
-function getPropertyAnnotationsForSelection (doc, sel, options) {
-  options = options || {};
-  if (!sel.isPropertySelection()) {
-    return []
-  }
-  let path = sel.getPath();
-  let annotations = doc.getIndex('annotations').get(path, sel.start.offset, sel.end.offset);
-  if (options.type) {
-    annotations = filter(annotations, DocumentIndex.filterByType(options.type));
-  }
-  return annotations
-}
-
-
-function getContainerAnnotationsForSelection (doc, sel, containerId, options) {
-  
-  
-  
-  
-  
-  if (!containerId) {
-    throw new Error("'containerId' is required.")
-  }
-  options = options || {};
-  let index = doc.getIndex('container-annotations');
-  let annotations = [];
-  if (index) {
-    annotations = index.get(containerId, options.type);
-    annotations = filter(annotations, function (anno) {
-      return sel.overlaps(anno.getSelection())
-    });
-  }
-  return annotations
-}
-
-
-function isContainerAnnotation (doc, type) {
-  let schema = doc.getSchema();
-  return schema.isInstanceOf(type, '@container-annotation')
-}
-
-
-function getTextForSelection (doc, sel) {
-  if (!sel || sel.isNull()) {
-    return ''
-  } else if (sel.isPropertySelection()) {
-    let text = doc.get(sel.start.path);
-    return text.substring(sel.start.offset, sel.end.offset)
-  } else if (sel.isContainerSelection()) {
-    let result = [];
-    let nodeIds = sel.getNodeIds();
-    let L = nodeIds.length;
-    for (let i = 0; i < L; i++) {
-      let id = nodeIds[i];
-      let node = doc.get(id);
-      if (node.isText()) {
-        let text = node.getText();
-        if (i === L - 1) {
-          text = text.slice(0, sel.end.offset);
-        }
-        if (i === 0) {
-          text = text.slice(sel.start.offset);
-        }
-        result.push(text);
-      }
-    }
-    return result.join('\n')
-  }
-}
-
-function getMarkersForSelection (doc, sel) {
-  
-  if (!sel || !sel.isPropertySelection()) return []
-  const path = sel.getPath();
-  
-  let markers = doc.getIndex('markers').get(path);
-  const filtered = filter(markers, function (m) {
-    return m.containsSelection(sel)
-  });
-  return filtered
-}
-
-
-function deleteNode (doc, node) {
-  
-  if (!node) {
-    console.warn('Invalid arguments');
-    return
-  }
-  
-  if (node.isText()) {
-    
-    let annos = doc.getIndex('annotations').get(node.id);
-    for (let i = 0; i < annos.length; i++) {
-      doc.delete(annos[i].id);
-    }
-  }
-  let nodeSchema = node.getSchema();
-  
-  
-  
-  doc.delete(node.id);
-  
-  let ownedProps = nodeSchema.getOwnedProperties();
-  ownedProps.forEach(prop => {
-    let value = node[prop.name];
-    if (prop.isArray()) {
-      let ids = value;
-      if (ids.length > 0) {
-        
-        if (isArray(ids[0])) ids = flattenOften(ids, 2);
-        ids.forEach((id) => {
-          deleteNode(doc, doc.get(id));
-        });
-      }
-    } else {
-      deleteNode(doc, doc.get(value));
-    }
-  });
-}
-
-
-function copyNode (node) {
-  let nodes = [];
-  
-  let doc = node.getDocument();
-  let nodeSchema = node.getSchema();
-  for (let prop of nodeSchema) {
-    
-    
-    if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
-      let val = node[prop.name];
-      nodes.push(_copyChildren(val));
-    }
-  }
-  nodes.push(node.toJSON());
-  let annotationIndex = node.getDocument().getIndex('annotations');
-  let annotations = annotationIndex.get([node.id]);
-  forEach(annotations, function (anno) {
-    nodes.push(anno.toJSON());
-  });
-  let result = flatten(nodes).filter(Boolean);
-  
-  return result
-
-  function _copyChildren (val) {
-    if (!val) return null
-    if (isArray(val)) {
-      return flatten(val.map(_copyChildren))
-    } else {
-      let id = val;
-      if (!id) return null
-      let child = doc.get(id);
-      if (!child) return
-      return copyNode(child)
-    }
-  }
-}
-
-
-function deleteTextRange (doc, start, end) {
-  if (!start) {
-    start = {
-      path: end.path,
-      offset: 0
-    };
-  }
-  let path = start.path;
-  let text = doc.get(path);
-  if (!end) {
-    end = {
-      path: start.path,
-      offset: text.length
-    };
-  }
-  
-  if (!isArrayEqual(start.path, end.path)) {
-    throw new Error('start and end must be on one property')
-  }
-  let startOffset = start.offset;
-  if (startOffset < 0) throw new Error('start offset must be >= 0')
-  let endOffset = end.offset;
-  if (endOffset > text.length) throw new Error('end offset must be smaller than the text length')
-
-  doc.update(path, { type: 'delete', start: startOffset, end: endOffset });
-  
-  let annos = doc.getAnnotations(path);
-  annos.forEach(function (anno) {
-    let annoStart = anno.start.offset;
-    let annoEnd = anno.end.offset;
-    
-    if (annoEnd <= startOffset) ; else if (annoStart >= endOffset) {
-      doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - endOffset });
-      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
-    
-    } else if (annoStart >= startOffset && annoEnd <= endOffset) {
-      doc.delete(anno.id);
-    
-    } else if (annoStart >= startOffset && annoEnd >= endOffset) {
-      if (annoStart > startOffset) {
-        doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - annoStart });
-      }
-      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
-    
-    } else if (annoStart <= startOffset && annoEnd <= endOffset) {
-      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - annoEnd });
-    
-    } else if (annoStart < startOffset && annoEnd >= endOffset) {
-      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
-    } else {
-      console.warn('TODO: handle annotation update case.');
-    }
-  });
-}
-
-function deleteListRange (doc, list, start, end) {
-  if (doc !== list.getDocument()) {
-    list = doc.get(list.id);
-  }
-  let startItem, endItem;
-  if (!start) {
-    startItem = list.getItemAt(0);
-    start = {
-      path: startItem.getPath(),
-      offset: 0
-    };
-  } else {
-    startItem = doc.get(start.path[0]);
-  }
-  if (!end) {
-    endItem = list.getLastItem();
-    end = {
-      path: endItem.getPath(),
-      offset: endItem.getLength()
-    };
-  } else {
-    endItem = doc.get(end.path[0]);
-  }
-  let startPos = list.getItemPosition(startItem);
-  let endPos = list.getItemPosition(endItem);
-  
-  if (startPos === endPos) {
-    deleteTextRange(doc, start, end);
-    return
-  }
-  
-  if (startPos > endPos) {
-    [start, end] = [end, start];
-    [startPos, endPos] = [endPos, startPos];
-    [startItem, endItem] = [endItem, startItem];
-  }
-  let firstEntirelySelected = isEntirelySelected(doc, startItem, start, null);
-  let lastEntirelySelected = isEntirelySelected(doc, endItem, null, end);
-
-  
-  if (lastEntirelySelected) {
-    list.removeItemAt(endPos);
-    deleteNode(doc, endItem);
-  } else {
-    deleteTextRange(doc, null, end);
-  }
-
-  
-  let items = list.getItems();
-  for (let i = endPos - 1; i > startPos; i--) {
-    let item = items[i];
-    list.removeItemAt(i);
-    deleteNode(doc, item);
-  }
-
-  
-  if (firstEntirelySelected) {
-    
-    
-    
-    
-    deleteTextRange(doc, start, null);
-  } else {
-    deleteTextRange(doc, start, null);
-  }
-
-  if (!firstEntirelySelected && !lastEntirelySelected) {
-    mergeListItems(doc, list.id, startPos);
-  }
-}
-
-function mergeListItems (doc, listId, itemPos) {
-  
-  let list = doc.get(listId);
-  let targetItem = list.getItemAt(itemPos);
-  let targetPath = targetItem.getPath();
-  let targetLength = targetItem.getLength();
-  let sourceItem = list.getItemAt(itemPos + 1);
-  let sourcePath = sourceItem.getPath();
-  
-  list.removeItemAt(itemPos + 1);
-  
-  doc.update(targetPath, { type: 'insert', start: targetLength, text: sourceItem.getText() });
-  
-  annotationHelpers.transferAnnotations(doc, sourcePath, 0, targetPath, targetLength);
-  deleteNode(doc, sourceItem);
-}
-
-function getNodes (doc, ids) {
-  return ids.map((id) => {
-    return doc.get(id, 'strict')
-  })
-}
-
-
-
-const SNIPPET_ID = 'snippet';
-const TEXT_SNIPPET_ID = 'text-snippet';
-
-var documentHelpers = /*#__PURE__*/Object.freeze({
-  getPropertyAnnotationsForSelection: getPropertyAnnotationsForSelection,
-  getContainerAnnotationsForSelection: getContainerAnnotationsForSelection,
-  isContainerAnnotation: isContainerAnnotation,
-  getTextForSelection: getTextForSelection,
-  getMarkersForSelection: getMarkersForSelection,
-  deleteNode: deleteNode,
-  copyNode: copyNode,
-  deleteTextRange: deleteTextRange,
-  deleteListRange: deleteListRange,
-  mergeListItems: mergeListItems,
-  getNodes: getNodes,
-  SNIPPET_ID: SNIPPET_ID,
-  TEXT_SNIPPET_ID: TEXT_SNIPPET_ID
-});
-
-class SelectionState {
-  constructor (doc) {
-    this.document = doc;
-
-    this.selection = Selection.nullSelection;
-    this._state = {};
-    this._resetState();
-  }
-
-  setSelection (sel) {
-    
-    if (!sel) {
-      sel = Selection.nullSelection;
-    } else {
-      sel.attach(this.document);
-    }
-    
-    
-    this._deriveState(sel);
-    this.selection = sel;
-    return true
-  }
-
-  getSelection () {
-    return this.selection
-  }
-
-  getAnnotationsForType (type) {
-    const state = this._state;
-    if (state.annosByType) {
-      return state.annosByType.get(type) || []
-    }
-    return []
-  }
-
-  getMarkers () {
-    
-    return this._state.markers || []
-  }
-
-  isInlineNodeSelection () {
-    return this._state.isInlineNodeSelection
-  }
-
-  getContainer () {
-    return this._state.container
-  }
-
-  getPreviousNode () {
-    return this._state.previousNode
-  }
-
-  getNextNode () {
-    return this._state.nextNode
-  }
-
-  
-  isFirst () {
-    return Boolean(this._state.isFirst)
-  }
-
-  
-  isLast () {
-    return Boolean(this._state.isLast)
-  }
-
-  get (key) {
-    return this._state[key]
-  }
-
-  
-  set (key, value) {
-    if (this._state[key]) {
-      throw new Error(`State ${key} is already set`)
-    }
-    this._state[key] = value;
-  }
-
-  _deriveState (sel) {
-    this._resetState();
-    this._deriveContainerSelectionState(sel);
-    this._deriveAnnoState(sel);
-    if (this.document.getIndex('markers')) {
-      this._deriveMarkerState(sel);
-    }
-    
-  }
-
-  _deriveContainerSelectionState (sel) {
-    let state = this._state;
-    let doc = this.document;
-    if (sel.containerId) {
-      let container = doc.get(sel.containerId);
-      state.container = container;
-      let startId = sel.start.getNodeId();
-      let endId = sel.end.getNodeId();
-      let startNode = doc.get(startId).getContainerRoot();
-      let startPos = container.getPosition(startNode);
-      if (startPos > 0) {
-        state.previousNode = container.getNodeAt(startPos - 1);
-      }
-      state.isFirst = isFirst(doc, sel.start);
-      let endNode, endPos;
-      if (endId === startId) {
-        endNode = startNode;
-        endPos = startPos;
-      } else {
-        endNode = doc.get(endId).getContainerRoot();
-        endPos = container.getPosition(endNode);
-      }
-      if (endPos < container.getLength() - 1) {
-        state.nextNode = container.getNodeAt(endPos + 1);
-      }
-      state.isLast = isLast(doc, sel.end);
-    }
-  }
-
-  _deriveAnnoState (sel) {
-    const doc = this.document;
-    const state = this._state;
-
-    
-    let annosByType = new TreeIndex.Arrays();
-    const propAnnos = getPropertyAnnotationsForSelection(doc, sel);
-    propAnnos.forEach(function (anno) {
-      annosByType.add(anno.type, anno);
-    });
-
-    if (propAnnos.length === 1 && propAnnos[0].isInline()) {
-      state.isInlineNodeSelection = propAnnos[0].getSelection().equals(sel);
-    }
-
-    const containerId = sel.containerId;
-    if (containerId) {
-      const containerAnnos = getContainerAnnotationsForSelection(doc, sel, containerId);
-      containerAnnos.forEach(function (anno) {
-        annosByType.add(anno.type, anno);
-      });
-    }
-    state.annosByType = annosByType;
-  }
-
-  _deriveMarkerState (sel) {
-    const doc = this.document;
-    let state = this._state;
-    let markers = getMarkersForSelection(doc, sel);
-    state.markers = markers;
-  }
-
-  _resetState () {
-    this._state = {
-      
-      annosByType: null,
-      
-      markers: null,
-      
-      isInlineNodeSelection: false,
-      
-      container: null,
-      previousNode: null,
-      nextNode: null,
-      
-      isFirst: false,
-      
-      isLast: false
-    };
-    return this._state
-  }
-}
-
-class ChangeHistory {
-  constructor () {
-    this.reset();
-  }
-
-  reset () {
-    
-    this.doneChanges = [];
-    
-    this.undoneChanges = [];
-    
-    this.lastChange = null;
-  }
-
-  canUndo () {
-    return this.doneChanges.length > 0
-  }
-
-  canRedo () {
-    return this.undoneChanges.length > 0
-  }
-
-  push (change) {
-    this.doneChanges.push(change);
-    this.undoneChanges = [];
-  }
-}
-
-class Transaction {
-  
-  constructor (master) {
-    
-    this.master = master;
-    this.stage = master.newInstance().createFromDocument(master);
-    
-    this.stage._isTransactionDocument = true;
-
-    this.tx = this.stage.createEditingInterface();
-    
-    this._isTransacting = false;
-    this._surface = null;
-
-    
-    
-    master._ops.length = 0;
-  }
-
-  dispose () {
-    this.stage.dispose();
-  }
-
-  
-
-  get ops () {
-    return this.stage._ops
-  }
-
-  set ops (ops) {
-    this.stage._ops = ops;
-  }
-
-  getSelection () {
-    return this.tx.getSelection()
-  }
-
-  setSelection (sel) {
-    this.tx.setSelection(sel);
-  }
-
-  _reset () {
-    this._before = {};
-    this._after = {};
-    this.stage._ops.length = 0;
-    this._info = {};
-    this.setSelection(null);
-  }
-
-  
-  _recordChange (transformation, selection, info) {
-    if (this._isTransacting) throw new Error('Nested transactions are not supported.')
-    if (!isFunction$1(transformation)) throw new Error('Document.transaction() requires a transformation function.')
-    let hasFinished = false;
-    this._isTransacting = true;
-    this._reset();
-    let change;
-    try {
-      const tx = this.tx;
-      tx.setSelection(selection);
-      let selBefore = tx.getSelection();
-      transformation(tx, {
-        selection: selBefore
-      });
-      let ops = this.ops;
-      if (ops.length > 0) {
-        change = new DocumentChange(ops, tx._before, tx._after);
-        change.info = info;
-        change.before = { selection: selBefore };
-        change.after = { selection: tx.getSelection() };
-        
-        
-        if (this.master._isXMLDocument) {
-          if (info && info.action === 'type') ; else {
-            let res = this.stage._validateChange(change);
-            if (!res.ok) {
-              
-              throw new Error('Transaction is violating the schema: \n' + res.errors.map(err => err.msg).join('\n'))
-            }
-          }
-        }
-      }
-      hasFinished = true;
-    } finally {
-      if (!hasFinished) {
-        this._rollback();
-      }
-      this._isTransacting = false;
-    }
-    return change
-  }
-
-  _sync () {
-    const master = this.master;
-    const stage = this.stage;
-    let ops = master._ops;
-    for (let i = 0; i < ops.length; i++) {
-      stage._applyOp(ops[i]);
-    }
-    ops.length = 0;
-  }
-
-  
-  __applyChange__ (change) {
-    const stage = this.stage;
-    const ops = change.ops;
-    for (let i = 0; i < ops.length; i++) {
-      stage._applyOp(ops[i]);
-    }
-  }
-
-  _rollback () {
-    const stage = this.stage;
-    let ops = stage._ops;
-    for (let i = ops.length - 1; i >= 0; i--) {
-      stage._applyOp(ops[i].invert());
-    }
-    ops.length = 0;
-  }
-}
-
-class EditorSession extends EventEmitter {
-  constructor (doc, options) {
-    super();
-    options = options || {};
-
-    this.__id__ = uuid();
-    this.document = doc;
-    const configurator = options.configurator;
-    if (!configurator) {
-      throw new Error('No configurator provided.')
-    }
-    this.configurator = configurator;
-
-    this._transaction = new Transaction(doc);
-    
-    
-    _patchTxSetSelection(this._transaction, this);
-
-    this._history = new ChangeHistory();
-    
-    this._currentChange = null;
-
-    
-    
-    
-    
-    this._selectionState = new SelectionState(doc);
-
-    this._commandStates = [];
-
-    
-    this._resources = ['document', 'selection', 'commandStates'];
-    
-    this._dirtyFlags = {};
-    
-    this._change = null;
-    this._info = null;
-
-    this._flowStages = ['update', 'pre-render', 'render', 'post-render', 'position', 'finalize'];
-    
-    this._postponed = [];
-    this._observers = {};
-
-    this._lang = options.lang || this.configurator.getDefaultLanguage();
-    this._dir = options.dir || 'ltr';
-
-    
-    
-    const CommandManager = configurator.getCommandManagerClass();
-    const DragManager = configurator.getDragManagerClass();
-    const FileManager = configurator.getFileManagerClass();
-    const GlobalEventHandler = configurator.getGlobalEventHandlerClass();
-    const KeyboardManager = configurator.getKeyboardManagerClass();
-    const MacroManager = configurator.getMacroManagerClass();
-    const MarkersManager = configurator.getMarkersManagerClass();
-    const SurfaceManager = configurator.getSurfaceManagerClass();
-
-    
-    
-    this.surfaceManager = new SurfaceManager(this);
-    
-    this._context = {
-      editorSession: this,
-      
-      surfaceManager: this.surfaceManager
-    };
-    
-    if (options.context) {
-      Object.assign(this._context, options.context);
-    }
-
-    let commands = configurator.getCommands();
-    let dropHandlers = configurator.getDropHandlers();
-    let macros = configurator.getMacros();
-    let converterRegistry = configurator.getConverterRegistry();
-    let editingBehavior = configurator.getEditingBehavior();
-
-    this.fileManager = options.fileManager || new FileManager(this, configurator.getFileAdapters(), this._context);
-
-    
-    this._hasUnsavedChanges = false;
-    this._isSaving = false;
-
-    if (options.saveHandler) {
-      this.saveHandler = options.saveHandler;
-    } else {
-      this.saveHandler = configurator.getSaveHandler();
-    }
-
-    
-    this._managers = {};
-    forEach(configurator.getManagers(), (ManagerClass, name) => {
-      this._managers[name] = new ManagerClass(this._context);
-    });
-
-    
-    
-    this.commandManager = options.commandManager || new CommandManager(this._context, commands);
-
-    
-    
-    this.dragManager = new DragManager(dropHandlers, Object.assign({}, this._context, {
-      commandManager: this.commandManager
-    }));
-    
-    this.macroManager = new MacroManager(this._context, macros);
-    this.globalEventHandler = new GlobalEventHandler(this, this.surfaceManager);
-    this.markersManager = new MarkersManager(this);
-    this.keyboardManager = new KeyboardManager(this, configurator.getKeyboardShortcuts(), {
-      context: this._context
-    });
-
-    
-    this.converterRegistry = converterRegistry;
-    this.editingBehavior = editingBehavior;
-  }
-
-  dispose () {
-    this._transaction.dispose();
-    this.surfaceManager.dispose();
-    this.fileManager.dispose();
-    this.commandManager.dispose();
-    this.dragManager.dispose();
-    this.macroManager.dispose();
-    this.globalEventHandler.dispose();
-    this.markersManager.dispose();
-
-    forEach(this._managers, (manager) => {
-      if (manager.dispose) {
-        manager.dispose();
-      }
-    });
-  }
-
-  hasChanged (resource) {
-    return this._dirtyFlags[resource]
-  }
-
-  hasDocumentChanged () {
-    return this.hasChanged('document')
-  }
-
-  hasSelectionChanged () {
-    return this.hasChanged('selection')
-  }
-
-  hasCommandStatesChanged () {
-    return this.hasChanged('commandStates')
-  }
-
-  hasLanguageChanged () {
-    return this.hasChanged('lang')
-  }
-
-  hasTextDirectionChanged () {
-    return this.hasChanged('dir')
-  }
-
-  get (resourceName) {
-    switch (resourceName) {
-      case 'document':
-        return this.getDocument()
-      case 'selection':
-        return this.getSelection()
-      case 'commandStates':
-        return this.getCommandStates()
-      case 'change':
-        return this.getChange()
-      case 'lang':
-        return this.getLanguage()
-      case 'dir':
-        return this.getTextDirection()
-      default:
-        throw new Error('Unknown resource: ' + resourceName)
-    }
-  }
-
-  getConfigurator () {
-    return this.configurator
-  }
-
-  getContext () {
-    return this._context
-  }
-
-  getDocument () {
-    return this.document
-  }
-
-  getManager (name) {
-    return this._managers[name]
-  }
-
-  getSelection () {
-    return this.getSelectionState().getSelection()
-  }
-
-  getSelectionState () {
-    return this._selectionState
-  }
-
-  getCommandStates () {
-    return this._commandStates
-  }
-
-  getChange () {
-    return this._change
-  }
-
-  getChangeInfo () {
-    return this._info
-  }
-
-  getFocusedSurface () {
-    return this.surfaceManager.getFocusedSurface()
-  }
-
-  getSurface (surfaceId) {
-    return this.surfaceManager.getSurface(surfaceId)
-  }
-
-  getLanguage () {
-    return this._lang
-  }
-
-  getTextDirection () {
-    return this._dir
-  }
-
-  canUndo () {
-    return this._history.canUndo()
-  }
-
-  canRedo () {
-    return this._history.canRedo()
-  }
-
-  
-  resetHistory () {
-    this._history.reset();
-    this._setDirty('commandStates');
-    if (!this._flowing) {
-      this.startFlow();
-    }
-  }
-
-  executeCommand (...args) {
-    this.commandManager.executeCommand(...args);
-  }
-
-  
-  attachEditor (editor) {
-    this.editor = editor;
-  }
-
-  detachEditor () {
-    this.editor = undefined;
-  }
-
-  getEditor () {
-    return this.editor
-  }
-
-  setSelection (sel, skipFlow) {
-    
-    if (sel && isPlainObject(sel)) {
-      sel = this.getDocument().createSelection(sel);
-    }
-    if (sel && !sel.isNull()) {
-      if (!sel.surfaceId) {
-        let fs = this.getFocusedSurface();
-        if (fs) {
-          sel.surfaceId = fs.id;
-        }
-      }
-    }
-
-    _addSurfaceId(sel, this);
-    _addContainerId(sel, this);
-
-    if (this._setSelection(sel) && !skipFlow) {
-      this.startFlow();
-    }
-    return sel
-  }
-
-  selectNode (nodeId) {
-    let surface = this.getFocusedSurface();
-    this.setSelection({
-      type: 'node',
-      nodeId: nodeId,
-      containerId: surface.getContainerId(),
-      surfaceId: surface.id
-    });
-  }
-
-  setCommandStates (commandStates) {
-    this._commandStates = commandStates;
-    this._setDirty('commandStates');
-  }
-
-  setLanguage (lang) {
-    if (this._lang !== lang) {
-      this._lang = lang;
-      this._setDirty('lang');
-      this.startFlow();
-    }
-  }
-
-  setTextDirection (dir) {
-    if (this._dir !== dir) {
-      this._dir = dir;
-      this._setDirty('dir');
-      this.startFlow();
-    }
-  }
-
-  createSelection () {
-    const doc = this.getDocument();
-    return doc.createSelection.apply(doc, arguments)
-  }
-
-  getCollaborators () {
-    return null
-  }
-
-  
-  setSaveHandler (saveHandler) {
-    this.saveHandler = saveHandler;
-  }
-
-  
-  transaction (transformation, info) {
-    const t = this._transaction;
-    info = info || {};
-    t._sync();
-    let change = t._recordChange(transformation, this.getSelection(), info);
-    if (change) {
-      this._commit(change, info);
-    } else {
-      
-      this._setSelection(this._transaction.getSelection());
-      this.startFlow();
-    }
-    return change
-  }
-
-  undo () {
-    this._undoRedo('undo');
-  }
-
-  redo () {
-    this._undoRedo('redo');
-  }
-
-  
-
-  on (...args) {
-    let name = args[0];
-    if (this._flowStages.indexOf(name) >= 0) {
-      
-      args.shift();
-      let options = args[2] || {};
-      let resource = options.resource;
-      if (resource) {
-        delete options.resource;
-        args.unshift(resource);
-      }
-      this._registerObserver(name, args);
-    } else {
-      EventEmitter.prototype.on.apply(this, args);
-    }
-  }
-
-  off (...args) {
-    if (args.length === 1) {
-      let observer = args[0];
-      super.off(...args);
-      
-      
-      if (observer[this.__id__]) {
-        const records = observer[this.__id__];
-        delete observer[this.__id__];
-        records.forEach((record) => {
-          this.__deregisterObserver(record);
-        });
-      }
-    } else {
-      const stage = args[0];
-      const method = args[1];
-      const observer = args[2];
-      this._deregisterObserver(stage, method, observer);
-    }
-  }
-
-  
-  onUpdate (...args) {
-    return this._registerObserver('update', args)
-  }
-
-  onPreRender (...args) {
-    return this._registerObserver('pre-render', args)
-  }
-
-  
-  onRender (...args) {
-    return this._registerObserver('render', args)
-  }
-
-  
-  onPostRender (...args) {
-    return this._registerObserver('post-render', args)
-  }
-
-  
-  onPosition (...args) {
-    return this._registerObserver('position', args)
-  }
-
-  onFinalize (...args) {
-    return this._registerObserver('finalize', args)
-  }
-
-  _setSelection (sel) {
-    
-    
-    
-    
-    
-
-    let hasChanged = this.getSelectionState().setSelection(sel);
-    if (hasChanged) this._setDirty('selection');
-    return hasChanged
-  }
-
-  _undoRedo (which) {
-    const doc = this.getDocument();
-    var from, to;
-    if (which === 'redo') {
-      from = this._history.undoneChanges;
-      to = this._history.doneChanges;
-    } else {
-      from = this._history.doneChanges;
-      to = this._history.undoneChanges;
-    }
-    var change = from.pop();
-    if (change) {
-      this._applyChange(change, {});
-      this._transaction.__applyChange__(change);
-      
-      to.push(doc.invert(change));
-      
-      let sel = change.after.selection;
-      if (sel) sel.attach(doc);
-      this._setSelection(sel);
-      
-      this.startFlow();
-    } else {
-      console.warn('No change can be %s.', (which === 'undo' ? 'undone' : 'redone'));
-    }
-  }
-
-  _transformLocalChangeHistory (externalChange) {
-    
-    
-    
-    
-    var clone = {
-      ops: externalChange.ops.map(function (op) { return op.clone() })
-    };
-    transformDocumentChange(clone, this._history.doneChanges);
-    transformDocumentChange(clone, this._history.undoneChanges);
-  }
-
-  _transformSelection (change) {
-    var oldSelection = this.getSelection();
-    var newSelection = transformSelection(oldSelection, change);
-    
-    return newSelection
-  }
-
-  _commit (change, info) {
-    this._commitChange(change, info);
-    
-    this._hasUnsavedChanges = true;
-    this.startFlow();
-  }
-
-  _commitChange (change, info) {
-    change.timestamp = Date.now();
-    this._applyChange(change, info);
-    if (info['history'] !== false && !info['hidden']) {
-      let inverted = this.getDocument().invert(change);
-      this._history.push(inverted);
-    }
-    var newSelection = change.after.selection || Selection.nullSelection;
-    
-    
-    if (!newSelection.isNull() && !newSelection.surfaceId) {
-      newSelection.surfaceId = change.after.surfaceId;
-    }
-    this._setSelection(newSelection);
-    this.emit('commit', change);
-  }
-
-  _applyChange (change, info) {
-    if (!change) {
-      console.error('FIXME: change is null.');
-      return
-    }
-    const doc = this.getDocument();
-    doc._apply(change);
-    doc._notifyChangeListeners(change, info);
-    this._setDirty('document');
-    this._change = change;
-    this._info = info;
-  }
-
-  _applyRemoteChange (change) {
-    
-    if (change.ops.length > 0) {
-      this._applyChange(change, { remote: true });
-      
-      this._transaction.__applyChange__(change);
-      this._transformLocalChangeHistory(change);
-      this._setSelection(this._transformSelection(change));
-      this.startFlow();
-    }
-  }
-
-  
-  hasUnsavedChanges () {
-    return this._hasUnsavedChanges
-  }
-
-  
-  save () {
-    var saveHandler = this.saveHandler;
-
-    if (this._hasUnsavedChanges && !this._isSaving) {
-      this._isSaving = true;
-      
-      if (saveHandler) {
-        let saveParams = {
-          editorSession: this,
-          fileManager: this.fileManager
-        };
-        return saveHandler.saveDocument(saveParams)
-          .then(() => {
-            this._hasUnsavedChanges = false;
-            
-            
-            
-            
-            this.setSelection(this.getSelection());
-          })
-          .catch((err) => {
-            console.error('Error during save', err);
-          }).then(() => { 
-            this._isSaving = false;
-          })
-      } else {
-        let errMsg = 'Document saving is not handled at the moment. Make sure saveHandler instance provided to editorSession';
-        console.error(errMsg);
-        return Promise.reject(new Error(errMsg))
-      }
-    }
-  }
-
-  
-  startFlow () {
-    if (this._flowing) {
-      throw new Error('Already in a flow. You need to postpone the update.')
-    }
-    this._flowing = true;
-    try {
-      this.performFlow();
-    } finally {
-      this._resetFlow();
-      this._flowing = false;
-    }
-    
-    
-    
-    const postponed = this._postponed;
-    const self = this;
-    this._postponed = [];
-    setTimeout(function () {
-      postponed.forEach(function (fn) {
-        fn(self);
-      });
-    }, 0);
-  }
-
-  
-  performFlow () {
-    this._flowStages.forEach((stage) => {
-      this._notifyObservers(stage);
-    });
-  }
-
-  postpone (fn) {
-    this._postponed.push(fn);
-  }
-
-  _parseObserverArgs (args) {
-    let params = { stage: null, resource: null, handler: null, context: null, options: {} };
-    
-    let idx = 0;
-    let arg = args[idx];
-    if (isString(arg)) {
-      params.resource = arg;
-      idx++;
-      arg = args[idx];
-    }
-    if (!arg) {
-      throw new Error('Provided handler function was nil.')
-    }
-    if (!isFunction$1(arg)) {
-      throw new Error('Expecting a handler Function.')
-    }
-    params.handler = arg;
-    idx++;
-    arg = args[idx];
-    if (arg) {
-      params.context = arg;
-      idx++;
-      arg = args[idx];
-    }
-    if (arg) {
-      params.options = arg;
-    }
-    return params
-  }
-
-  
-
-  _registerObserver (stage, args) {
-    
-    
-    let record = this._parseObserverArgs(args);
-    record.stage = stage;
-    this.__registerObserver(stage, record);
-  }
-
-  __registerObserver (stage, record) {
-    
-    
-    if (record.context) {
-      const observer = record.context;
-      if (!observer[this.__id__]) {
-        observer[this.__id__] = [];
-      }
-      observer[this.__id__].push(record);
-    }
-    let observers = this._observers[stage];
-    if (!observers) {
-      observers = this._observers[stage] = [];
-    }
-    observers.push(record);
-  }
-
-  
-  _deregisterObserver (stage, method, observer) {
-    let self = this; 
-    if (arguments.length === 1) {
-      
-      
-      forEach(self._observers, (observers) => {
-        for (let i = observers.length - 1; i >= 0; i--) {
-          const o = observers[i];
-          if (o.context === observer) {
-            observers.splice(i, 1);
-            o._deregistered = true;
-          }
-        }
-      });
-    } else {
-      let observers = self._observers[stage];
-      
-      
-      if (!observers) {
-        EventEmitter.prototype.off.apply(self, arguments);
-      } else {
-        for (let i = observers.length - 1; i >= 0; i--) {
-          let o = observers[i];
-          if (o.handler === method && o.context === observer) {
-            observers.splice(i, 1);
-            o._deregistered = true;
-          }
-        }
-      }
-    }
-  }
-
-  __deregisterObserver (record) {
-    const stage = record.stage;
-    const observers = this._observers[stage];
-    const observer = record.context;
-    const method = record.handler;
-    for (let i = observers.length - 1; i >= 0; i--) {
-      let o = observers[i];
-      if (o.handler === method && o.context === observer) {
-        observers.splice(i, 1);
-        o._deregistered = true;
-      }
-    }
-  }
-
-  _notifyObservers (stage) {
-    
-    
-    
-    
-    
-    
-    let _observers = this._observers[stage];
-    if (!_observers) return
-    
-    
-    
-    let observers = _observers.slice();
-    for (let i = 0; i < observers.length; i++) {
-      
-      let o = observers[i];
-      if (o._deregistered) continue
-      if (!o.resource) {
-        o.handler.call(o.context, this);
-      } else if (o.resource === 'document') {
-        if (!this.hasDocumentChanged()) continue
-        const change = this.getChange();
-        const info = this.getChangeInfo();
-        const path = o.options.path;
-        if (!path) {
-          o.handler.call(o.context, change, info, this);
-        } else if (change.hasUpdated(path)) {
-          o.handler.call(o.context, change, info, this);
-        }
-      } else {
-        if (!this.hasChanged(o.resource)) continue
-        const resource = this.get(o.resource);
-        o.handler.call(o.context, resource, this);
-      }
-    }
-  }
-
-  _setDirty (resource) {
-    this._dirtyFlags[resource] = true;
-  }
-
-  _resetFlow () {
-    Object.keys(this._dirtyFlags).forEach((resource) => {
-      this._dirtyFlags[resource] = false;
-    });
-    this._change = null;
-    this._info = null;
-  }
-
-  
-
-  setBlurred (blurred) {
-    this._blurred = blurred;
-    
-    this.commandManager._updateCommandStates(this);
-    this._setDirty('commandStates');
-  }
-
-  isBlurred () {
-    return Boolean(this._blurred)
-  }
-}
-
-function _patchTxSetSelection (tx, editorSession) {
-  tx.setSelection = function (sel) {
-    sel = Transaction.prototype.setSelection.call(tx, sel);
-    _addSurfaceId(sel, editorSession);
-    _addContainerId(sel, editorSession);
-    return sel
-  };
-}
-
-
-function _addSurfaceId (sel, editorSession) {
-  if (sel && !sel.isNull() && !sel.surfaceId) {
-    
-    let surface = editorSession.getFocusedSurface();
-    if (surface) {
-      sel.surfaceId = surface.id;
-    }
-    
-    
-    
-    
-    
-  }
-}
-
-function _addContainerId (sel, editorSession) {
-  if (sel && !sel.isNull() && sel.surfaceId && !sel.containerId) {
-    let surface = editorSession.getSurface(sel.surfaceId);
-    if (surface) {
-      let containerId = surface.getContainerId();
-      if (containerId) {
-        sel.containerId = containerId;
-      }
-    }
-  }
-}
-
-class CollabSession extends EditorSession {
-  constructor (doc, config) {
-    super(doc, config);
-    config = config || {};
-    this.config = config;
-    this.collabClient = config.collabClient;
-    if (config.docVersion) {
-      console.warn('config.docVersion is deprecated: Use config.version instead');
-    }
-    if (config.docVersion) {
-      console.warn('config.docId is deprecated: Use config.documentId instead');
-    }
-    this.version = config.version;
-    this.documentId = config.documentId || config.docId;
-    if (config.autoSync !== undefined) {
-      this.autoSync = config.autoSync;
-    } else {
-      this.autoSync = true;
-    }
-    if (!this.documentId) {
-      throw new SubstanceError('InvalidArgumentsError', {message: 'documentId is mandatory'})
-    }
-    if (typeof this.version === 'undefined') {
-      throw new SubstanceError('InvalidArgumentsError', {message: 'version is mandatory'})
-    }
-    
-    this._connected = false; 
-    this._nextChange = null; 
-    this._pendingChange = null; 
-    this._pendingSync = false;
-    this._error = null;
-    
-    this.onUpdate('document', this.afterDocumentChange, this);
-    
-    this.collabClient.on('connected', this.onCollabClientConnected, this);
-    this.collabClient.on('disconnected', this.onCollabClientDisconnected, this);
-    this.collabClient.on('message', this._onMessage.bind(this));
-    
-    
-    
-    if (this.collabClient.isConnected() && this.autoSync) {
-      this.sync();
-    }
-  }
-
-  
-  dispose () {
-    this.disconnect();
-    this.collabClient.off(this);
-  }
-
-  
-  disconnect () {
-    
-    let msg = {
-      type: 'disconnect',
-      documentId: this.documentId
-    };
-    
-    this._abortSync();
-    this._send(msg);
-  }
-
-  
-  sync () {
-    
-    if (this.__canSync()) {
-      let nextChange = this._nextChange;
-      let msg = {
-        type: 'sync',
-        documentId: this.documentId,
-        version: this.version,
-        change: nextChange ? this.serializeChange(nextChange) : undefined
-      };
-      this._send(msg);
-      this._pendingSync = true;
-      this._pendingChange = nextChange;
-
-      
-      
-      this.emit('sync');
-      this._nextChange = null;
-      this._error = null;
-    } else {
-      console.error('Can not sync. Either collabClient is not connected or already syncing');
-    }
-  }
-
-  getCollaborators () {
-    return this.collaborators
-  }
-
-  isConnected () {
-    return this._connected
-  }
-
-  serializeChange (change) {
-    return change.toJSON()
-  }
-
-  deserializeChange (serializedChange) {
-    return DocumentChange.fromJSON(serializedChange)
-  }
-
-  
-
-  
-  _onMessage (msg) {
-    
-    if (msg.documentId !== this.documentId) {
-      return false
-    }
-    
-    msg = cloneDeep(msg);
-    switch (msg.type) {
-      case 'syncDone':
-        this.syncDone(msg);
-        break
-      case 'syncError':
-        this.syncError(msg);
-        break
-      case 'update':
-        this.update(msg);
-        break
-      case 'disconnectDone':
-        this.disconnectDone(msg);
-        break
-      case 'error':
-        this.error(msg);
-        break
-      default:
-        console.error('CollabSession: unsupported message', msg.type, msg);
-        return false
-    }
-    return true
-  }
-
-  
-  _send (msg) {
-    if (this.collabClient.isConnected()) {
-      this.collabClient.send(msg);
-      return true
-    } else {
-      console.warn('Try not to call _send when disconnected. Skipping message', msg);
-      return false
-    }
-  }
-
-  
-  update (args) {
-    
-    let serverChange = args.change;
-    let serverVersion = args.version;
-
-    if (!this._nextChange && !this._pendingSync) {
-      if (serverChange) {
-        serverChange = this.deserializeChange(serverChange);
-        this._applyRemoteChange(serverChange);
-      }
-      if (serverVersion) {
-        this.version = serverVersion;
-      }
-      this.startFlow();
-    } else {
-      console.info('skipped remote update. Pending sync or local changes.');
-    }
-  }
-
-  
-  syncDone (args) {
-    
-    let serverChange = args.serverChange;
-    let serverVersion = args.version;
-
-    if (serverChange) {
-      serverChange = this.deserializeChange(serverChange);
-      this._applyRemoteChange(serverChange);
-    }
-    this.version = serverVersion;
-    
-    
-    this._pendingChange = null;
-    this._pendingSync = false;
-    this._error = null;
-    
-    this._connected = true;
-    this.startFlow();
-    this.emit('connected');
-    
-    this._requestSync();
-  }
-
-  
-  syncError (error) {
-    console.info('SyncError occured. Aborting sync', error);
-    this._abortSync();
-  }
-
-  disconnectDone () {
-    
-    
-    this._afterDisconnected();
-  }
-
-  
-  error (message) {
-    let error = message.error;
-    let errorFn = this[error.name];
-    let err = SubstanceError.fromJSON(error);
-
-    if (!errorFn) {
-      error('CollabSession: unsupported error', error.name);
-      return false
-    }
-
-    this.emit('error', err);
-    errorFn = errorFn.bind(this);
-    errorFn(err);
-  }
-
-  
-
-  afterDocumentChange (change, info) {
-    
-    if (!info.remote) {
-      this._recordChange(change);
-    }
-  }
-
-  
-  onCollabClientConnected () {
-    
-    if (this.autoSync) {
-      this.sync();
-    }
-  }
-
-  
-  onCollabClientDisconnected () {
-    
-    this._abortSync();
-    if (this._connected) {
-      this._afterDisconnected();
-    }
-  }
-
-  
-
-  _commit (change, info) {
-    this._commitChange(change, info);
-    this.startFlow();
-  }
-
-  
-  _applyRemoteChange (change) {
-    
-    if (change.ops.length > 0) {
-      this._transaction.__applyChange__(change);
-      this.getDocument()._apply(change);
-      this._setDirty('document');
-      
-      this._transformLocalChangeHistory(change);
-      this._setSelection(this._transformSelection(change));
-      this._change = change;
-      this._info = { remote: true };
-      this.startFlow();
-    }
-  }
-
-  
-  _recordChange (change) {
-    if (!this._nextChange) {
-      this._nextChange = change;
-    } else {
-      
-      this._nextChange.ops = this._nextChange.ops.concat(change.ops);
-      this._nextChange.after = change.after;
-    }
-    this._requestSync();
-  }
-
-  __canSync () {
-    return this.collabClient.isConnected() && !this._pendingSync
-  }
-
-  
-  _requestSync () {
-    if (this._nextChange && this.__canSync()) {
-      this.sync();
-    }
-  }
-
-  
-  _abortSync () {
-    let newNextChange = this._nextChange;
-
-    if (this._pendingChange) {
-      newNextChange = this._pendingChange;
-      
-      if (this._nextChange) {
-        newNextChange.ops = newNextChange.ops.concat(this._nextChange.ops);
-        newNextChange.after = this._nextChange.after;
-      }
-      this._pendingChange = null;
-    }
-    this._pendingSync = false;
-    this._error = null;
-    this._nextChange = newNextChange;
-  }
-
-  
-  _afterDisconnected () {
-    this._connected = false;
-    this.emit('disconnected');
-  }
-
-  
-  _hasLocalChanges () {
-    return this._nextChange && this._nextChange.ops.length > 0
-  }
-}
-
-class DocumentArchive {
-
-  constructor(sessions, buffer) {
-    this.sessions = sessions;
-    this.buffer = buffer;
-
-    if (!sessions.manifest) throw new Error("'manifest' session is required.")
-
-    this.init();
-  }
-
-  init() {
-    
-
-  }
-
-  getManifest() {
-    return this.sessions.manifest.getDocument()
-  }
-
-  getDocumentEntries() {
-    return this.getEditorSession('manifest').getDocument().getDocumentEntries()
-  }
-
-  getEditorSession(docId) {
-    return this.sessions[docId]
-  }
-
-
-}
-
-const PLAINOBJ = {};
-
-
-class Registry {
-  constructor (entries, validator) {
-    this.entries = {};
-    this.names = [];
-    this.validator = validator;
-
-    if (entries) {
-      forEach(entries, function (entry, name) {
-        this.add(name, entry);
-      }.bind(this));
-    }
-  }
-
-  
-  contains (name) {
-    return this.entries.hasOwnProperty(name)
-  }
-
-  
-  add (name, entry) {
-    if (this.validator) {
-      this.validator(entry);
-    }
-    if (PLAINOBJ[name]) {
-      throw new Error('Illegal key: "' + name + '" is a property of Object which is thus not allowed as a key.')
-    }
-    if (this.contains(name)) {
-      this.remove(name);
-    }
-    this.entries[name] = entry;
-    this.names.push(name);
-  }
-
-  
-  remove (name) {
-    let pos = this.names.indexOf(name);
-    if (pos >= 0) {
-      this.names.splice(pos, 1);
-    }
-    delete this.entries[name];
-  }
-
-  
-  clear () {
-    this.names = [];
-    this.entries = {};
-  }
-
-  
-  get (name, strict) {
-    let result = this.entries[name];
-    if (strict && !result) {
-      throw new Error('No entry registered for name ' + name)
-    }
-    return result
-  }
-
-  
-  forEach (callback) {
-    for (let i = 0; i < this.names.length; i++) {
-      let name = this.names[i];
-      let _continue = callback(this.entries[name], name);
-      if (_continue === false) {
-        break
-      }
-    }
-  }
-
-  map (callback) {
-    let result = [];
-    this.forEach((entry, name) => {
-      result.push(callback(entry, name));
-    });
-    return result
-  }
-
-  filter (callback) {
-    let result = [];
-    this.forEach(function (entry, name) {
-      if (callback(entry, name)) {
-        result.push(entry);
-      }
-    });
-    return result
-  }
-
-  values () {
-    return this.filter(() => { return true })
-  }
-}
-
-Registry.prototype._isRegistry = true;
-
-class NodeRegistry extends Registry {
-  
-  register (nodeClazz) {
-    var type = nodeClazz.prototype.type;
-    if (typeof type !== 'string' || type === '') {
-      throw new Error('Node names must be strings and must not be empty')
-    }
-    if (!(nodeClazz.prototype._isNode)) {
-      throw new Error('Nodes must be subclasses of Substance.Data.Node')
-    }
-    if (this.contains(type)) {
-      
-      console.info('Overriding node type', type);
-      this.remove(type);
-    }
-    this.add(type, nodeClazz);
-  }
-}
-
-function isBoolean (val) {
-  return (val === true || val === false || (val && val.constructor === Boolean))
-}
-
-class NodeProperty {
-  constructor (name, definition) {
-    this.name = name;
-    this.definition = definition;
-
-    Object.freeze(this);
-    Object.freeze(definition);
-  }
-
-  isArray () {
-    return isArray(this.definition.type)
-  }
-
-  isReference () {
-    if (this.isArray()) {
-      return last$1(this.definition.type) === 'id'
-    } else {
-      return this.definition.type === 'id'
-    }
-  }
-
-  isText () {
-    return Boolean(this.definition._isText)
-  }
-
-  isOwned () {
-    return Boolean(this.definition.owned)
-  }
-
-  isOptional () {
-    return this.definition.optional || this.hasDefault()
-  }
-
-  isNotNull () {
-    return Boolean(this.definition.notNull)
-  }
-
-  hasDefault () {
-    return this.definition.hasOwnProperty('default')
-  }
-
-  getDefault () {
-    return this.definition.default
-  }
-
-  createDefaultValue () {
-    if (isArray(this.definition.type)) {
-      return []
-    }
-    switch (this.definition.type) {
-      case 'object':
-        return {}
-      case 'number':
-        return -1
-      case 'coordinate':
-        return new Coordinate([], 0)
-      case 'boolean':
-        return false
-      case 'id':
-        return null
-      case 'string':
-        return ''
-      default:
-        return null
-    }
-  }
-
-  get type () {
-    return this.definition.type
-  }
-
-  get targetTypes () {
-    return this.definition.targetTypes
-  }
-}
-
-class NodeSchema {
-  constructor (properties) {
-    this.properties = properties;
-
-    
-    
-    
-    
-    
-    this._ownedPropNames = new Set();
-    this._ownedProps = [];
-    forEach(properties, (prop) => {
-      if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
-        this._ownedPropNames.add(prop.name);
-        this._ownedProps.push(prop);
-      }
-    });
-  }
-
-  getProperty (name) {
-    return this.properties[name]
-  }
-
-  hasOwnedProperties () {
-    return this._ownedPropNames.size > 0
-  }
-
-  getOwnedProperties () {
-    return this._ownedProps.slice()
-  }
-
-  isOwned (name) {
-    return this._ownedPropNames.has(name)
-  }
-
-  [Symbol.iterator] () {
-    const properties = this.properties;
-    let ids = Object.keys(properties);
-    let idx = 0;
-    return { 
-      next () {
-        let done = idx > ids.length - 1;
-        if (done) {
-          return { done }
-        } else {
-          return {
-            value: properties[ids[idx++]]
-          }
-        }
-      }
-    }
-  }
-}
-
-class Node extends EventEmitter {
-  
-  constructor () {
-    super();
-
-    
-    
-    this._initialize.apply(this, arguments);
-  }
-
-  _initialize (data) {
-    const NodeClass = this.constructor;
-
-    let schema = NodeClass.schema;
-    for (let property of schema) {
-      let name = property.name;
-      
-      
-      const propIsGiven = (data[name] !== undefined);
-      const isOptional = property.isOptional();
-      const hasDefault = property.hasDefault();
-      if (!isOptional && !propIsGiven) {
-        throw new Error('Property ' + name + ' is mandatory for node type ' + this.type)
-      }
-      if (propIsGiven) {
-        this[name] = _checked(property, data[name]);
-      } else if (hasDefault) {
-        this[name] = cloneDeep(_checked(property, property.getDefault()));
-      }
-    }
-  }
-
-  dispose () {
-    this._disposed = true;
-  }
-
-  isDisposed () {
-    return Boolean(this._disposed)
-  }
-
-  
-  isInstanceOf (typeName) {
-    return Node.isInstanceOf(this.constructor, typeName)
-  }
-
-  getSchema () {
-    return this.constructor.schema
-  }
-
-  
-  getTypeNames () {
-    var typeNames = [];
-    var NodeClass = this.constructor;
-    while (NodeClass.type !== '@node') {
-      typeNames.push(NodeClass.type);
-      NodeClass = Object.getPrototypeOf(NodeClass);
-    }
-    return typeNames
-  }
-
-  
-  getPropertyType (propertyName) {
-    return this.constructor.schema.getProperty(propertyName).type
-  }
-
-  
-  toJSON () {
-    var data = {
-      type: this.type
-    };
-    const schema = this.getSchema();
-    for (let prop of schema) {
-      let val = this[prop.name];
-      if (prop.isOptional() && val === undefined) continue
-      if (isArray(val) || isObject(val)) {
-        val = cloneDeep(val);
-      }
-      data[prop.name] = val;
-    }
-    return data
-  }
-
-  get type () {
-    return this.constructor.type
-  }
-}
-
-Node.prototype._isNode = true;
-
-
-Object.defineProperty(Node, 'schema', {
-  get () { return this._schema },
-  set (schema) {
-    let NodeClass = this;
-    
-    
-    if (schema.type) {
-      NodeClass.type = schema.type;
-    }
-    
-    
-    
-    NodeClass._schema = compileSchema(NodeClass, schema);
-  }
-});
-
-Node.define = Node.defineSchema = function define (schema) {
-  this.schema = schema;
-};
-
-Node.schema = {
-  type: '@node',
-  id: 'string'
-};
-
-
-Node.isInstanceOf = function (NodeClass, typeName) {
-  var type = NodeClass.type;
-  while (type !== '@node') {
-    if (type === typeName) return true
-    var _super = Object.getPrototypeOf(NodeClass.prototype).constructor;
-    if (_super && _super.type) {
-      NodeClass = _super;
-      type = NodeClass.type;
-    } else {
-      break
-    }
-  }
-  return false
-};
-
-
-
-function compileSchema (NodeClass, schema) {
-  let compiledSchema = _compileSchema(schema);
-  let schemas = [compiledSchema];
-  let clazz = NodeClass;
-  while (clazz) {
-    var parentProto = Object.getPrototypeOf(clazz.prototype);
-    if (!parentProto) break
-    clazz = parentProto.constructor;
-    if (clazz && clazz._schema) {
-      schemas.unshift(clazz._schema.properties);
-    }
-  }
-  schemas.unshift({});
-  return new NodeSchema(Object.assign.apply(null, schemas))
-}
-
-function _compileSchema (schema) {
-  let compiledSchema = {};
-  forEach(schema, function (definition, name) {
-    
-    if (name === 'type') {
-      return
-    }
-    if (isString(definition) || isArray(definition)) {
-      definition = { type: definition };
-    }
-    definition = _compileDefintion(definition);
-    definition.name = name;
-    compiledSchema[name] = new NodeProperty(name, definition);
-  });
-  return compiledSchema
-}
-
-const _valueTypes = new Set(['string', 'number', 'boolean', 'object', 'array']);
-
-function _compileDefintion (definition) {
-  let result = definition;
-  if (isArray(definition.type)) {
-    
-    
-    
-    
-    let defs = definition.type;
-    let lastIdx = defs.length - 1;
-    let first = defs[0];
-    let last = defs[lastIdx];
-    let isCanonical = first === 'array';
-    let hasTargetType = last !== 'id' && !_valueTypes.has(last);
-    definition.targetTypes = definition.type;
-    if (isCanonical) {
-      definition.type = defs.slice();
-      definition.type[lastIdx] = 'id';
-      if (hasTargetType) definition.targetTypes = [last];
-    } else {
-      if (defs.length > 1) {
-        defs.forEach(t => {
-          if (_valueTypes.has(t)) {
-            throw new Error('Multi-types must consist of node types.')
-          }
-        });
-        definition.type = [ 'array', 'id' ];
-        definition.targetTypes = defs;
-      } else {
-        if (_valueTypes.has(first)) {
-          definition.type = [ 'array', first ];
-        } else {
-          definition.type = [ 'array', 'id' ];
-          definition.targetTypes = defs;
-        }
-      }
-    }
-  } else if (definition.type === 'text') {
-    result = {
-      type: 'string',
-      default: '',
-      _isText: true
-    };
-  }
-  return result
-}
-
-function _checked (prop, value) {
-  let type;
-  let name = prop.name;
-  if (prop.isArray()) {
-    type = 'array';
-  } else {
-    type = prop.type;
-  }
-  if (value === null) {
-    if (prop.isNotNull()) {
-      throw new Error('Value for property ' + name + ' is null.')
-    } else {
-      return value
-    }
-  }
-  if (value === undefined) {
-    throw new Error('Value for property ' + name + ' is undefined.')
-  }
-  if ((type === 'string' && !isString(value)) ||
-      (type === 'boolean' && !isBoolean(value)) ||
-      (type === 'number' && !isNumber(value)) ||
-      (type === 'array' && !isArray(value)) ||
-      (type === 'id' && !isString(value)) ||
-      (type === 'object' && !isObject(value))) {
-    throw new Error('Illegal value type for property ' + name + ': expected ' + type + ', was ' + (typeof value))
-  }
-  return value
-}
-
-class Schema {
-  
-  constructor (name, version) {
-    if (!name) {
-      throw new Error("'name' is mandatory")
-    }
-    if (!version) {
-      throw new Error("'version' is mandatory")
-    }
-
-    
-    this.name = name;
-    
-    this.version = version;
-    
-    this.nodeRegistry = new NodeRegistry();
-    
-    this.tocTypes = [];
-
-    
-    this.addNodes(this.getBuiltIns());
-  }
-
-  
-  addNodes (nodes) {
-    if (!nodes) return
-    forEach(nodes, function (NodeClass) {
-      if (!NodeClass.prototype._isNode) {
-        console.error('Illegal node class: ', NodeClass);
-      } else {
-        this.addNode(NodeClass);
-      }
-    }.bind(this));
-  }
-
-  addNode (NodeClass) {
-    this.nodeRegistry.register(NodeClass);
-    if (NodeClass.tocType) {
-      this.tocTypes.push(NodeClass.type);
-    }
-  }
-
-  
-  getNodeClass (name) {
-    return this.nodeRegistry.get(name)
-  }
-
-  
-  getBuiltIns () {
-    return []
-  }
-
-  
-  isInstanceOf (type, parentType) {
-    var NodeClass = this.getNodeClass(type);
-    if (NodeClass) {
-      return Node.isInstanceOf(NodeClass, parentType)
-    }
-    return false
-  }
-
-  
-  each (...args) {
-    return this.nodeRegistry.each(...args)
-  }
-
-  
-  getTocTypes () {
-    return this.tocTypes
-  }
-
-  
-  getDefaultTextType () {
-    throw new Error('Schmema.prototype.getDefaultTextType() must be overridden.')
-  }
-
-  getNodeSchema (type) {
-    var NodeClass = this.getNodeClass(type);
-    if (!NodeClass) {
-      console.error('Unknown node type ', type);
-      return null
-    }
-    return NodeClass.schema
-  }
-}
-
-class DocumentNode extends Node {
-  _initialize (doc, props) {
-    this.document = doc;
-    super._initialize(props);
-  }
-
-  
-  getDocument () {
-    return this.document
-  }
-
-  
-  hasParent () {
-    return Boolean(this.parent)
-  }
-
-  
-  getParent () {
-    if (isString(this.parent)) return this.document.get(this.parent)
-    return this.parent
-  }
-
-  setParent (parent) {
-    if (isString(parent)) parent = this.document.get(parent);
-    this.parent = parent;
-  }
-
-  
-  getRoot () {
-    let node = this;
-    while (node.parent) {
-      node = node.parent;
-    }
-    return node
-  }
-
-  getContainerRoot () {
-    let node = this;
-    while (node.parent) {
-      
-      if (node.parent.isContainer()) return node
-      
-      node = node.parent;
-    }
-    return node
-  }
-
-  
-  hasChildren () {
-    return false
-  }
-
-  
-  getChildIndex(child) { 
-    return -1
-  }
-
-  
-  getChildAt(idx) { 
-    return null
-  }
-
-  
-  getChildCount () {
-    return 0
-  }
-
-  
-  
-
-  
-
-  
-  isBlock () {
-    return Boolean(this.constructor.isBlock)
-  }
-
-  
-  isText () {
-    return Boolean(this.constructor.isText)
-  }
-
-  isList () {
-    return Boolean(this.constructor.isList)
-  }
-
-  isListItem () {
-    return Boolean(this.constructor.isListItem)
-  }
-
-  isContainer () {
-    return Boolean(this._isContainer)
-  }
-
-  
-
-  isAnnotation () {
-    return Boolean(this._isAnnotation)
-  }
-
-  isPropertyAnnotation () {
-    return Boolean(this._isPropertyAnnotation)
-  }
-
-  isContainerAnnotation () {
-    return Boolean(this._isContainerAnnotation)
-  }
-
-  
-  isInline () {
-    return Boolean(this.constructor.isInline)
-  }
-}
-
-DocumentNode.prototype._isDocumentNode = true;
-
-
-DocumentNode.isBlock = false;
-
-
-DocumentNode.isText = false;
-
-
-DocumentNode.isPropertyAnnotation = false;
-
-
-DocumentNode.isContainerAnnotation = false;
-
-
-DocumentNode.isInline = false;
-
-class ContainerAddress {
-  constructor (pos, offset) {
-    this.pos = pos;
-    this.offset = offset;
-  }
-
-  isBefore (other, strict) {
-    strict = Boolean(strict);
-    if (this.pos < other.pos) {
-      return true
-    } else if (this.pos > other.pos) {
-      return false
-    } else if (this.offset < other.offset) {
-      return true
-    } else if (this.offset > other.offset) {
-      return false
-    }
-    if (strict) {
-      return false
-    } else {
-      return true
-    }
-  }
-
-  isAfter (other, strict) {
-    return other.isBefore(this, strict)
-  }
-
-  isEqual (other) {
-    return (this.pos === other.pos && this.offset === other.offset)
-  }
-
-  toString () {
-    return [this.pos, '.', this.offset].join('')
-  }
-}
-
-function ContainerMixin (DocumentNode) {
-  class AbstractContainer extends DocumentNode {
-    contains (nodeId) {
-      return this.getPosition(nodeId) >= 0
-    }
-
-    getPosition (node, strict) {
-      if (isString(node)) {
-        node = this.document.get(node);
-      }
-      if (!node) return -1
-      let pos = this._getPosition(node);
-      if (strict && pos < 0) {
-        throw new Error('Node is not within this container: ' + node.id)
-      }
-      return pos
-    }
-
-    getNodeAt (idx) {
-      const nodeId = this.getNodeIdAt(idx);
-      if (nodeId) {
-        return this.getDocument().get(nodeId)
-      }
-    }
-
-    getNodeIdAt (idx) {
-      let content = this.getContent();
-      if (idx < 0 || idx >= content.length) {
-        
-        return undefined
-      } else {
-        return content[idx]
-      }
-    }
-
-    getNodes () {
-      const doc = this.getDocument();
-      return this.getContent().map(id => doc.get(id)).filter(Boolean)
-    }
-
-    show (nodeId, pos) {
-      
-      const arg1 = arguments[0];
-      if (!isString(arg1)) {
-        if (arg1._isNode) {
-          nodeId = arg1.id;
-        }
-      }
-      if (arguments.length > 1) {
-        console.error('DEPRECATED: use container.showAt(pos, nodeId) instead');
-      } else {
-        pos = this.getLength();
-      }
-      return this.showAt(pos, nodeId)
-    }
-
-    showAt (pos, nodeId) {
-      const doc = this.getDocument();
-      const length = this.getLength();
-      if (!isNumber(pos) || pos < 0 || pos > length) {
-        throw new Error('Index out of bounds')
-      }
-      if (!isString(nodeId)) {
-        if (nodeId._isNode) {
-          nodeId = nodeId.id;
-        } else {
-          throw new Error('Invalid argument.')
-        }
-      }
-      doc.update(this.getContentPath(), { type: 'insert', pos: pos, value: nodeId });
-    }
-
-    hide (nodeId) {
-      const pos = this.getPosition(nodeId);
-      this.hideAt(pos);
-    }
-
-    hideAt (pos) {
-      const length = this.getLength();
-      if (pos >= 0 && pos < length) {
-        const doc = this.getDocument();
-        doc.update(this.getContentPath(), { type: 'delete', pos: pos });
-      } else {
-        throw new Error('Index out of bounds.')
-      }
-    }
-
-    getAddress (coor) {
-      if (!coor._isCoordinate) {
-        
-        throw new Error('Illegal argument: Container.getAddress(coor) expects a Coordinate instance.')
-      }
-      var nodeId = coor.path[0];
-      var nodePos = this.getPosition(nodeId);
-      var offset;
-      if (coor.isNodeCoordinate()) {
-        if (coor.offset > 0) {
-          offset = Number.MAX_VALUE;
-        } else {
-          offset = 0;
-        }
-      } else {
-        offset = coor.offset;
-      }
-      return new ContainerAddress(nodePos, offset)
-    }
-
-    getLength () {
-      return this.getContent().length
-    }
-
-    get length () {
-      return this.getLength()
-    }
-
-    _getPosition (node) {
-      if (this._isCaching) {
-        return this._getCachedPosition(node)
-      } else {
-        return this._lookupPosition(node)
-      }
-    }
-
-    _getCachedPosition (node) {
-      let cache = this._cachedPositions || this._fillCache();
-      let nodeId = node.id;
-      let pos = -1;
-      if (cache.hasOwnProperty(nodeId)) {
-        pos = cache[nodeId];
-      } else {
-        pos = this._lookupPosition(node);
-        cache[nodeId] = pos;
-      }
-      return pos
-    }
-
-    _fillCache () {
-      let positions = {};
-      this.nodes.forEach((id, pos) => {
-        positions[id] = pos;
-      });
-      this._cachedPositions = positions;
-      return positions
-    }
-
-    _invalidateCache () {
-      this._cachedPositions = null;
-    }
-
-    _lookupPosition (node) {
-      if (node.hasParent()) {
-        node = node.getContainerRoot();
-      }
-      return this.getContent().indexOf(node.id)
-    }
-
-    _enableCaching () {
-      
-      if (this.document) {
-        this.document.data.on('operation:applied', this._onOperationApplied, this);
-        this._isCaching = true;
-      }
-    }
-
-    _onOperationApplied (op) {
-      if (op.type === 'set' || op.type === 'update') {
-        if (op.path[0] === this.id) {
-          this._invalidateCache();
-        }
-      }
-    }
-
-    _onDocumentChange (change) {
-      if (change.hasUpdated(this.getContentPath())) {
-        this._invalidateCache();
-      }
-    }
-
-    
-    
-
-    hasChildren () {
-      return this.getContent().length > 0
-    }
-
-    getChildIndex (child) {
-      return this.getContent().indexOf(child.id)
-    }
-
-    getChildren () {
-      return getNodes(this.getDocument(), this.getContent())
-    }
-
-    getChildAt (idx) {
-      var childrenIds = this.getContent();
-      if (idx < 0 || idx >= childrenIds.length) {
-        throw new Error('Array index out of bounds: ' + idx + ', ' + childrenIds.length)
-      }
-      return this.getDocument().get(childrenIds[idx], 'strict')
-    }
-
-    getChildCount () {
-      return this.getContent().length
-    }
-  }
-  return AbstractContainer
-}
-
-class Container extends ContainerMixin(DocumentNode) {
-  constructor (...args) {
-    super(...args);
-
-    
-    
-    
-    this._enableCaching();
-  }
-
-  dispose () {
-    this.document.off(this);
-  }
-
-  getContentPath () {
-    return [this.id, 'nodes']
-  }
-
-  getContent () {
-    return this.nodes
-  }
-}
-
-Container.prototype._isContainer = true;
-
-Container.schema = {
-  type: '@container',
-  nodes: { type: ['array', 'id'], default: [], owned: true }
-};
-
-function AnnotationMixin (DocumentNode) {
-  class AbstractAnnotation extends DocumentNode {
-    constructor (doc, props) {
-      super(doc, _normalizedProps(props));
-
-      
-      this.start = new Coordinate(this.start);
-      this.end = new Coordinate(this.end);
-    }
-
-    
-
-    get path () {
-      console.warn('DEPRECATED: use annotation.start.path instead');
-      return this.start.path
-    }
-
-    getPath () {
-      return this.start.path
-    }
-
-    get startPath () {
-      console.warn('DEPRECATED: use annotation.start.path instead.');
-      return this.start.path
-    }
-
-    set startPath (path) {
-      console.warn('DEPRECATED: use annotation.start.path instead.');
-      this.start.path = path;
-    }
-
-    get startOffset () {
-      console.warn('DEPRECATED: use annotation.start.offset instead.');
-      return this.start.offset
-    }
-
-    set startOffset (offset) {
-      console.warn('DEPRECATED: use annotation.start.offset instead.');
-      this.start.offset = offset;
-    }
-
-    get endPath () {
-      console.warn('DEPRECATED: use annotation.end.path instead.');
-      return this.end.path
-    }
-
-    set endPath (path) {
-      console.warn('DEPRECATED: use annotation.end.path instead.');
-      this.end.path = path;
-    }
-
-    get endOffset () {
-      console.warn('DEPRECATED: use annotation.end.offset instead.');
-      return this.end.offset
-    }
-
-    set endOffset (offset) {
-      console.warn('DEPRECATED: use annotation.end.offset instead.');
-      this.end.offset = offset;
-    }
-
-    
-
-    
-    getText () {
-      var doc = this.getDocument();
-      if (!doc) {
-        console.warn('Trying to use a Annotation which is not attached to the document.');
-        return ''
-      }
-      return getTextForSelection(doc, this.getSelection())
-    }
-
-    isAnnotation () {
-      return true
-    }
-
-    
-    canSplit () {
-      return true
-    }
-
-    
-    isAnchor () {
-      return false
-    }
-
-    
-    getSelection () {
-      const doc = this.getDocument();
-      
-      if (!doc) {
-        console.warn('Trying to use a ContainerAnnotation which is not attached to the document.');
-        return Selection.nullSelection()
-      }
-      if (this._isContainerAnnotation) {
-        return doc.createSelection({
-          type: 'container',
-          containerId: this.containerId,
-          startPath: this.start.path,
-          startOffset: this.start.offset,
-          endPath: this.end.path,
-          endOffset: this.end.offset
-        })
-      } else {
-        return this.getDocument().createSelection({
-          type: 'property',
-          path: this.start.path,
-          startOffset: this.start.offset,
-          endOffset: this.end.offset
-        })
-      }
-    }
-
-    _updateRange (tx, sel) {
-      if (sel.isContainerSelection()) {
-        
-        if (!isEqual(this.start.path, sel.start.path)) {
-          tx.set([this.id, 'start', 'path'], sel.start.path);
-        }
-        if (this.start.offset !== sel.start.offset) {
-          tx.set([this.id, 'start', 'offset'], sel.start.offset);
-        }
-        if (!isEqual(this.end.path, sel.end.path)) {
-          tx.set([this.id, 'end', 'path'], sel.end.path);
-        }
-        if (this.end.offset !== sel.end.offset) {
-          tx.set([this.id, 'end', 'offset'], sel.end.offset);
-        }
-      } else if (sel.isPropertySelection()) {
-        if (!isArrayEqual(this.start.path, sel.start.path)) {
-          tx.set([this.id, 'path'], sel.start.path);
-        }
-        
-        if (this.start.offset !== sel.start.offset) {
-          tx.set([this.id, 'start', 'offset'], sel.start.offset);
-        }
-        if (this.end.offset !== sel.end.offset) {
-          tx.set([this.id, 'end', 'offset'], sel.end.offset);
-        }
-      } else {
-        throw new Error('Invalid selection.')
-      }
-    }
-  }
-
-  AbstractAnnotation.prototype._isAnnotation = true;
-
-  AbstractAnnotation.schema = {
-    start: { type: 'coordinate', default: { path: [], offset: 0 } },
-    end: { type: 'coordinate', default: { path: [], offset: 0 } }
-  };
-
-  return AbstractAnnotation
-}
-
-function _normalizedProps (props) {
-  
-  
-  if (!props.hasOwnProperty('start')) {
-    
-    
-    
-    let start, end;
-    if (props.hasOwnProperty('startPath') || props.hasOwnProperty('path')) {
-      start = {
-        path: props.startPath || props.path,
-        offset: props.startOffset
-      };
-    }
-    if (props.hasOwnProperty('endPath') || props.hasOwnProperty('endOffset')) {
-      end = {
-        path: props.endPath || props.path,
-        offset: props.endOffset
-      };
-    }
-    if (start && !end) {
-      end = cloneDeep(start);
-    }
-    if (start) {
-      props = Object.assign({}, props);
-      delete props.path;
-      delete props.startPath;
-      delete props.endPath;
-      delete props.startOffset;
-      delete props.endOffset;
-      props.start = start;
-      props.end = end;
-    }
-  } else if (props.hasOwnProperty('end') && !props.end.path) {
-    props.end.path = props.start.path;
-  }
-  return props
-}
-
-class PropertyAnnotation extends AnnotationMixin(DocumentNode) {}
-
-PropertyAnnotation.prototype._isAnnotation = true;
-PropertyAnnotation.prototype._isPropertyAnnotation = true;
-
-PropertyAnnotation.isPropertyAnnotation = true;
-PropertyAnnotation.autoExpandRight = true;
-
-PropertyAnnotation.schema = {
-  type: '@annotation',
-  
-  
-  _content: { type: 'string', optional: true }
-};
-
-class ContainerAnnotation extends AnnotationMixin(DocumentNode) {
-  setHighlighted (highlighted, scope) {
-    if (this.highlighted !== highlighted) {
-      this.highlighted = highlighted;
-      this.highlightedScope = scope;
-      this.emit('highlighted', highlighted, scope);
-      forEach(this.fragments, function (frag) {
-        frag.emit('highlighted', highlighted, scope);
-      });
-    }
-  }
-}
-
-ContainerAnnotation.schema = {
-  type: '@container-annotation',
-  containerId: 'string',
-  start: 'coordinate',
-  end: 'coordinate'
-};
-
-ContainerAnnotation.prototype._isAnnotation = true;
-ContainerAnnotation.prototype._isContainerAnnotation = true;
-
-class DocumentSchema extends Schema {
-  constructor (schemaSpec) {
-    super(schemaSpec.name, schemaSpec.version);
-    
-    if (!schemaSpec.DocumentClass) {
-      throw new Error('DocumentClass is mandatory')
-    }
-    Object.assign(this, schemaSpec);
-  }
-
-  getDocumentClass () {
-    return this.DocumentClass
-  }
-
-  
-  getDefaultTextType () {
-    return this.defaultTextType
-  }
-
-  
-  getBuiltIns () {
-    return [DocumentNode, PropertyAnnotation, Container, ContainerAnnotation]
-  }
-}
-
-class EditingBehavior {
-  constructor () {
-    this._merge = {};
-    this._mergeComponents = {};
-    this._break = {};
-  }
-
-  defineMerge (firstType, secondType, impl) {
-    if (!this._merge[firstType]) {
-      this._merge[firstType] = {};
-    }
-    this._merge[firstType][secondType] = impl;
-    return this
-  }
-
-  canMerge (firstType, secondType) {
-    return (this._merge[firstType] && this._merge[firstType][secondType])
-  }
-
-  getMerger (firstType, secondType) {
-    return this._merge[firstType][secondType]
-  }
-
-  defineComponentMerge (nodeType, impl) {
-    this._mergeComponents[nodeType] = impl;
-  }
-
-  canMergeComponents (nodeType) {
-    return this._mergeComponents[nodeType]
-  }
-
-  getComponentMerger (nodeType) {
-    return this._mergeComponents[nodeType]
-  }
-
-  defineBreak (nodeType, impl) {
-    this._break[nodeType] = impl;
-    return this
-  }
-
-  canBreak (nodeType) {
-    return this._break[nodeType]
-  }
-
-  getBreaker (nodeType) {
-    return this._break[nodeType]
-  }
-}
-
-class ComponentRegistry extends Registry {
-  constructor (entries) {
-    super(entries, function (ComponentClass) {
-      if (!ComponentClass.prototype._isComponent) {
-        throw new Error('Component registry: wrong type. Expected a ComponentClass. Was: ' + String(ComponentClass))
-      }
-    });
-  }
-}
-
 function extend (...args) {
   return Object.assign(...args)
+}
+
+function isFunction$1 (f) {
+  return typeof f === 'function'
 }
 
 class ArrayIterator {
@@ -11175,24 +7590,25 @@ class DOMEventListener {
     
     this._el = null;
   }
-}
 
-DOMEventListener.prototype._isDOMEventListener = true;
+  
+  get _isDOMEventListener () { return true }
 
-DOMEventListener.findIndex = function (eventListeners, eventName, handler) {
-  var idx = -1;
-  if (arguments[1]._isDOMEventListener) {
-    idx = eventListeners.indexOf(arguments[1]);
-  } else {
-    idx = findIndex$1(eventListeners,
-      _matches.bind(null, {
-        eventName: eventName,
-        originalHandler: handler
-      })
-    );
+  static findIndex (eventListeners, eventName, handler) {
+    var idx = -1;
+    if (arguments[1]._isDOMEventListener) {
+      idx = eventListeners.indexOf(arguments[1]);
+    } else {
+      idx = findIndex$1(eventListeners,
+        _matches.bind(null, {
+          eventName: eventName,
+          originalHandler: handler
+        })
+      );
+    }
+    return idx
   }
-  return idx
-};
+}
 
 function _matches (l1, l2) {
   return l1.eventName === l2.eventName && l1.originalHandler === l2.originalHandler
@@ -11953,11 +8369,16 @@ class DOMElement {
   set value (value) {
     return this.setValue(value)
   }
+
+  get _isDOMElement () { return true }
+
+  
+  static get pxStyles () { return PX_STYLES }
+
+  static get EMPTY_HTML () { return EMPTY_HTML }
 }
 
-DOMElement.prototype._isDOMElement = true;
-
-DOMElement.pxStyles = {
+const PX_STYLES = {
   top: true,
   bottom: true,
   left: true,
@@ -11966,7 +8387,7 @@ DOMElement.pxStyles = {
   width: true
 };
 
-DOMElement.EMPTY_HTML = '<html><head></head><body></body></html>';
+const EMPTY_HTML = '<html><head></head><body></body></html>';
 
 const SIGNATURE = uuid('_BrowserDOMElement');
 
@@ -12299,8 +8720,8 @@ class BrowserDOMElement extends DOMElement {
     return BrowserDOMElement.wrap(clone)
   }
 
-  createDocument (format) {
-    return BrowserDOMElement.createDocument(format)
+  createDocument (format, opts) {
+    return BrowserDOMElement.createDocument(format, opts)
   }
 
   createElement (tagName) {
@@ -12520,8 +8941,8 @@ class BrowserDOMElement extends DOMElement {
     return this.el.childNodes.length
   }
 
-  focus () {
-    this.el.focus();
+  focus (opts) {
+    this.el.focus(opts);
     return this
   }
 
@@ -12608,11 +9029,24 @@ class BrowserDOMElement extends DOMElement {
 BrowserDOMElement.prototype._isBrowserDOMElement = true;
 
 
-BrowserDOMElement.createDocument = function (format) {
+BrowserDOMElement.createDocument = function (format, opts = {}) {
   let doc;
   if (format === 'xml') {
+    let xmlInstruction = [];
+    if (opts.version) {
+      xmlInstruction.push(`version="${opts.version}"`);
+    }
+    if (opts.encoding) {
+      xmlInstruction.push(`encoding="${opts.encoding}"`);
+    }
+    let xmlStr;
+    if (xmlInstruction.length > 0) {
+      xmlStr = `<?xml ${xmlInstruction.join(' ')}?><dummy/>`;
+    } else {
+      xmlStr = `<dummy/>`;
+    }
     
-    doc = window.document.implementation.createDocument(null, 'dummy');
+    doc = (new window.DOMParser()).parseFromString(xmlStr, 'application/xml');
     
     doc.removeChild(doc.firstChild);
   } else {
@@ -12658,7 +9092,9 @@ BrowserDOMElement.parseMarkup = function (str, format, options = {}) {
     if (doc) {
       let parserError = doc.querySelector('parsererror');
       if (parserError) {
-        throw new Error('ParserError: ' + parserError)
+        
+        
+        throw new Error('ParserError: ' + BrowserDOMElement.wrap(parserError).outerHTML)
       }
     }
     return doc
@@ -13550,6 +9986,9 @@ class DomUtils {
       switch (elem.type) {
         case 'root':
         case 'document': {
+          if (elem._xmlInstruction) {
+            output.push(this.render(elem._xmlInstruction, opts));
+          }
           output.push(this.render(this.getChildren(elem), opts));
           break
         }
@@ -13610,7 +10049,7 @@ class DomUtils {
   }
 
   renderDirective (elem) {
-    return '<?' + this.getData(elem) + '?>'
+    return '<?' + this.getName(elem) + ' ' + this.getData(elem) + '?>'
   }
 
   renderDoctype (elem) {
@@ -22957,8 +19396,17 @@ class DomHandler {
   }
 
   onprocessinginstruction (name, data) {
-    let element = this.document.createProcessingInstruction(name, data);
-    this._addDomElement(element);
+    
+    
+    data = data.slice(name.length, -1).trim();
+    
+    name = name.slice(1);
+    let el = this.document.createProcessingInstruction(name, data);
+    if (name === 'xml') {
+      this.document._xmlInstruction = el;
+    } else {
+      this._addDomElement(el);
+    }
   }
 
   ondeclaration (data) {
@@ -22972,9 +19420,7 @@ class DomHandler {
   }
 }
 
-const MemoryDOMElementFactory = (type, data) => {
-  return new MemoryDOMElement(type, data)
-};
+let _browserWindowStub;
 
 class MemoryDOMElement extends DOMElement {
   constructor (type, args = {}) {
@@ -23126,47 +19572,55 @@ class MemoryDOMElement extends DOMElement {
   }
 
   hasAttribute (name) {
-    return this.attributes.has(name)
+    if (this.attributes) {
+      return this.attributes.has(name)
+    }
   }
 
   getAttribute (name) {
-    return this.attributes.get(name)
+    if (this.attributes) {
+      return this.attributes.get(name)
+    }
   }
 
   setAttribute (name, value) {
-    value = String(value);
-    
-    switch (name) {
-      case 'class':
-        this.classes = new Set();
-        parseClasses(this.classes, value);
-        break
-      case 'style':
-        this.styles = new Map();
-        parseStyles(this.styles, value);
-        break
-      default:
-        
-    }
-    this.attributes.set(name, value);
-    if (this._isHTML()) {
-      deriveHTMLPropertyFromAttribute(this, name, value);
+    if (this.attributes) {
+      value = String(value);
+      
+      switch (name) {
+        case 'class':
+          this.classes = new Set();
+          parseClasses(this.classes, value);
+          break
+        case 'style':
+          this.styles = new Map();
+          parseStyles(this.styles, value);
+          break
+        default:
+          
+      }
+      this.attributes.set(name, value);
+      if (this._isHTML()) {
+        deriveHTMLPropertyFromAttribute(this, name, value);
+      }
     }
     return this
   }
 
   removeAttribute (name) {
-    switch (name) {
-      case 'class':
-        this.classes = new Set();
-        break
-      case 'style':
-        this.styles = new Map();
-        break
-      default:
-        
+    if (this.attributes) {
+      switch (name) {
+        case 'class':
+          this.classes = new Set();
+          break
+        case 'style':
+          this.styles = new Map();
+          break
+        default:
+          
+      }
+      this.attributes.delete(name);
     }
-    this.attributes.delete(name);
     return this
   }
 
@@ -23197,8 +19651,10 @@ class MemoryDOMElement extends DOMElement {
   }
 
   addClass (name) {
-    this.classes.add(name);
-    this.attributes.set('class', stringifyClasses(this.classes));
+    if (this.classes) {
+      this.classes.add(name);
+      this.attributes.set('class', stringifyClasses(this.classes));
+    }
     return this
   }
 
@@ -23237,22 +19693,25 @@ class MemoryDOMElement extends DOMElement {
   }
 
   getInnerHTML () {
-    return domUtils.getInnerHTML(this, { decodeEntities: true })
+    let isXML = this._isXML();
+    return domUtils.getInnerHTML(this, { xmlMode: isXML, decodeEntities: !isXML })
   }
 
   
   
   setInnerHTML (html) {
     if (this.childNodes) {
+      let isXML = this._isXML();
       let _doc = parseMarkup(html, {
         ownerDocument: this.getOwnerDocument(),
-        decodeEntities: true,
+        format: isXML ? 'xml' : 'html',
+        decodeEntities: !isXML,
         elementFactory: MemoryDOMElementFactory
       });
       this.empty();
       
       
-      _doc.childNodes.slice(0).forEach((child) => {
+      _doc.childNodes.slice(0).forEach(child => {
         this.appendChild(child);
       });
     }
@@ -23260,7 +19719,8 @@ class MemoryDOMElement extends DOMElement {
   }
 
   getOuterHTML () {
-    return domUtils.getOuterHTML(this, { xmlMode: this._isXML(), decodeEntities: true })
+    let isXML = this._isXML();
+    return domUtils.getOuterHTML(this, { xmlMode: isXML, decodeEntities: !isXML })
   }
 
   getTextContent () {
@@ -23370,6 +19830,15 @@ class MemoryDOMElement extends DOMElement {
   }
 
   getParent () {
+    
+    
+    
+    
+    
+    
+    
+    
+    
     return this.parent
   }
 
@@ -23519,10 +19988,11 @@ class MemoryDOMElement extends DOMElement {
   _propagateEvent (event) {
     let listeners = this.eventListeners;
     if (listeners) {
-      let listener = listeners.find((l) => {
-        return l.eventName === event.type
+      listeners.forEach(l => {
+        if (l.eventName === event.type) {
+          l.handler(event);
+        }
       });
-      if (listener) listener.handler(event);
       if (event.stopped) return
       let p = this.parentNode;
       if (p) p._propagateEvent(event);
@@ -23599,98 +20069,115 @@ class MemoryDOMElement extends DOMElement {
   _isXML () {
     return this.getFormat() === 'xml'
   }
+
+  
+  get _isMemoryDOMElement () { return true }
+
+  static createDocument (format, opts = {}) {
+    if (format === 'xml') {
+      let doc = new MemoryDOMElement('document', { format: format });
+      let xmlInstruction = [];
+      if (opts.version) {
+        xmlInstruction.push(`version="${opts.version}"`);
+      }
+      if (opts.encoding) {
+        xmlInstruction.push(`encoding="${opts.encoding}"`);
+      }
+      if (xmlInstruction.length > 0) {
+        doc._xmlInstruction = doc.createProcessingInstruction('xml', xmlInstruction.join(' '));
+      }
+      return doc
+    } else {
+      return MemoryDOMElement.parseMarkup(DOMElement.EMPTY_HTML, 'html')
+    }
+  }
+
+  static parseMarkup (str, format, options = {}) {
+    if (!str) {
+      return MemoryDOMElement.createDocument(format)
+    }
+    
+    let decodeEntities = format === 'html';
+    let parserOpts = Object.assign({
+      format,
+      decodeEntities,
+      elementFactory: MemoryDOMElementFactory
+    }, options);
+    
+    if (options.raw) {
+      return parseMarkup(str, parserOpts)
+    }
+    if (options.snippet) {
+      str = `<__snippet__>${str}</__snippet__>`;
+    }
+    let doc;
+    if (format === 'html') {
+      doc = parseMarkup(str, parserOpts);
+      _sanitizeHTMLStructure(doc);
+    } else if (format === 'xml') {
+      doc = parseMarkup(str, parserOpts);
+    }
+    if (options.snippet) {
+      let childNodes = doc.find('__snippet__').childNodes;
+      if (childNodes.length === 1) {
+        return childNodes[0]
+      } else {
+        return childNodes
+      }
+    } else {
+      return doc
+    }
+  }
+
+  static wrapNativeElement (el) {
+    if (inBrowser) {
+      
+      
+      
+      
+      if (el === window || el === window.document) {
+        return new DOMElementStub()
+      
+      
+      
+      } else if (el instanceof window.Node || el._isBrowserDOMElement) ;
+    }
+    
+    if (!el._isMemoryDOMElement) {
+      throw new Error('Illegal argument: expected MemoryDOMElement instance')
+    }
+    return el
+  }
+
+  static wrap (el) { return MemoryDOMElement.wrapNativeElement(el) }
+
+  static unwrap (el) {
+    
+    if (!el._isMemoryDOMElement) {
+      throw new Error('Illegal argument: expected MemoryDOMElement instance')
+    }
+    return el
+  }
+
+  
+  
+  
+  static isReverse () {
+    return false
+  }
+
+  static getBrowserWindow () {
+    
+    if (!_browserWindowStub) {
+      _browserWindowStub = MemoryDOMElement.createDocument('html');
+    }
+    return _browserWindowStub
+  }
 }
 
-MemoryDOMElement.prototype._isMemoryDOMElement = true;
-
-MemoryDOMElement.createDocument = function (format) {
-  if (format === 'xml') {
-    return new MemoryDOMElement('document', { format: format })
-  } else {
-    return MemoryDOMElement.parseMarkup(DOMElement.EMPTY_HTML, 'html')
-  }
-};
-
-MemoryDOMElement.parseMarkup = function (str, format, options = {}) {
-  if (!str) {
-    return MemoryDOMElement.createDocument(format)
-  }
-  let parserOpts = Object.assign({
-    format,
-    decodeEntities: true,
-    elementFactory: MemoryDOMElementFactory
-  }, options);
-  
-  if (options.raw) {
-    return parseMarkup(str, parserOpts)
-  }
-  if (options.snippet) {
-    str = `<__snippet__>${str}</__snippet__>`;
-  }
-  let doc;
-  if (format === 'html') {
-    doc = parseMarkup(str, parserOpts);
-    _sanitizeHTMLStructure(doc);
-  } else if (format === 'xml') {
-    doc = parseMarkup(str, parserOpts);
-  }
-  if (options.snippet) {
-    let childNodes = doc.find('__snippet__').childNodes;
-    if (childNodes.length === 1) {
-      return childNodes[0]
-    } else {
-      return childNodes
-    }
-  } else {
-    return doc
-  }
-};
-
-MemoryDOMElement.wrap =
-MemoryDOMElement.wrapNativeElement = function (el) {
-  if (inBrowser) {
-    
-    
-    
-    
-    if (el === window || el === window.document) {
-      return new DOMElementStub()
-    
-    
-    
-    } else if (el instanceof window.Node || el._isBrowserDOMElement) ;
-  }
-  
-  if (!el._isMemoryDOMElement) {
-    throw new Error('Illegal argument: expected MemoryDOMElement instance')
-  }
-  return el
-};
-
-MemoryDOMElement.unwrap = function (el) {
-  
-  if (!el._isMemoryDOMElement) {
-    throw new Error('Illegal argument: expected MemoryDOMElement instance')
-  }
-  return el
-};
-
-
-
-
-MemoryDOMElement.isReverse = function () {
-  return false
-};
-
-
-let _browserWindowStub;
-MemoryDOMElement.getBrowserWindow = function () {
-  
-  if (!_browserWindowStub) {
-    _browserWindowStub = MemoryDOMElement.createDocument('html');
-  }
-  return _browserWindowStub
-};
+function MemoryDOMElementFactory (type, data) {
+  return new MemoryDOMElement(type, data)
+}
 
 class MemoryDOMDoctype extends MemoryDOMElement {
   get name () { return this.data.name }
@@ -23907,8 +20394,8 @@ function _findDocTypeElement (doc) {
 
 let DefaultDOMElement = {};
 
-DefaultDOMElement.createDocument = function (format) {
-  return _getDefaultImpl().createDocument(format)
+DefaultDOMElement.createDocument = function (format, opts) {
+  return _getDefaultImpl().createDocument(format, opts)
 };
 
 
@@ -23975,6 +20462,27 @@ const substanceGlobals = _global.hasOwnProperty('Substance') ? _global.Substance
   DEBUG_RENDERING: false
 };
 
+function flatten (arr) {
+  return Array.prototype.concat.apply([], arr)
+}
+
+function flattenOften (arr, max) {
+  if (!(max > 0)) throw new Error("'max' must be a positive number")
+  let l = arr.length;
+  arr = flatten(arr);
+  let round = 1;
+  while (round < max && l < arr.length) {
+    l = arr.length;
+    arr = flatten(arr);
+    round++;
+  }
+  return arr
+}
+
+function isBoolean (val) {
+  return (val === true || val === false || (val && val.constructor === Boolean))
+}
+
 class VirtualElement extends DOMElement {
   constructor (owner) {
     super();
@@ -24027,9 +20535,9 @@ class VirtualElement extends DOMElement {
   isInDocument () {
     return false
   }
-}
 
-VirtualElement.prototype._isVirtualElement = true;
+  get _isVirtualElement () { return true }
+}
 
 
 class VirtualHTMLElement extends VirtualElement {
@@ -24412,9 +20920,9 @@ class VirtualHTMLElement extends VirtualElement {
       this.eventListeners = this.eventListeners.concat(other.eventListeners);
     }
   }
-}
 
-VirtualHTMLElement.prototype._isVirtualHTMLElement = true;
+  get _isVirtualHTMLElement () { return true }
+}
 
 
 class VirtualComponent extends VirtualHTMLElement {
@@ -24430,10 +20938,6 @@ class VirtualComponent extends VirtualHTMLElement {
     }
     this.children = props.children;
   }
-
-  get _isVirtualHTMLElement () { return false }
-
-  get _isVirtualComponent () { return true }
 
   getComponent () {
     return this._comp
@@ -24470,6 +20974,10 @@ class VirtualComponent extends VirtualHTMLElement {
       eventListeners: clone(this.eventListeners)
     }
   }
+
+  get _isVirtualHTMLElement () { return false }
+
+  get _isVirtualComponent () { return true }
 }
 
 class Outlet {
@@ -24704,24 +21212,34 @@ function _capture (state, vel, forceCapture) {
       var content = comp.render(context.$$);
       if (!content) {
         throw new Error('Component.render() returned nil.')
-      }
-      if (!content._isVirtualHTMLElement) {
-        throw new Error('Component.render() must return a plain element.')
+      } else if (content._isVirtualComponent) {
+        
+        
+        content._isForwarded = true;
+        content.parent = vel;
+        
+        
+      } else if (!content._isVirtualHTMLElement) {
+        throw new Error('render() must return a plain element or a Component')
       }
 
       if (comp.__htmlConfig__) {
         content._mergeHTMLConfig(comp.__htmlConfig__);
       }
-      content._comp = comp;
+      if (!content._isVirtualComponent) {
+        content._comp = comp;
+      }
       vel._content = content;
       if (!state.isNew(vel) && comp.isMounted()) {
         state.setUpdated(vel);
       }
       
+      
       _prepareVirtualComponent(state, comp, content);
       
       
-      if (substanceGlobals.DEBUG_RENDERING) {
+      
+      if (substanceGlobals.DEBUG_RENDERING && !vel._content._isForwarded) {
         
         
         
@@ -24795,6 +21313,15 @@ function _render (state, vel) {
     });
     comp.refs = refs;
     comp.__foreignRefs__ = foreignRefs;
+
+    
+    
+    
+    if (vel._content._isVirtualComponent) {
+      comp.el = vel._content._comp.el;
+      vel._content._comp.triggerDidMount();
+      comp.triggerDidMount();
+    }
     return
   }
 
@@ -25397,14 +21924,19 @@ class Component extends EventEmitter {
 
     
     
-    let context = options.context ? options.context : this._getContext() || {};
-    this.context = context;
-    Object.freeze(this.context);
+    let context;
+    if (isFunction$1(this.defineContext)) {
+      context = this.defineContext(props, parent);
+    } else {
+      context = options.context || this._getContext();
+    }
+    this.context = context || {};
+    
 
     
     
     
-    this.renderingEngine = (parent && parent.renderingEngine) || context.renderingEngine || options.renderingEngine || new RenderingEngine({
+    this.renderingEngine = (parent && parent.renderingEngine) || options.renderingEngine || new RenderingEngine({
       componentFactory: COMPONENT_FACTORY
     });
 
@@ -25422,15 +21954,15 @@ class Component extends EventEmitter {
     this.__foreignRefs__ = {};
 
     
-    this._actionHandlers = {};
+    this._actionHandlers = this.getActionHandlers();
 
     
     this.props = props;
-    Object.freeze(this.props);
+    
 
     
     this.state = this.getInitialState() || {};
-    Object.freeze(this.state);
+    
   }
 
   getId () {
@@ -25441,9 +21973,13 @@ class Component extends EventEmitter {
     throw new Error("'id' is readonly")
   }
 
+  getActionHandlers () {
+    return {}
+  }
+
   
   getChildContext () {
-    return this.childContext || {}
+    return {}
   }
 
   
@@ -25498,11 +22034,7 @@ class Component extends EventEmitter {
   }
 
   getComponentRegistry () {
-    return this.props.componentRegistry || this.context.componentRegistry
-  }
-
-  getFlow () {
-    return this.context.flow
+    return this.context.componentRegistry
   }
 
   
@@ -25563,6 +22095,8 @@ class Component extends EventEmitter {
     
     
     
+    
+    
 
     
     
@@ -25611,7 +22145,7 @@ class Component extends EventEmitter {
   
   send (action) {
     
-    var comp = this.getParent();
+    var comp = this;
     while (comp) {
       if (comp._actionHandlers && comp._actionHandlers[action]) {
         comp._actionHandlers[action].apply(comp, Array.prototype.slice.call(arguments, 1));
@@ -25948,6 +22482,7 @@ class Component extends EventEmitter {
     if (this.el) {
       this.el.click();
     }
+    return this
   }
 
   getComponentPath () {
@@ -25971,75 +22506,95 @@ class Component extends EventEmitter {
     }
     return context
   }
-}
 
-Component.prototype._isComponent = true;
+  get _isComponent () { return true }
 
-Component.prototype.attr = DOMElement.prototype.attr;
+  
 
-Component.prototype.htmlProp = DOMElement.prototype.htmlProp;
-
-Component.prototype.val = DOMElement.prototype.val;
-
-Component.prototype.css = DOMElement.prototype.css;
-
-Component.prototype.text = DOMElement.prototype.text;
-
-Component.prototype.append = DOMElement.prototype.append;
-
-Component.unwrap = _unwrapComp;
-
-Component.render = function (props) {
-  props = props || {};
-  var ComponentClass = this;
-  var comp = new ComponentClass(null, props);
-  comp._render();
-  return comp
-};
-
-Component.mount = function (props, el) {
-  if (arguments.length === 1) {
-    el = props;
-    props = {};
+  attr () {
+    return DOMElement.prototype.attr.apply(this, arguments)
   }
-  if (!el) throw new Error("'el' is required.")
-  if (isString(el)) {
-    var selector = el;
-    if (platform.inBrowser) {
-      el = window.document.querySelector(selector);
-    } else {
-      throw new Error('This selector is not supported on server side.')
+
+  htmlProp () {
+    return DOMElement.prototype.htmlProp.apply(this, arguments)
+  }
+
+  val () {
+    return DOMElement.prototype.val.apply(this, arguments)
+  }
+
+  css () {
+    return DOMElement.prototype.css.apply(this, arguments)
+  }
+
+  text () {
+    return DOMElement.prototype.text.apply(this, arguments)
+  }
+
+  append () {
+    return DOMElement.prototype.append.apply(this, arguments)
+  }
+
+  static unwrap () {
+    return _unwrapComp.apply(this, arguments)
+  }
+
+  static render (props) {
+    props = props || {};
+    var ComponentClass = this;
+    var comp = new ComponentClass(null, props);
+    comp._render();
+    return comp
+  }
+
+  static mount (props, el) {
+    if (arguments.length === 1) {
+      el = props;
+      props = {};
     }
+    if (!el) throw new Error("'el' is required.")
+    if (isString(el)) {
+      var selector = el;
+      if (platform.inBrowser) {
+        el = window.document.querySelector(selector);
+      } else {
+        throw new Error('This selector is not supported on server side.')
+      }
+    }
+    el = DefaultDOMElement.wrap(el);
+    const ComponentClass = this;
+    let comp = new ComponentClass(null, props);
+    comp.mount(el);
+    return comp
   }
-  el = DefaultDOMElement.wrap(el);
-  const ComponentClass = this;
-  let comp = new ComponentClass(null, props);
-  comp.mount(el);
-  return comp
-};
 
-Component.getComponentForDOMElement = function (el) {
-  return _unwrapComp(el)
-};
+  static getComponentForDOMElement (el) {
+    return _unwrapComp(el)
+  }
 
-Component.unwrapDOMElement = function (el) {
-  console.warn('DEPRECATED: Use Component.getComponentForDOMElement');
-  return Component.getComponentForDOMElement(el)
-};
+  static unwrapDOMElement (el) {
+    console.warn('DEPRECATED: Use Component.getComponentForDOMElement');
+    return Component.getComponentForDOMElement(el)
+  }
 
-Component.getComponentFromNativeElement = function (nativeEl) {
+  static getComponentFromNativeElement (nativeEl) {
+    
+    
+    
+    return _unwrapComp(DefaultDOMElement.wrap(nativeEl))
+  }
+
+  static createRenderingEngine (elementFactory) {
+    return new RenderingEngine({
+      componentFactory: COMPONENT_FACTORY,
+      elementFactory
+    })
+  }
+
   
-  
-  
-  return _unwrapComp(DefaultDOMElement.wrap(nativeEl))
-};
-
-Component.createRenderingEngine = function (elementFactory) {
-  return new RenderingEngine({
-    componentFactory: COMPONENT_FACTORY,
-    elementFactory
-  })
-};
+  static get Element () { return ElementComponent }
+  static get TextNode () { return TextNodeComponent }
+}
 
 
 function _disposeChild (child) {
@@ -26074,10 +22629,10 @@ function _unwrapCompStrict (el) {
   return comp
 }
 
-class ElementComponent extends Component {}
-
-ElementComponent.prototype._isElementComponent = true;
-ElementComponent.prototype._SKIP_COMPONENT_INIT = true;
+class ElementComponent extends Component {
+  get _isElementComponent () { return true }
+  get _SKIP_COMPONENT_INIT () { return true }
+}
 
 class TextNodeComponent extends Component {
   setTextContent (text) {
@@ -26096,66 +22651,1889 @@ class TextNodeComponent extends Component {
   getChildren () {
     return []
   }
+
+  get _isTextNodeComponent () { return true }
+  get _SKIP_COMPONENT_INIT () { return true }
 }
 
-TextNodeComponent.prototype._isTextNodeComponent = true;
-TextNodeComponent.prototype._SKIP_COMPONENT_INIT = true;
-
-Component.Element = ElementComponent;
-Component.TextNode = TextNodeComponent;
-
-class FontAwesomeIcon extends Component {
-  render ($$) {
-    if (this.props.stack) {
-      return $$('span').addClass('fa-stack')
-        .append(this.props.stack.map(faClass => {
-          return $$('i').addClass('fa ' + faClass + ' fa-stack')
-        }))
+class Range {
+  constructor (start, end, reverse, containerId, surfaceId) {
+    
+    if (arguments[0] === 'SKIP') return
+    if (arguments.length === 1 && isPlainObject(arguments[0])) {
+      let data = arguments[0];
+      this.start = data.start;
+      this.end = data.end;
+      this.reverse = Boolean(data.reverse);
+      this.containerId = data.containerId;
+      this.surfaceId = data.surfaceId;
     } else {
-      return $$('i').addClass('fa ' + this.props.icon)
+      this.start = start;
+      this.end = end;
+      this.reverse = Boolean(reverse);
+      this.containerId = containerId;
+      this.surfaceId = surfaceId;
+    }
+  }
+
+  isCollapsed () {
+    return this.start.equals(this.end)
+  }
+
+  equals (other) {
+    if (this === other) return true
+    else {
+      return (
+        this.containerId === other.containerId &&
+        this.start.equals(other.start) &&
+        this.end.equals(other.end)
+      )
+    }
+  }
+
+  isReverse () {
+    return this.reverse
+  }
+
+  toString () {
+    let str = [this.start.toString(), '->', this.end.toString()];
+    if (this.isReverse()) {
+      str.push('[reverse]');
+    }
+    if (this.containerId) {
+      str.push('[container=' + this.containerId + ']');
+    }
+    if (this.surfaceId) {
+      str.push('[surface=' + this.surfaceId + ']');
+    }
+    return str.join('')
+  }
+
+  
+  get _isRange () { return true }
+}
+
+const ENTER = 1;
+const EXIT = -1;
+const ANCHOR = -2;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class Fragmenter {
+  constructor (options) {
+    Object.assign(this, options);
+  }
+
+  start (rootContext, text, annotations) {
+    if (!isString(text)) {
+      throw new Error("Illegal argument: 'text' must be a String, but was " + text)
+    }
+    this._start(rootContext, text, annotations);
+  }
+
+  onText(context, text, entry) { 
+  }
+
+  
+  onEnter(entry, parentContext) { 
+    return null
+  }
+
+  onExit(entry, context, parentContext) { 
+  }
+
+  _enter (entry, parentContext) {
+    entry.counter++;
+    return this.onEnter(entry, parentContext)
+  }
+
+  _exit (entry, context, parentContext) {
+    this.onExit(entry, context, parentContext);
+  }
+
+  _createText (context, text, entry) {
+    this.onText(context, text, entry);
+  }
+
+  _start (rootContext, text, annotations) {
+    var entries = _extractEntries.call(this, annotations);
+    var stack = [{context: rootContext, entry: null}];
+
+    var pos = 0;
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i];
+      var textFragment = text.substring(pos, entry.pos);
+      if (textFragment) {
+        
+        this._createText(stack[stack.length - 1].context, textFragment, entry);
+      }
+
+      pos = entry.pos;
+      var stackLevel, idx, _entry;
+      if (entry.mode === ENTER || entry.mode === ANCHOR) {
+        
+        for (stackLevel = 1; stackLevel < stack.length; stackLevel++) {
+          if (entry.level < stack[stackLevel].entry.level) {
+            break
+          }
+        }
+        
+        
+        for (idx = stack.length - 1; idx >= stackLevel; idx--) {
+          _entry = stack[idx].entry;
+          
+          _entry.length = pos - _entry.pos;
+          this._exit(_entry, stack[idx].context, stack[idx - 1].context);
+        }
+        stack.splice(stackLevel, 0, {entry: entry});
+        
+        for (idx = stackLevel; idx < stack.length; idx++) {
+          _entry = stack[idx].entry;
+          
+          _entry.pos = pos;
+          stack[idx].context = this._enter(_entry, stack[idx - 1].context);
+        }
+      }
+      if (entry.mode === EXIT || entry.mode === ANCHOR) {
+        
+        for (stackLevel = 1; stackLevel < stack.length; stackLevel++) {
+          if (stack[stackLevel].entry.node === entry.node) {
+            break
+          }
+        }
+        for (idx = stack.length - 1; idx >= stackLevel; idx--) {
+          _entry = stack[idx].entry;
+          
+          _entry.length = pos - _entry.pos;
+          this._exit(_entry, stack[idx].context, stack[idx - 1].context);
+        }
+        stack.splice(stackLevel, 1);
+        
+        for (idx = stackLevel; idx < stack.length; idx++) {
+          _entry = stack[idx].entry;
+          
+          _entry.pos = pos;
+          stack[idx].context = this._enter(_entry, stack[idx - 1].context);
+        }
+      }
+    }
+
+    
+    var trailingText = text.substring(pos);
+    if (trailingText) {
+      this._createText(rootContext, trailingText);
     }
   }
 }
 
-class FontAwesomeIconProvider {
-  constructor (icons) {
-    this.faMap = {};
-    this.textMap = {};
-    forEach(icons, (config, name) => {
-      let faConfig = config['fontawesome'];
-      if (faConfig) {
-        if (isString(faConfig)) {
-          faConfig = { icon: faConfig };
-        }
-        this.addFAIcon(name, faConfig);
+Fragmenter.SHOULD_NOT_SPLIT = 0;
+Fragmenter.NORMAL = 10;
+Fragmenter.ANY = 100;
+Fragmenter.ALWAYS_ON_TOP = Number.MAX_VALUE;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function _extractEntries (annotations) {
+  let openers = [];
+  let closers = [];
+  forEach(annotations, function (a) {
+    let isAnchor = a.isAnchor();
+    
+    if (isAnchor) {
+      openers.push({
+        mode: ANCHOR,
+        pos: a.offset,
+        id: a.id,
+        level: Fragmenter.ALWAYS_ON_TOP,
+        type: 'anchor',
+        node: a,
+        counter: -1,
+        length: 0
+      });
+    } else {
+      
+      
+      
+      
+      
+      
+      
+
+      
+      var l = Fragmenter.NORMAL;
+      var isInline = a.isInlineNode();
+      if (isInline) {
+        l = Number.MAX_VALUE;
+      } else if (a.constructor.hasOwnProperty('fragmentation')) {
+        l = a.constructor.fragmentation;
+      } else if (a.hasOwnProperty('fragmentationHint')) {
+        l = a.fragmentationHint;
       }
-      let text = config['text'];
-      if (text) {
-        this.addTextIcon(name, text);
+      var startOffset = Math.min(a.start.offset, a.end.offset);
+      var endOffset = Math.max(a.start.offset, a.end.offset);
+      var opener = {
+        pos: startOffset,
+        mode: ENTER,
+        level: l,
+        id: a.id,
+        type: a.type,
+        node: a,
+        length: 0,
+        counter: -1
+      };
+      openers.push(opener);
+      closers.push({
+        pos: endOffset,
+        mode: EXIT,
+        level: l,
+        id: a.id,
+        type: a.type,
+        node: a,
+        opener: opener
+      });
+    }
+  });
+
+  
+  openers.sort(_compareOpeners);
+  
+  for (var i = openers.length - 1; i >= 0; i--) {
+    openers[i].idx = i;
+  }
+  closers.sort(_compareClosers);
+  
+  var entries = new Array(openers.length + closers.length);
+  var idx = 0;
+  var idx1 = 0;
+  var idx2 = 0;
+  var opener = openers[idx1];
+  var closer = closers[idx2];
+  while (opener || closer) {
+    if (opener && closer) {
+      
+      if (closer.pos <= opener.pos && closer.opener !== opener) {
+        entries[idx] = closer;
+        idx2++;
+      } else {
+        entries[idx] = opener;
+        idx1++;
+      }
+    } else if (opener) {
+      entries[idx] = opener;
+      idx1++;
+    } else if (closer) {
+      entries[idx] = closer;
+      idx2++;
+    }
+    opener = openers[idx1];
+    closer = closers[idx2];
+    idx++;
+  }
+  return entries
+}
+
+function _compareOpeners (a, b) {
+  if (a.pos < b.pos) return -1
+  if (a.pos > b.pos) return 1
+  if (a.mode < b.mode) return -1
+  if (a.mode > b.mode) return 1
+  if (a.mode === b.mode) {
+    if (a.level < b.level) return -1
+    if (a.level > b.level) return 1
+  }
+  return 0
+}
+
+
+function _compareClosers (a, b) {
+  if (a.pos < b.pos) return -1
+  if (a.pos > b.pos) return 1
+  
+  
+  
+  
+  
+  if (a.pos === a.opener.pos && b.pos === b.opener.pos) {
+    if (a.opener.idx < b.opener.idx) {
+      return -1
+    } else {
+      return 1
+    }
+  }
+  if (a.opener.idx > b.opener.idx) return -1
+  if (a.opener.idx < b.opener.idx) return 1
+  return 0
+}
+
+class AnnotatedTextComponent extends Component {
+  render ($$) {
+    let el = this._renderContent($$)
+      .addClass('sc-annotated-text')
+      .css({ whiteSpace: 'pre-wrap' });
+    return el
+  }
+
+  getPath () {
+    return this.props.path
+  }
+
+  getText () {
+    return this.getDocument().get(this.props.path) || ''
+  }
+
+  isEmpty () {
+    return !(this.getText())
+  }
+
+  getAnnotations () {
+    return this.getDocument().getIndex('annotations').get(this.props.path)
+  }
+
+  getDocument () {
+    return this.props.doc || this.context.doc
+  }
+
+  _getTagName () {
+    return this.props.tagName
+  }
+
+  _onDocumentChange (update) {
+    if (update.change && update.change.updated[this.getPath()]) {
+      this.rerender();
+    }
+  }
+
+  _renderContent ($$) {
+    let text = this.getText();
+    let annotations = this.getAnnotations();
+    let el = $$(this._getTagName() || 'span');
+    if (annotations && annotations.length > 0) {
+      let fragmenter = new Fragmenter({
+        onText: this._renderTextNode.bind(this),
+        onEnter: this._renderFragment.bind(this, $$),
+        onExit: this._finishFragment.bind(this)
+      });
+      fragmenter.start(el, text, annotations);
+    } else {
+      el.append(text);
+    }
+    return el
+  }
+
+  _renderTextNode (context, text) {
+    if (text && text.length > 0) {
+      context.append(text);
+    }
+  }
+
+  _renderFragment ($$, fragment) {
+    let node = fragment.node;
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    let ComponentClass = this._getFragmentComponentClass(node);
+    let props = this._getFragmentProps(node);
+    let el = $$(ComponentClass, props);
+    return el
+  }
+
+  _getFragmentComponentClass (node, noDefault) {
+    let ComponentClass = this.getComponent(node.type, 'not-strict');
+    if (node.isInlineNode() &&
+        
+        !ComponentClass.prototype._isInlineNodeComponent &&
+        
+        !ComponentClass.isCustom) {
+      ComponentClass = this.getComponent('inline-node');
+    }
+    if (!ComponentClass && !noDefault) {
+      ComponentClass = this._getUnsupportedInlineNodeComponentClass();
+    }
+    return ComponentClass
+  }
+
+  _getUnsupportedInlineNodeComponentClass () {
+    return this.getComponent('annotation')
+  }
+
+  _getFragmentProps (node) {
+    return { node }
+  }
+
+  _finishFragment (fragment, context, parentContext) {
+    parentContext.append(context);
+  }
+}
+
+class SelectionFragmentComponent extends Component {
+  render ($$) {
+    
+    let el = $$('span').addClass('se-selection-fragment');
+    if (this.props.collaborator) {
+      let collaboratorIndex = this.props.collaborator.colorIndex;
+      el.addClass('sm-collaborator-' + collaboratorIndex);
+    } else {
+      el.addClass('sm-local-user');
+    }
+    el.append(this.props.children);
+    return el
+  }
+}
+
+class TextPropertyComponent extends AnnotatedTextComponent {
+  getInitialState () {
+    const markersManager = this.context.markersManager;
+    let path = this.getPath();
+    let markers;
+    if (markersManager) {
+      
+      markers = markersManager.getMarkers(path, {
+        surfaceId: this.getSurfaceId(),
+        containerId: this.getContainerId()
+      });
+    } else {
+      const doc = this.getDocument();
+      markers = doc.getAnnotations(path);
+    }
+    return { markers }
+  }
+
+  didMount () {
+    const markersManager = this.context.markersManager;
+    if (markersManager) {
+      markersManager.register(this);
+    }
+  }
+
+  dispose () {
+    const markersManager = this.context.markersManager;
+    if (markersManager) {
+      markersManager.deregister(this);
+    }
+  }
+
+  render ($$) {
+    let path = this.getPath();
+
+    let el = this._renderContent($$)
+      .addClass('sc-text-property')
+      .attr({
+        'data-path': path.join('.')
+      })
+      .css({
+        'white-space': 'pre-wrap'
+      });
+
+    if (this.isEmpty()) {
+      el.addClass('sm-empty');
+      if (this.props.placeholder) {
+        el.append(
+          $$('span').addClass('se-placeholder').append(
+            this.props.placeholder
+          )
+        );
+      }
+    }
+
+    if (!this.props.withoutBreak) {
+      el.append($$('br'));
+    }
+
+    return el
+  }
+
+  getAnnotations () {
+    if (this.props.markers) {
+      return this.state.markers.concat(this.props.markers)
+    } else {
+      return this.state.markers
+    }
+  }
+
+  _renderFragment ($$, fragment) {
+    let node = fragment.node;
+    let id = node.id;
+    let el;
+    if (node.type === 'selection-fragment') {
+      el = $$(SelectionFragmentComponent, { collaborator: node.collaborator });
+    } else {
+      el = super._renderFragment.apply(this, arguments);
+      if (id) {
+        el.ref(id + '@' + fragment.counter);
+      }
+    }
+    el.attr('data-offset', fragment.pos);
+    return el
+  }
+
+  getSurface () {
+    return this.props.surface || this.context.surface
+  }
+
+  getSurfaceId () {
+    let surface = this.getSurface();
+    return surface ? surface.id : null
+  }
+
+  getContainerId () {
+    let surface = this.getSurface();
+    return surface ? surface.getContainerId() : null
+  }
+
+  isEditable () {
+    const surface = this.getSurface();
+    return surface ? surface.isEditable() : false
+  }
+
+  isReadonly () {
+    const surface = this.getSurface();
+    return surface ? surface.isReadonly() : true
+  }
+
+  getDOMCoordinate (charPos) {
+    return this._getDOMCoordinate(this.el, charPos)
+  }
+
+  _finishFragment (fragment, context, parentContext) {
+    context.attr('data-length', fragment.length);
+    parentContext.append(context);
+  }
+
+  _getDOMCoordinate (el, charPos) {
+    let l;
+    let idx = 0;
+    if (charPos === 0) {
+      return {
+        container: el.getNativeElement(),
+        offset: 0
+      }
+    }
+    for (let child = el.getFirstChild(); child; child = child.getNextSibling(), idx++) {
+      if (child.isTextNode()) {
+        l = child.textContent.length;
+        if (l >= charPos) {
+          return {
+            container: child.getNativeElement(),
+            offset: charPos
+          }
+        } else {
+          charPos -= l;
+        }
+      } else if (child.isElementNode()) {
+        let length = child.getAttribute('data-length');
+        if (length) {
+          l = parseInt(length, 10);
+          if (l >= charPos) {
+            
+            if (child.attr('data-inline')) {
+              let nextSibling = child.getNextSibling();
+              if (nextSibling && nextSibling.isTextNode()) {
+                return {
+                  container: nextSibling.getNativeElement(),
+                  offset: 0
+                }
+              } else {
+                return {
+                  container: el.getNativeElement(),
+                  offset: el.getChildIndex(child) + 1
+                }
+              }
+            }
+            return this._getDOMCoordinate(child, charPos, idx)
+          } else {
+            charPos -= l;
+          }
+        } else {
+          console.error('FIXME: Can not map to DOM coordinates.');
+          return null
+        }
+      }
+    }
+  }
+
+  get _isTextPropertyComponent () { return true }
+
+  
+
+  
+  static getCoordinate (root, el, offset) {
+    let context = _getPropertyContext(root, el, offset);
+    if (!context) {
+      return null
+    }
+    
+    
+    let charPos;
+    if (el.parentNode && el.parentNode.is('.se-placeholder')) {
+      charPos = 0;
+    } else {
+      
+      
+      
+      charPos = _getCharPos(context.node, context.offset);
+    }
+    if (isNumber(charPos)) {
+      let coor = new Coordinate(context.path, charPos);
+      coor._comp = context.comp;
+      return coor
+    } else {
+      return null
+    }
+  }
+}
+
+function _getPropertyContext (root, node, offset) {
+  let result = {
+    comp: null,
+    el: null,
+    path: null,
+    node: node,
+    offset: offset
+  };
+  while (node && node !== root) {
+    if (node.isElementNode()) {
+      let comp = Component.unwrap(node);
+      if (comp && comp._isTextPropertyComponent) {
+        result.comp = comp;
+        result.el = node;
+        result.path = comp.getPath();
+        return result
+      }
+      
+      
+      
+      if (node.getAttribute('data-inline')) {
+        result.node = node;
+        if (offset > 0) {
+          result.offset = 1;
+        }
+      }
+    }
+    node = node.getParent();
+  }
+  return null
+}
+
+function _getCharPos (node, offset) {
+  let charPos = offset;
+  let parent, childIdx;
+
+  
+
+  parent = node.getParent();
+  if (node.isTextNode()) {
+    
+    if (node === parent.firstChild) {
+      
+      let parentPath = parent.getAttribute('data-path');
+      let parentOffset = parent.getAttribute('data-offset');
+      if (parentPath) {
+        charPos = offset;
+      
+      } else if (parentOffset) {
+        charPos = parseInt(parentOffset, 10) + offset;
+      
+      } else {
+        charPos = _getCharPos(parent, 0) + offset;
+      }
+    } else {
+      
+      childIdx = parent.getChildIndex(node);
+      charPos = _getCharPos(parent, childIdx) + offset;
+    }
+  } else if (node.isElementNode()) {
+    let pathStr = node.getAttribute('data-path');
+    let offsetStr = node.getAttribute('data-offset');
+    
+    
+    if (pathStr) {
+      charPos = _countCharacters(node, offset);
+    
+    
+    } else if (offsetStr) {
+      childIdx = parent.getChildIndex(node);
+      charPos = parseInt(offsetStr, 10) + _countCharacters(node, offset);
+    
+    
+    } else {
+      childIdx = parent.getChildIndex(node);
+      charPos = _getCharPos(parent, childIdx) + _countCharacters(node, offset);
+    }
+  } else {
+    
+    return null
+  }
+  return charPos
+}
+
+function _countCharacters (el, maxIdx) {
+  let charPos = 0;
+  
+  if (el.getAttribute('data-inline')) {
+    return maxIdx === 0 ? 0 : 1
+  }
+  let l = el.getChildCount();
+  if (arguments.length === 1) {
+    maxIdx = l;
+  }
+  maxIdx = Math.min(l, maxIdx);
+  for (let i = 0, child = el.getFirstChild(); i < maxIdx; child = child.getNextSibling(), i++) {
+    if (child.isTextNode()) {
+      charPos += child.getTextContent().length;
+    } else if (child.isElementNode()) {
+      let length = child.getAttribute('data-length');
+      if (child.getAttribute('data-inline')) {
+        charPos += 1;
+      } else if (length) {
+        charPos += parseInt(length, 10);
+      } else {
+        charPos += _countCharacters(child);
+      }
+    }
+  }
+  return charPos
+}
+
+let keys$1 = {
+  UNDEFINED: 0,
+  BACKSPACE: 8,
+  DELETE: 46,
+  INSERT: 45,
+  LEFT: 37,
+  RIGHT: 39,
+  UP: 38,
+  DOWN: 40,
+  ENTER: 13,
+  RETURN: 13,
+  END: 35,
+  HOME: 36,
+  TAB: 9,
+  PAGEUP: 33,
+  PAGEDOWN: 34,
+  ESCAPE: 27,
+  ESC: 27,
+  SHIFT: 16,
+  SPACE: 32,
+  PLUS: 171,
+  VOLUMEUP: 183,
+  VOLUMEDOWN: 182,
+  VOLUMEMUTE: 181,
+  PRINTSCREEN: 44
+};
+
+
+for (let i = 1; i <= 24; i++) {
+  keys$1['F' + i] = 111 + i;
+}
+
+class AbstractIsolatedNodeComponent extends Component {
+  constructor (...args) {
+    super(...args);
+
+    this.name = this.props.node.id;
+    this._state = { selectionFragment: null };
+
+    this.handleAction('escape', this.escape);
+    this.ContentClass = this._getContentClass();
+
+    
+    let useBlocker = platform.isFF || !this.ContentClass.noBlocker;
+    this.blockingMode = useBlocker ? 'closed' : 'open';
+  }
+
+  getInitialState () {
+    let sel = this.getEditorSession().getSelection();
+    let selState = this.getEditorSession().getSelectionState();
+    return this._deriveStateFromSelectionState(sel, selState)
+  }
+
+  getChildContext () {
+    return {
+      parentSurfaceId: this.getId(),
+      isolatedNodeComponent: this,
+      
+      
+      surface: undefined
+    }
+  }
+
+  didMount () {
+    super.didMount();
+
+    let editorSession = this.getEditorSession();
+    editorSession.onRender('selection', this._onSelectionChanged, this);
+  }
+
+  dispose () {
+    super.dispose.call(this);
+
+    let editorSession = this.getEditorSession();
+    editorSession.off(this);
+  }
+
+  renderContent ($$, node, options = {}) {
+    let ComponentClass = this.ContentClass;
+    if (!ComponentClass) {
+      console.error('Could not resolve a component for type: ' + node.type);
+      return $$(this.__elementTag)
+    } else {
+      let props = Object.assign(this._getContentProps(), options);
+      return $$(ComponentClass, props)
+    }
+  }
+
+  getId () {
+    
+    
+    if (!this._id) {
+      this._id = this.context.parentSurfaceId + '/' + this.name;
+    }
+    return this._id
+  }
+
+  get id () { return this.getId() }
+
+  getMode () {
+    return this.state.mode
+  }
+
+  escape () {
+    
+    this.selectNode();
+  }
+
+  isOpen () {
+    return this.blockingMode === 'open'
+  }
+
+  isClosed () {
+    return this.blockingMode === 'closed'
+  }
+
+  isNotSelected () {
+    return !this.state.mode
+  }
+
+  isSelected () {
+    return this.state.mode === 'selected'
+  }
+
+  isCoSelected () {
+    return this.state.mode === 'co-selected'
+  }
+
+  isFocused () {
+    return this.state.mode === 'focused'
+  }
+
+  isCoFocused () {
+    return this.state.mode === 'co-focused'
+  }
+
+  getParentSurface () {
+    return this.context.surface
+  }
+
+  getEditorSession () {
+    return this.context.editorSession
+  }
+
+  getSurfaceManager () {
+    return this.context.surfaceManager
+  }
+
+  _onSelectionChanged () {
+    const editorSession = this.getEditorSession();
+    const sel = editorSession.getSelection();
+    const selState = editorSession.getSelectionState();
+    const newState = this._deriveStateFromSelectionState(sel, selState);
+    if (!newState && this.state.mode) {
+      this.extendState({ mode: null });
+    } else if (newState && newState.mode !== this.state.mode) {
+      this.extendState(newState);
+    }
+  }
+
+  onKeydown (event) {
+    
+    
+    
+    
+    if (event.keyCode === keys$1.ESCAPE && this.state.mode === 'focused') {
+      event.stopPropagation();
+      event.preventDefault();
+      this.escape();
+    }
+  }
+
+  _getContentClass () {
+    const node = this.props.node;
+    let ComponentClass;
+    
+    ComponentClass = this.getComponent(node.type, true);
+    
+    if (!ComponentClass) ComponentClass = Component;
+
+    return ComponentClass
+  }
+
+  _getContentProps () {
+    return {
+      disabled: this.props.disabled,
+      node: this.props.node,
+      isolatedNodeState: this.state.mode,
+      focused: (this.state.mode === 'focused')
+    }
+  }
+
+  _getSurfaceForSelection (sel, selState) {
+    
+    
+    
+    let surface = selState.surface;
+    if (!surface) {
+      if (sel && sel.surfaceId) {
+        const surfaceManager = this.getSurfaceManager();
+        surface = surfaceManager.getSurface(sel.surfaceId);
+      } else {
+        surface = null;
+      }
+      selState.surface = surface;
+    }
+    return surface
+  }
+
+  
+  
+  _getIsolatedNodes (sel, selState) {
+    
+    
+    
+    let isolatedNodes = selState.isolatedNodes;
+    if (!isolatedNodes) {
+      isolatedNodes = [];
+      if (sel && sel.surfaceId) {
+        let surfaceManager = this.getSurfaceManager();
+        let surface = surfaceManager.getSurface(sel.surfaceId);
+        if (surface) {
+          isolatedNodes = surface.getComponentPath().filter(comp => comp._isAbstractIsolatedNodeComponent);
+        }
+      }
+      selState.isolatedNodes = isolatedNodes;
+    }
+    return isolatedNodes
+  }
+
+  _shouldConsumeEvent (event) {
+    let comp = Component.unwrap(event.target);
+    let isolatedNodeComponent = this._getIsolatedNode(comp);
+    return (isolatedNodeComponent === this)
+  }
+
+  _getIsolatedNode (comp) {
+    if (comp._isAbstractIsolatedNodeComponent) {
+      return this
+    } else if (comp.context.isolatedNodeComponent) {
+      return comp.context.isolatedNodeComponent
+    } else if (comp.context.surface) {
+      return comp.context.surface.context.isolatedNodeComponent
+    }
+  }
+
+  get _isAbstractIsolatedNodeComponent () { return true }
+}
+
+const BRACKET = 'X';
+const SLASH = '/'.charCodeAt(0);
+
+
+class IsolatedNodeComponent extends AbstractIsolatedNodeComponent {
+  render ($$) {
+    const node = this.props.node;
+    const ContentClass = this.ContentClass;
+    const disabled = this.props.disabled;
+
+    
+    let el = $$('div');
+    el.addClass(this.getClassNames())
+      .addClass('sc-isolated-node')
+      .addClass('sm-' + this.props.node.type)
+      .attr('data-id', node.id);
+    if (disabled) {
+      el.addClass('sm-disabled');
+    }
+    if (this.state.mode) {
+      el.addClass('sm-' + this.state.mode);
+    }
+    if (!ContentClass.noStyle) {
+      el.addClass('sm-default-style');
+    }
+    
+    el.on('keydown', this.onKeydown);
+
+    
+    const shouldRenderBlocker = (
+      this.blockingMode === 'closed' &&
+      !this.state.unblocked
+    );
+
+    
+    
+    el.append(
+      $$('div').addClass('se-bracket sm-left').ref('left')
+        .append(BRACKET)
+    );
+
+    let content = this.renderContent($$, node, {
+      disabled: this.props.disabled || shouldRenderBlocker
+    }).ref('content');
+    content.attr('contenteditable', false);
+
+    el.append(content);
+    el.append($$(Blocker).ref('blocker'));
+    el.append(
+      $$('div').addClass('se-bracket sm-right').ref('right')
+        .append(BRACKET)
+    );
+
+    if (!shouldRenderBlocker) {
+      el.addClass('sm-no-blocker');
+      el.on('click', this.onClick)
+        .on('dblclick', this.onDblClick);
+    }
+    el.on('mousedown', this._reserveMousedown, this);
+
+    return el
+  }
+
+  getClassNames () {
+    return ''
+  }
+
+  getContent () {
+    return this.refs.content
+  }
+
+  selectNode () {
+    
+    const editorSession = this.getEditorSession();
+    const surface = this.getParentSurface();
+    const nodeId = this.props.node.id;
+    editorSession.setSelection({
+      type: 'node',
+      nodeId: nodeId,
+      containerId: surface.getContainerId(),
+      surfaceId: surface.id
+    });
+  }
+
+  
+  
+  onClick (event) {
+    
+    event.stopPropagation();
+  }
+
+  onDblClick (event) {
+    
+    event.stopPropagation();
+  }
+
+  grabFocus (event) {
+    let content = this.refs.content;
+    if (content.grabFocus) {
+      content.grabFocus(event);
+      return true
+    }
+  }
+
+  
+  
+  _reserveMousedown (event) {
+    if (event.__reserved__) ; else {
+      
+      event.__reserved__ = this;
+    }
+  }
+
+  
+  
+  _deriveStateFromSelectionState (sel, selState) {
+    const surface = this._getSurfaceForSelection(sel, selState);
+    const parentSurface = this.getParentSurface();
+    let newState = { mode: null, unblocked: null };
+    if (!surface) return newState
+    
+    if (surface === parentSurface) {
+      let nodeId = this.props.node.id;
+      if (sel.isNodeSelection() && sel.getNodeId() === nodeId) {
+        if (sel.isFull()) {
+          newState.mode = 'selected';
+          newState.unblocked = true;
+        } else if (sel.isBefore()) {
+          newState.mode = 'cursor';
+          newState.position = 'before';
+        } else if (sel.isAfter()) {
+          newState.mode = 'cursor';
+          newState.position = 'after';
+        }
+      }
+      if (sel.isContainerSelection() && sel.containsNode(nodeId)) {
+        newState.mode = 'co-selected';
+      }
+    } else {
+      let surfaceId = sel.surfaceId;
+      let id = this.getId();
+      if (id.length < surfaceId.length && surfaceId.startsWith(id) && surfaceId.charCodeAt(id.length) === SLASH) {
+        let tail = surfaceId.slice(id.length + 1);
+        if (tail.indexOf('/') > 0) {
+          newState.mode = 'co-focused';
+          newState.unblocked = true;
+        } else {
+          newState.mode = 'focused';
+          newState.unblocked = true;
+        }
+      }
+    }
+    return newState
+  }
+
+  get _isIsolatedNodeComponent () { return true }
+
+  static getDOMCoordinate (comp, coor) {
+    let { start, end } = IsolatedNodeComponent.getDOMCoordinates(comp);
+    if (coor.offset === 0) return start
+    else return end
+  }
+
+  static getDOMCoordinates (comp) {
+    const left = comp.refs.left;
+    const right = comp.refs.right;
+    return {
+      start: {
+        container: left.getNativeElement(),
+        offset: 0
+      },
+      end: {
+        container: right.getNativeElement(),
+        offset: right.getChildCount()
+      }
+    }
+  }
+
+  static getCoordinate (nodeEl, options) {
+    let comp = Component.unwrap(nodeEl, 'strict').context.isolatedNodeComponent;
+    let offset = null;
+    if (options.direction === 'left' || nodeEl === comp.refs.left.el) {
+      offset = 0;
+    } else if (options.direction === 'right' || nodeEl === comp.refs.right.el) {
+      offset = 1;
+    }
+    let coor;
+    if (offset !== null) {
+      coor = new Coordinate([comp.props.node.id], offset);
+      coor._comp = comp;
+    }
+    return coor
+  }
+}
+
+class Blocker extends Component {
+  render ($$) {
+    return $$('div').addClass('sc-isolated-node-blocker')
+      .attr('draggable', true)
+      .attr('contenteditable', false)
+      .on('click', this.onClick)
+      .on('dblclick', this.onDblClick)
+  }
+
+  onClick (event) {
+    if (event.target !== this.getNativeElement()) return
+    
+    event.stopPropagation();
+    const comp = this._getIsolatedNodeComponent();
+    comp.extendState({ mode: 'selected', unblocked: true });
+    comp.selectNode();
+  }
+
+  onDblClick (event) {
+    
+    event.stopPropagation();
+  }
+
+  _getIsolatedNodeComponent () {
+    return this.context.isolatedNodeComponent
+  }
+}
+
+const DEBUG$1 = false;
+
+
+class DOMSelection {
+  
+  constructor (editor) {
+    this.editor = editor;
+    if (platform.inBrowser) {
+      this.wRange = window.document.createRange();
+    }
+    
+    
+    this.state = { dom: null, model: null };
+  }
+
+  
+  getSelection (options) {
+    
+    if (!platform.inBrowser) return
+    let range = this.mapDOMSelection(options);
+    let doc = this.editor.getDocument();
+    
+    return doc._createSelectionFromRange(range)
+  }
+
+  getSelectionForDOMRange (wrange) {
+    let range = this.mapDOMRange(wrange);
+    let doc = this.editor.getDocument();
+    return doc._createSelectionFromRange(range)
+  }
+
+  
+  mapDOMSelection (options) {
+    let wSel = window.getSelection();
+    let state = this.state;
+    let range;
+    
+    
+    if (DEBUG$1) console.info('DOM->Model: ', wSel.anchorNode, wSel.anchorOffset, wSel.focusNode, wSel.focusOffset);
+    if (wSel.rangeCount === 0) return _null()
+    let anchorNode = DefaultDOMElement.wrapNativeElement(wSel.anchorNode);
+    if (wSel.isCollapsed) {
+      let coor = this._getCoordinate(anchorNode, wSel.anchorOffset, options);
+      if (!coor) return _null()
+      range = _createRange({
+        start: coor,
+        end: coor
+      });
+    } else {
+      let focusNode = DefaultDOMElement.wrapNativeElement(wSel.focusNode);
+      range = this._getRange(anchorNode, wSel.anchorOffset, focusNode, wSel.focusOffset, options);
+    }
+    if (DEBUG$1) console.info('DOM->Model: range ', range ? range.toString() : null);
+    state.model = range;
+    return range
+
+    function _null () {
+      state.dom = null;
+      state.model = null;
+      return null
+    }
+  }
+
+  
+  setSelection (sel) {
+    
+    if (!platform.inBrowser) return
+    let state = this.state;
+    let wSel = window.getSelection();
+    let wRange = this.wRange;
+    if (!sel || sel.isNull()) return this.clear()
+    
+    let {start, end} = this.mapModelToDOMCoordinates(sel);
+    if (!start) return this.clear()
+    if (sel.isReverse()) {
+      [start, end] = [end, start];
+    }
+    state.dom = {
+      anchorNode: start.container,
+      anchorOffset: start.offset,
+      focusNode: end.container,
+      focusOffset: end.offset
+    };
+    _set(state.dom);
+
+    function _set ({anchorNode, anchorOffset, focusNode, focusOffset}) {
+      wSel.removeAllRanges();
+      wRange.setStart(anchorNode, anchorOffset);
+      wRange.setEnd(anchorNode, anchorOffset);
+      wSel.addRange(wRange);
+      if (focusNode !== anchorOffset || focusOffset !== anchorOffset) {
+        wSel.extend(focusNode, focusOffset);
+      }
+    }
+  }
+
+  mapModelToDOMCoordinates (sel) {
+    if (DEBUG$1) console.info('Model->DOM: sel =', sel.toString());
+    let rootEl;
+    let surface = this.editor.getSurfaceManager().getSurface(sel.surfaceId);
+    if (!surface) {
+      console.warn('No surface:', sel.surfaceId);
+      rootEl = this.editor.getElement();
+    } else {
+      rootEl = surface.el;
+    }
+    if (sel.isNull() || sel.isCustomSelection()) {
+      return {}
+    }
+
+    let start, end;
+    if (sel.isPropertySelection() || sel.isContainerSelection()) {
+      start = this._getDOMCoordinate(rootEl, sel.start);
+      if (!start) {
+        console.warn('FIXME: selection seems to be invalid.');
+        return {}
+      }
+      if (sel.isCollapsed()) {
+        end = start;
+      } else {
+        end = this._getDOMCoordinate(rootEl, sel.end);
+        if (!end) {
+          console.warn('FIXME: selection seems to be invalid.');
+          return {}
+        }
+      }
+    } else if (sel.isNodeSelection()) {
+      let comp = Component.unwrap(rootEl.find('*[data-id="' + sel.getNodeId() + '"]'));
+      if (!comp) {
+        console.error('Could not find component with id', sel.getNodeId());
+        return {}
+      }
+      if (comp._isIsolatedNodeComponent) {
+        let coors = IsolatedNodeComponent.getDOMCoordinates(comp, sel);
+        start = coors.start;
+        end = coors.end;
+        
+        
+        
+      } else {
+        let _nodeEl = comp.el;
+        start = {
+          container: _nodeEl.getNativeElement(),
+          offset: 0
+        };
+        end = {
+          container: _nodeEl.getNativeElement(),
+          offset: _nodeEl.getChildCount()
+        };
+      }
+    }
+    if (DEBUG$1) console.info('Model->DOM:', start.container, start.offset, end.container, end.offset, 'isReverse?', sel.isReverse());
+    return {start, end}
+  }
+
+  _getDOMCoordinate (rootEl, coor) {
+    let domCoor = null;
+    let comp;
+    if (coor.isNodeCoordinate()) {
+      comp = Component.unwrap(rootEl.find('*[data-id="' + coor.getNodeId() + '"]'));
+      if (comp) {
+        if (comp._isIsolatedNodeComponent) {
+          domCoor = IsolatedNodeComponent.getDOMCoordinate(comp, coor);
+        } else {
+          let domOffset = 0;
+          if (coor.offset > 0) {
+            domOffset = comp.getChildCount();
+          }
+          domCoor = {
+            container: comp.getNativeElement(),
+            offset: domOffset
+          };
+        }
+      }
+    } else {
+      comp = Component.unwrap(rootEl.find('.sc-text-property[data-path="' + coor.path.join('.') + '"]'));
+      if (comp) {
+        domCoor = comp.getDOMCoordinate(coor.offset);
+      }
+    }
+    return domCoor
+  }
+
+  
+  mapDOMRange (wRange, options) {
+    return this._getRange(
+      DefaultDOMElement.wrapNativeElement(wRange.startContainer),
+      wRange.startOffset,
+      DefaultDOMElement.wrapNativeElement(wRange.endContainer),
+      wRange.endOffset, options)
+  }
+
+  
+  clear () {
+    window.getSelection().removeAllRanges();
+    this.state.dom = null;
+    this.state.model = null;
+  }
+
+  collapse (dir) {
+    let wSel = window.getSelection();
+    let wRange;
+    if (wSel.rangeCount > 0) {
+      wRange = wSel.getRangeAt(0);
+      wRange.collapse(dir === 'left');
+      wSel.removeAllRanges();
+      wSel.addRange(wRange);
+    }
+  }
+
+  select (el) {
+    let wSel = window.getSelection();
+    let wRange = window.document.createRange();
+    wRange.selectNode(el.getNativeElement());
+    wSel.removeAllRanges();
+    wSel.addRange(wRange);
+  }
+
+  extend (el, offset) {
+    let wSel = window.getSelection();
+    wSel.extend(el.getNativeElement(), offset);
+  }
+
+  setCursor (el, offset) {
+    let wSel = window.getSelection();
+    let wRange = window.document.createRange();
+    wRange.setStart(el.getNativeElement(), offset);
+    wSel.removeAllRanges();
+    wSel.addRange(wRange);
+  }
+
+  
+  _getRange (anchorNode, anchorOffset, focusNode, focusOffset, options = {}) {
+    let isReverse = DefaultDOMElement.isReverse(anchorNode, anchorOffset, focusNode, focusOffset);
+    let isCollapsed = (anchorNode === focusNode && anchorOffset === focusOffset);
+    let start, end;
+    if (isCollapsed) {
+      start = end = this._getCoordinate(anchorNode, anchorOffset, options);
+    } else {
+      start = this._getCoordinate(anchorNode, anchorOffset, { direction: isReverse ? 'right' : 'left' });
+      end = this._getCoordinate(focusNode, focusOffset, options);
+    }
+    if (start && end) {
+      return _createRange({ start, end, isReverse })
+    } else {
+      return null
+    }
+  }
+
+  
+  _getCoordinate (nodeEl, offset, options = {}) {
+    let coor = null;
+    
+    if (!coor) {
+      coor = TextPropertyComponent.getCoordinate(this.editor.getElement(), nodeEl, offset);
+    }
+    let comp = Component.unwrap(nodeEl);
+    if (!coor && comp) {
+      
+      if (comp.context.isolatedNodeComponent) {
+        coor = IsolatedNodeComponent.getCoordinate(nodeEl, options);
+      }
+    }
+    
+    
+    if (!coor) {
+      
+      if (comp && comp._isContainerEditor) {
+        let childIdx = (offset === 0) ? 0 : offset - 1;
+        let isBefore = (offset === 0);
+        let container = comp.getContainer();
+        let childNode = container.getNodeAt(childIdx);
+        let childComp = comp.getChildAt(childIdx);
+        coor = new Coordinate([childNode.id], isBefore ? 0 : 1);
+        coor._comp = childComp;
+      
+      } else if (nodeEl.isElementNode() && nodeEl.getChildCount() > 0) {
+        let child = (offset > 0) ? nodeEl.getChildAt(offset - 1) : nodeEl.firstChild;
+        let prop;
+        let childComp = Component.unwrap(child);
+        if (childComp && childComp._isTextPropertyComponent) {
+          prop = child;
+        }
+        
+        if (prop) {
+          coor = TextPropertyComponent.getCoordinate(nodeEl, prop, (offset > 0) ? prop.getChildCount() : 0);
+        }
+      }
+    }
+    return coor
+  }
+}
+
+
+function _createRange ({start, end, isReverse}) {
+  if (isReverse) {
+    [start, end] = [end, start];
+  }
+  if (!start._comp || !end._comp) {
+    console.error('FIXME: getCoordinate() should provide a component instance');
+    return null
+  }
+  let surface = start._comp.context.surface;
+  if (!surface) {
+    console.error('FIXME: Editable components should have their surface in the context');
+    return null
+  }
+  if (surface !== end._comp.context.surface) {
+    console.error('Coordinates are within two different surfaces. Can not create a selection.');
+    return null
+  }
+  return new Range(start, end, isReverse, surface.getContainerId(), surface.id)
+}
+
+class DeprecatedResourceManager {
+  constructor (editorSession, context) {
+    this.editorSession = editorSession;
+    this.context = context;
+    this.editorSession.onRender('document', this._onDocumentChange, this);
+  }
+
+  dispose () {
+    this.editorSession.off(this);
+  }
+
+  
+  triggerFetch (resource) {
+    resource.fetchPayload(this.context, (err, props) => {
+      if (err) {
+        this._updateNode(resource.id, {
+          errorMessage: err.toString()
+        });
+      } else {
+        this._updateNode(resource.id, props);
       }
     });
   }
 
-  renderIcon ($$, name) {
-    let faProps = this.faMap[name];
-    let text = this.textMap[name];
-    if (faProps) {
-      return $$(FontAwesomeIcon, faProps)
-    } else if (text) {
-      return text
-    }
+  _onDocumentChange (change) {
+    let doc = this.editorSession.getDocument();
+    forEach(change.created, (_, id) => {
+      let node = doc.get(id);
+      if (node.constructor.isResource) {
+        setTimeout(() => {
+          this.triggerFetch(node);
+        });
+      }
+    });
   }
 
-  addFAIcon (name, faClass) {
-    this.faMap[name] = faClass;
-  }
-
-  addTextIcon (name, text) {
-    this.textMap[name] = text;
+  
+  _updateNode (nodeId, props) {
+    let editorSession = this.editorSession;
+    editorSession.transaction((tx) => {
+      forEach(props, (val, key) => {
+        tx.set([nodeId, key], val);
+      });
+    });
   }
 }
 
-class CommandManager {
+class DeprecatedAbstractEditor extends Component {
+  constructor (...args) {
+    super(...args);
+
+    this._initialize(this.props);
+  }
+
+  didMount () {
+    
+    this.getEditorSession().attachEditor(this);
+  }
+
+  dispose () {
+    this._dispose();
+  }
+
+  _initialize (props) {
+    const editorSession = props.editorSession;
+    if (!editorSession) {
+      throw new Error('EditorSession instance required')
+    }
+    this.editorSession = editorSession;
+    this.doc = editorSession.getDocument();
+
+    let configurator = editorSession.getConfigurator();
+    this.componentRegistry = configurator.getComponentRegistry();
+    this.commandGroups = configurator.getCommandGroups();
+    this.keyboardShortcuts = configurator.getKeyboardShortcutsByCommand();
+    this.tools = configurator.getTools();
+    this.labelProvider = configurator.getLabelProvider();
+    this.iconProvider = configurator.getIconProvider();
+
+    
+    this.surfaceManager = editorSession.surfaceManager;
+    this.commandManager = editorSession.commandManager;
+    this.dragManager = editorSession.dragManager;
+    this.macroManager = editorSession.macroManager;
+    this.converterRegistry = editorSession.converterRegistry;
+    this.globalEventHandler = editorSession.globalEventHandler;
+    this.editingBehavior = editorSession.editingBehavior;
+    this.markersManager = editorSession.markersManager;
+
+    this.resourceManager = new DeprecatedResourceManager(editorSession, this.getChildContext());
+    this.domSelection = new DOMSelection(this);
+
+    
+    this.labelProvider.setLanguage(editorSession.getLanguage());
+    
+    
+    editorSession.onUpdate('lang', (lang) => {
+      this.labelProvider.setLanguage(lang);
+    }, this);
+    editorSession.onRender('lang', this.rerender, this);
+  }
+
+  willReceiveProps (nextProps) {
+    let newSession = nextProps.editorSession;
+    let shouldDispose = newSession && newSession !== this.editorSession;
+    if (shouldDispose) {
+      this._dispose();
+      this._initialize(nextProps);
+    }
+  }
+
+  _dispose () {
+    const editorSession = this.getEditorSession();
+    editorSession.off(this);
+    editorSession.detachEditor(this);
+    
+    
+    this.empty();
+    
+    
+    this.resourceManager.dispose();
+  }
+
+  getChildContext () {
+    return {
+      editor: this,
+      editorSession: this.editorSession,
+      configurator: this.editorSession.getConfigurator(),
+      doc: this.doc, 
+      document: this.doc,
+      componentRegistry: this.componentRegistry,
+      surfaceManager: this.surfaceManager,
+      domSelection: this.domSelection,
+      commandManager: this.commandManager,
+      markersManager: this.markersManager,
+      converterRegistry: this.converterRegistry,
+      dragManager: this.dragManager,
+      editingBehavior: this.editingBehavior,
+      globalEventHandler: this.globalEventHandler,
+      iconProvider: this.iconProvider,
+      labelProvider: this.labelProvider,
+      resourceManager: this.resourceManager,
+      commandGroups: this.commandGroups,
+      tools: this.tools,
+      keyboardShortcuts: this.keyboardShortcuts
+    }
+  }
+
+  
+  onKeyDown (event) {
+    
+    if (event.key === 'Dead') return
+    
+    let custom = this.editorSession.keyboardManager.onKeydown(event);
+    return custom
+  }
+
+  getDocument () {
+    return this.editorSession.getDocument()
+  }
+
+  getConfigurator () {
+    return this.editorSession.getConfigurator()
+  }
+
+  getEditorSession () {
+    return this.editorSession
+  }
+
+  getComponentRegistry () {
+    return this.componentRegistry
+  }
+
+  getSurfaceManager () {
+    return this.surfaceManager
+  }
+
+  getLabelProvider () {
+    return this.labelProvider
+  }
+}
+
+const PLAINOBJ = {};
+
+
+class DeprecatedRegistry {
+  constructor (entries, validator) {
+    this.entries = {};
+    this.names = [];
+    this.validator = validator;
+
+    if (entries) {
+      forEach(entries, function (entry, name) {
+        this.add(name, entry);
+      }.bind(this));
+    }
+  }
+
+  
+  contains (name) {
+    return this.entries.hasOwnProperty(name)
+  }
+
+  
+  add (name, entry) {
+    if (this.validator) {
+      this.validator(entry);
+    }
+    if (PLAINOBJ[name]) {
+      throw new Error('Illegal key: "' + name + '" is a property of Object which is thus not allowed as a key.')
+    }
+    if (this.contains(name)) {
+      this.remove(name);
+    }
+    this.entries[name] = entry;
+    this.names.push(name);
+  }
+
+  
+  remove (name) {
+    let pos = this.names.indexOf(name);
+    if (pos >= 0) {
+      this.names.splice(pos, 1);
+    }
+    delete this.entries[name];
+  }
+
+  
+  clear () {
+    this.names = [];
+    this.entries = {};
+  }
+
+  
+  get (name, strict) {
+    let result = this.entries[name];
+    if (strict && !result) {
+      throw new Error('No entry registered for name ' + name)
+    }
+    return result
+  }
+
+  
+  forEach (callback) {
+    for (let i = 0; i < this.names.length; i++) {
+      let name = this.names[i];
+      let _continue = callback(this.entries[name], name);
+      if (_continue === false) {
+        break
+      }
+    }
+  }
+
+  map (callback) {
+    let result = [];
+    this.forEach((entry, name) => {
+      result.push(callback(entry, name));
+    });
+    return result
+  }
+
+  filter (callback) {
+    let result = [];
+    this.forEach(function (entry, name) {
+      if (callback(entry, name)) {
+        result.push(entry);
+      }
+    });
+    return result
+  }
+
+  values () {
+    return this.filter(() => { return true })
+  }
+
+  get _isRegistry () { return true }
+}
+
+class DeprecatedCommandManager {
   constructor (context, commands) {
     const editorSession = context.editorSession;
     if (!editorSession) {
@@ -26222,7 +24600,7 @@ class CommandManager {
   }
 
   _initialize () {
-    this.commandRegistry = new Registry();
+    this.commandRegistry = new DeprecatedRegistry();
     forEach(this.commands, (command) => {
       this.commandRegistry.add(command.name, command);
     });
@@ -26273,7 +24651,8 @@ class CommandManager {
     editorSession.setCommandStates(commandStates);
   }
 
-  _onSessionUpdate (editorSession) {
+  _onSessionUpdate () {
+    const editorSession = this.editorSession;
     
     
     if (
@@ -26292,14 +24671,2017 @@ class CommandManager {
   _getCommandParams () {
     let editorSession = this.context.editorSession;
     let selectionState = editorSession.getSelectionState();
-    let sel = selectionState.getSelection();
-    let surface = this.context.surfaceManager.getFocusedSurface();
+    let selection = editorSession.getSelection();
+    let surface = editorSession.getFocusedSurface();
     return {
-      editorSession: editorSession,
-      selectionState: selectionState,
-      surface: surface,
-      selection: sel
+      editorSession,
+      selectionState,
+      selection,
+      surface
     }
+  }
+}
+
+class NodeRegistry extends DeprecatedRegistry {
+  
+  register (nodeClazz) {
+    var type = nodeClazz.prototype.type;
+    if (typeof type !== 'string' || type === '') {
+      throw new Error('Node names must be strings and must not be empty')
+    }
+    if (!(nodeClazz.prototype._isNode)) {
+      throw new Error('Nodes must be subclasses of Substance.Data.Node')
+    }
+    if (this.contains(type)) {
+      
+      console.info('Overriding node type', type);
+      this.remove(type);
+    }
+    this.add(type, nodeClazz);
+  }
+}
+
+class NodeProperty {
+  constructor (name, definition) {
+    this.name = name;
+    this.definition = definition;
+
+    Object.freeze(this);
+    Object.freeze(definition);
+  }
+
+  isArray () {
+    return isArray(this.definition.type)
+  }
+
+  isReference () {
+    if (this.isArray()) {
+      return last$1(this.definition.type) === 'id'
+    } else {
+      return this.definition.type === 'id'
+    }
+  }
+
+  isText () {
+    return Boolean(this.definition._isText)
+  }
+
+  isOwned () {
+    return Boolean(this.definition.owned)
+  }
+
+  isOptional () {
+    return this.definition.optional || this.hasDefault()
+  }
+
+  isNotNull () {
+    return Boolean(this.definition.notNull)
+  }
+
+  hasDefault () {
+    return this.definition.hasOwnProperty('default')
+  }
+
+  getDefault () {
+    return this.definition.default
+  }
+
+  createDefaultValue () {
+    if (isArray(this.definition.type)) {
+      return []
+    }
+    switch (this.definition.type) {
+      case 'object':
+        return {}
+      case 'number':
+        return -1
+      case 'coordinate':
+        return new Coordinate([], 0)
+      case 'boolean':
+        return false
+      case 'id':
+        return null
+      case 'string':
+        return ''
+      default:
+        return null
+    }
+  }
+
+  get type () {
+    return this.definition.type
+  }
+
+  get targetTypes () {
+    return this.definition.targetTypes
+  }
+}
+
+class NodeSchema {
+  constructor (properties, superTypes) {
+    this.properties = properties;
+    this._superTypes = superTypes;
+    
+    
+    
+    
+    
+    this._ownedPropNames = new Set();
+    this._ownedProps = [];
+    forEach(properties, (prop) => {
+      if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
+        this._ownedPropNames.add(prop.name);
+        this._ownedProps.push(prop);
+      }
+    });
+  }
+
+  getProperty (name) {
+    return this.properties[name]
+  }
+
+  hasOwnedProperties () {
+    return this._ownedPropNames.size > 0
+  }
+
+  getOwnedProperties () {
+    return this._ownedProps.slice()
+  }
+
+  isOwned (name) {
+    return this._ownedPropNames.has(name)
+  }
+
+  getSuperType () {
+    return this._superTypes[0]
+  }
+
+  getSuperTypes () {
+    return this._superTypes.slice()
+  }
+
+  [Symbol.iterator] () {
+    const properties = this.properties;
+    let ids = Object.keys(properties);
+    let idx = 0;
+    return { 
+      next () {
+        let done = idx > ids.length - 1;
+        if (done) {
+          return { done }
+        } else {
+          return {
+            value: properties[ids[idx++]]
+          }
+        }
+      }
+    }
+  }
+}
+
+const VALUE_TYPES = new Set(['string', 'number', 'boolean', 'object', 'array', 'coordinate']);
+
+
+class Node extends EventEmitter {
+  
+  constructor (...args) {
+    super();
+
+    
+    
+    this._initialize(...args);
+  }
+
+  _initialize (data) {
+    const NodeClass = this.constructor;
+
+    let schema = NodeClass.schema;
+    for (let property of schema) {
+      let name = property.name;
+      
+      
+      const propIsGiven = (data[name] !== undefined);
+      const isOptional = property.isOptional();
+      const hasDefault = property.hasDefault();
+      if (!isOptional && !propIsGiven) {
+        throw new Error('Property ' + name + ' is mandatory for node type ' + this.type)
+      }
+      if (propIsGiven) {
+        this[name] = _checked(property, data[name]);
+      } else if (hasDefault) {
+        this[name] = cloneDeep(_checked(property, property.getDefault()));
+      }
+    }
+  }
+
+  dispose () {
+    this._disposed = true;
+  }
+
+  isDisposed () {
+    return Boolean(this._disposed)
+  }
+
+  
+  isInstanceOf (typeName) {
+    return Node.isInstanceOf(this.constructor, typeName)
+  }
+
+  getSchema () {
+    return this.constructor.schema
+  }
+
+  
+  getTypeNames () {
+    let NodeClass = this.constructor;
+    let typeNames = this.schema.getSuperTypes();
+    if (NodeClass.hasOwnProperty('type')) {
+      typeNames.unshift(NodeClass.type);
+    }
+    return typeNames
+  }
+
+  
+  getPropertyType (propertyName) {
+    return this.constructor.schema.getProperty(propertyName).type
+  }
+
+  
+  toJSON () {
+    var data = {
+      type: this.type
+    };
+    const schema = this.getSchema();
+    for (let prop of schema) {
+      let val = this[prop.name];
+      if (prop.isOptional() && val === undefined) continue
+      if (isArray(val) || isObject(val)) {
+        val = cloneDeep(val);
+      }
+      data[prop.name] = val;
+    }
+    return data
+  }
+
+  get type () {
+    return this.constructor.type
+  }
+
+  
+  static isInstanceOf (NodeClass, typeName) {
+    let schema = NodeClass.schema;
+    if (!schema) return false
+    if (NodeClass.type === typeName) return true
+    for (let superType of schema._superTypes) {
+      if (superType === typeName) return true
+    }
+    return false
+  }
+
+  
+  get _isNode () { return true }
+
+  
+  static define (schema) {
+    _define(schema);
+  }
+
+  static defineSchema (schema) {
+    _define(schema);
+  }
+}
+
+
+Object.defineProperty(Node, 'schema', {
+  get () {
+    let NodeClass = this;
+    
+    if (!NodeClass.hasOwnProperty('_schema')) {
+      let ParentNodeClass = _getParentClass(NodeClass);
+      let parentSchema = ParentNodeClass.schema;
+      NodeClass._schema = new NodeSchema(parentSchema.properties, _getSuperTypes(NodeClass));
+    }
+    return NodeClass._schema
+  },
+  set (schema) {
+    let NodeClass = this;
+    
+    
+    if (schema.type) {
+      NodeClass.type = schema.type;
+    }
+    
+    
+    
+    NodeClass._schema = compileSchema(NodeClass, schema);
+  }
+});
+
+Node.schema = {
+  type: '@node',
+  id: 'string'
+};
+
+
+
+
+
+
+
+
+function _define (schema) {
+  console.error("DEPRECATED: use 'Node.schema = {...}' instead");
+  let NodeClass = this;
+  NodeClass.schema = schema;
+}
+
+function compileSchema (NodeClass, schema) {
+  let compiledSchema = _compileSchema(schema);
+  let schemas = [compiledSchema];
+  let Clazz = _getParentClass(NodeClass);
+  while (Clazz) {
+    if (Clazz && Clazz._schema) {
+      schemas.unshift(Clazz._schema.properties);
+    }
+    Clazz = _getParentClass(Clazz);
+  }
+  schemas.unshift({});
+  let superTypes = _getSuperTypes(NodeClass);
+  return new NodeSchema(Object.assign.apply(null, schemas), superTypes)
+}
+
+function _compileSchema (schema) {
+  let compiledSchema = {};
+  forEach(schema, function (definition, name) {
+    
+    if (name === 'type') return
+    if (isString(definition) || isArray(definition)) {
+      definition = { type: definition };
+    } else {
+      definition = cloneDeep(definition);
+    }
+    definition = _compileDefintion(definition);
+    definition.name = name;
+    compiledSchema[name] = new NodeProperty(name, definition);
+  });
+  return compiledSchema
+}
+
+function _isValueType (t) {
+  return VALUE_TYPES.has(t)
+}
+
+function _compileDefintion (definition) {
+  let result = Object.assign({}, definition);
+  let type = definition.type;
+  if (isArray(type)) {
+    
+    
+    
+    
+    let defs = type;
+    let lastIdx = defs.length - 1;
+    let first = defs[0];
+    let last = defs[lastIdx];
+    let isCanonical = first === 'array';
+    if (isCanonical) {
+      result.type = defs.slice();
+      
+      if (last !== 'id' && !_isValueType(last)) {
+        result.targetTypes = [last];
+        result.type[lastIdx] = 'id';
+      }
+    } else {
+      if (defs.length > 1) {
+        defs.forEach(t => {
+          if (_isValueType(t)) {
+            throw new Error('Multi-types must consist of node types.')
+          }
+        });
+        result.type = [ 'array', 'id' ];
+        result.targetTypes = defs;
+      } else {
+        if (_isValueType(first)) {
+          result.type = [ 'array', first ];
+        } else {
+          result.type = [ 'array', 'id' ];
+          result.targetTypes = defs;
+        }
+      }
+    }
+  } else if (type === 'text') {
+    result = {
+      type: 'string',
+      default: '',
+      _isText: true,
+      targetTypes: definition.targetTypes
+    };
+  
+  } else if (type !== 'id' && !_isValueType(type)) {
+    result.type = 'id';
+    result.targetTypes = [type];
+  }
+
+  return result
+}
+
+function _checked (prop, value) {
+  let type;
+  let name = prop.name;
+  if (prop.isArray()) {
+    type = 'array';
+  } else {
+    type = prop.type;
+  }
+  if (value === null) {
+    if (prop.isNotNull()) {
+      throw new Error('Value for property ' + name + ' is null.')
+    } else {
+      return value
+    }
+  }
+  if (value === undefined) {
+    throw new Error('Value for property ' + name + ' is undefined.')
+  }
+  if ((type === 'string' && !isString(value)) ||
+      (type === 'boolean' && !isBoolean(value)) ||
+      (type === 'number' && !isNumber(value)) ||
+      (type === 'array' && !isArray(value)) ||
+      (type === 'id' && !isString(value)) ||
+      (type === 'object' && !isObject(value))) {
+    throw new Error('Illegal value type for property ' + name + ': expected ' + type + ', was ' + (typeof value))
+  }
+  return value
+}
+
+function _getSuperTypes (NodeClass) {
+  var typeNames = [];
+  let SuperClass = _getParentClass(NodeClass);
+  while (SuperClass && SuperClass.type !== '@node') {
+    if (SuperClass.hasOwnProperty('type')) {
+      typeNames.push(SuperClass.type);
+    }
+    SuperClass = _getParentClass(SuperClass);
+  }
+  return typeNames
+}
+
+function _getParentClass (Clazz) {
+  var parentProto = Object.getPrototypeOf(Clazz.prototype);
+  if (parentProto) {
+    return parentProto.constructor
+  }
+}
+
+class Schema {
+  
+  constructor (name, version) {
+    if (!name) {
+      throw new Error("'name' is mandatory")
+    }
+    if (!version) {
+      throw new Error("'version' is mandatory")
+    }
+
+    
+    this.name = name;
+    
+    this.version = version;
+    
+    this.nodeRegistry = new NodeRegistry();
+    
+    this.tocTypes = [];
+
+    
+    this.addNodes(this.getBuiltIns());
+  }
+
+  
+  addNodes (nodes) {
+    if (!nodes) return
+    forEach(nodes, function (NodeClass) {
+      if (!NodeClass.prototype._isNode) {
+        console.error('Illegal node class: ', NodeClass);
+      } else {
+        this.addNode(NodeClass);
+      }
+    }.bind(this));
+  }
+
+  addNode (NodeClass) {
+    this.nodeRegistry.register(NodeClass);
+    if (NodeClass.tocType) {
+      this.tocTypes.push(NodeClass.type);
+    }
+  }
+
+  
+  getNodeClass (name, strict) {
+    return this.nodeRegistry.get(name, strict)
+  }
+
+  
+  getBuiltIns () {
+    return []
+  }
+
+  
+  isInstanceOf (type, parentType) {
+    var NodeClass = this.getNodeClass(type);
+    if (NodeClass) {
+      return Node.isInstanceOf(NodeClass, parentType)
+    }
+    return false
+  }
+
+  
+  each (...args) {
+    return this.nodeRegistry.each(...args)
+  }
+
+  
+  getTocTypes () {
+    return this.tocTypes
+  }
+
+  
+  getDefaultTextType () {
+    throw new Error('Schmema.prototype.getDefaultTextType() must be overridden.')
+  }
+
+  getNodeSchema (type) {
+    var NodeClass = this.getNodeClass(type);
+    if (!NodeClass) {
+      console.error('Unknown node type ', type);
+      return null
+    }
+    return NodeClass.schema
+  }
+}
+
+class DocumentNode extends Node {
+  _initialize (doc, props) {
+    this.document = doc;
+    super._initialize(props);
+  }
+
+  
+  getDocument () {
+    return this.document
+  }
+
+  
+  hasParent () {
+    return Boolean(this.parent)
+  }
+
+  
+  getParent () {
+    if (isString(this.parent)) return this.document.get(this.parent)
+    return this.parent
+  }
+
+  setParent (parent) {
+    if (isString(parent)) parent = this.document.get(parent);
+    this.parent = parent;
+  }
+
+  
+  getRoot () {
+    let node = this;
+    while (node.parent) {
+      node = node.parent;
+    }
+    return node
+  }
+
+  getContainerRoot () {
+    let node = this;
+    while (node.parent) {
+      
+      if (node.parent.isContainer()) return node
+      
+      node = node.parent;
+    }
+    return node
+  }
+
+  
+  hasChildren () {
+    return false
+  }
+
+  
+  getChildIndex(child) { 
+    return -1
+  }
+
+  
+  getChildAt(idx) { 
+    return null
+  }
+
+  
+  getChildCount () {
+    return 0
+  }
+
+  
+  
+
+  
+  isAnchor () {
+    return this.constructor.isAnchor()
+  }
+
+  
+  isAnnotation () {
+    return this.constructor.isAnnotation()
+  }
+
+  
+  isBlock () {
+    
+    
+    return this.constructor.isBlock()
+  }
+
+  
+  isContainer () {
+    return this.constructor.isContainer()
+  }
+
+  
+  isContainerAnnotation () {
+    return this.constructor.isContainerAnnotation()
+  }
+
+  
+  isInlineNode () {
+    return this.constructor.isInlineNode()
+  }
+
+  
+  isList () {
+    return this.constructor.isList()
+  }
+
+  
+  isListItem () {
+    return this.constructor.isListItem()
+  }
+
+  
+  isPropertyAnnotation () {
+    return this.constructor.isPropertyAnnotation()
+  }
+
+  
+  isText () {
+    return this.constructor.isText()
+  }
+
+  
+
+  static isAnchor () { return false }
+
+  static isAnnotation () { return false }
+
+  
+  static isBlock () { return false }
+
+  static isContainer () { return false }
+
+  
+  static isContainerAnnotation () { return false }
+
+  
+  static isInlineNode () { return false }
+
+  static isList () { return false }
+
+  static isListItem () { return false }
+
+  
+  static isPropertyAnnotation () { return false }
+
+  
+  static isText () { return false }
+
+  
+  get _isDocumentNode () { return true }
+}
+
+class ContainerAddress {
+  constructor (pos, offset) {
+    this.pos = pos;
+    this.offset = offset;
+  }
+
+  isBefore (other, strict) {
+    strict = Boolean(strict);
+    if (this.pos < other.pos) {
+      return true
+    } else if (this.pos > other.pos) {
+      return false
+    } else if (this.offset < other.offset) {
+      return true
+    } else if (this.offset > other.offset) {
+      return false
+    }
+    if (strict) {
+      return false
+    } else {
+      return true
+    }
+  }
+
+  isAfter (other, strict) {
+    return other.isBefore(this, strict)
+  }
+
+  isEqual (other) {
+    return (this.pos === other.pos && this.offset === other.offset)
+  }
+
+  toString () {
+    return [this.pos, '.', this.offset].join('')
+  }
+}
+
+function filter (iteratee, fn) {
+  if (!iteratee) return []
+  if (iteratee.constructor.prototype.filter && isFunction$1(iteratee.constructor.prototype.filter)) {
+    return iteratee.filter(fn)
+  }
+  let result = [];
+  forEach(iteratee, (val, key) => {
+    if (fn(val, key)) {
+      result.push(val);
+    }
+  });
+  return result
+}
+
+class NodeIndex {
+  
+  select (node) { 
+    throw new Error('This method is abstract.')
+  }
+
+  clear () {
+    throw new Error('This method is abstract')
+  }
+
+  
+  create (node) { 
+    throw new Error('This method is abstract.')
+  }
+
+  
+  delete (node) { 
+    throw new Error('This method is abstract.')
+  }
+
+  set (node, path, newValue, oldValue) {
+    this.update(node, path, newValue, oldValue);
+  }
+
+  
+  update (node, path, newValue, oldValue) { 
+    throw new Error('This method is abstract.')
+  }
+
+  
+  reset (data) {
+    this.clear();
+    this._initialize(data);
+  }
+
+  
+  clone () {
+    var NodeIndexClass = this.constructor;
+    var clone = new NodeIndexClass();
+    return clone
+  }
+
+  _initialize (data) {
+    forEach(data.getNodes(), function (node) {
+      if (this.select(node)) {
+        this.create(node);
+      }
+    }.bind(this));
+  }
+}
+
+
+NodeIndex.create = function (prototype) {
+  var index = Object.assign(new NodeIndex(), prototype);
+  index.clone = function () {
+    return NodeIndex.create(prototype)
+  };
+  return index
+};
+
+
+NodeIndex.filterByType = function (type) {
+  return function (node) {
+    return node.isInstanceOf(type)
+  }
+};
+
+class DocumentIndex extends NodeIndex {}
+
+var annotationHelpers = {
+  insertedText,
+  deletedText,
+  transferAnnotations,
+  expandAnnotation,
+  fuseAnnotation,
+  truncateAnnotation
+}
+
+function insertedText (doc, coordinate, length) {
+  if (!length) return
+  var index = doc.getIndex('annotations');
+  var annotations = index.get(coordinate.path);
+  for (let i = 0; i < annotations.length; i++) {
+    let anno = annotations[i];
+    var pos = coordinate.offset;
+    var start = anno.start.offset;
+    var end = anno.end.offset;
+    var newStart = start;
+    var newEnd = end;
+    if ((pos < start) ||
+         (pos === start)) {
+      newStart += length;
+    }
+    
+    if ((pos < end) ||
+         (pos === end && !anno.isInlineNode())) {
+      newEnd += length;
+    }
+    
+    if (newStart !== start) {
+      doc.set([anno.id, 'start', 'offset'], newStart);
+    }
+    if (newEnd !== end) {
+      doc.set([anno.id, 'end', 'offset'], newEnd);
+    }
+  }
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+}
+
+function deletedText (doc, path, startOffset, endOffset) {
+  if (startOffset === endOffset) return
+  var index = doc.getIndex('annotations');
+  var annotations = index.get(path);
+  var length = endOffset - startOffset;
+  for (let i = 0; i < annotations.length; i++) {
+    let anno = annotations[i];
+    var pos1 = startOffset;
+    var pos2 = endOffset;
+    var start = anno.start.offset;
+    var end = anno.end.offset;
+    var newStart = start;
+    var newEnd = end;
+    if (pos2 <= start) {
+      newStart -= length;
+      newEnd -= length;
+      doc.set([anno.id, 'start', 'offset'], newStart);
+      doc.set([anno.id, 'end', 'offset'], newEnd);
+    } else {
+      if (pos1 <= start) {
+        newStart = start - Math.min(pos2 - pos1, start - pos1);
+      }
+      if (pos1 <= end) {
+        newEnd = end - Math.min(pos2 - pos1, end - pos1);
+      }
+      
+      if (start !== end && newStart === newEnd) {
+        doc.delete(anno.id);
+      } else {
+        
+        if (start !== newStart) {
+          doc.set([anno.id, 'start', 'offset'], newStart);
+        }
+        if (end !== newEnd) {
+          doc.set([anno.id, 'end', 'offset'], newEnd);
+        }
+      }
+    }
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+}
+
+
+function transferAnnotations (doc, path, offset, newPath, newOffset) {
+  var index = doc.getIndex('annotations');
+  var annotations = index.get(path, offset);
+  for (let i = 0; i < annotations.length; i++) {
+    let a = annotations[i];
+    var isInside = (offset > a.start.offset && offset < a.end.offset);
+    var start = a.start.offset;
+    var end = a.end.offset;
+    
+    if (isInside) {
+      
+      if (a.canSplit()) {
+        let newAnno = a.toJSON();
+        newAnno.id = uuid(a.type + '_');
+        newAnno.start.path = newPath;
+        newAnno.start.offset = newOffset;
+        newAnno.end.path = newPath;
+        newAnno.end.offset = newOffset + a.end.offset - offset;
+        doc.create(newAnno);
+      }
+      
+      let newStartOffset = a.start.offset;
+      let newEndOffset = offset;
+      
+      if (newEndOffset === newStartOffset) {
+        doc.delete(a.id);
+      
+      } else {
+        
+        if (newStartOffset !== start) {
+          doc.set([a.id, 'start', 'offset'], newStartOffset);
+        }
+        if (newEndOffset !== end) {
+          doc.set([a.id, 'end', 'offset'], newEndOffset);
+        }
+      }
+    
+    } else if (a.start.offset >= offset) {
+      
+      
+      
+      doc.set([a.id, 'start', 'path'], newPath);
+      doc.set([a.id, 'start', 'offset'], newOffset + a.start.offset - offset);
+      doc.set([a.id, 'end', 'path'], newPath);
+      doc.set([a.id, 'end', 'offset'], newOffset + a.end.offset - offset);
+    }
+  }
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+}
+
+
+function truncateAnnotation (tx, anno, sel) {
+  if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
+  if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
+  let annoSel = anno.getSelection();
+  let newAnnoSel = annoSel.truncateWith(sel);
+  anno._updateRange(tx, newAnnoSel);
+  return anno
+}
+
+
+function expandAnnotation (tx, anno, sel) {
+  if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
+  if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
+  let annoSel = anno.getSelection();
+  let newAnnoSel = annoSel.expand(sel);
+  anno._updateRange(tx, newAnnoSel);
+  return anno
+}
+
+
+function fuseAnnotation (tx, annos) {
+  if (!isArray(annos) || annos.length < 2) {
+    throw new Error('fuseAnnotation(): at least two annotations are necessary.')
+  }
+  let sel, annoType;
+  annos.forEach(function (anno, idx) {
+    if (idx === 0) {
+      sel = anno.getSelection();
+      annoType = anno.type;
+    } else {
+      if (anno.type !== annoType) {
+        throw new Error('fuseAnnotation(): all annotations must be of the same type.')
+      }
+      sel = sel.expand(anno.getSelection());
+    }
+  });
+  
+  for (var i = 1; i < annos.length; i++) {
+    tx.delete(annos[i].id);
+  }
+  expandAnnotation(tx, annos[0], sel);
+  tx.setSelection(sel);
+}
+
+function getPropertyAnnotationsForSelection (doc, sel, options) {
+  options = options || {};
+  if (!sel.isPropertySelection()) {
+    return []
+  }
+  let path = sel.getPath();
+  let annotations = doc.getIndex('annotations').get(path, sel.start.offset, sel.end.offset);
+  if (options.type) {
+    annotations = filter(annotations, DocumentIndex.filterByType(options.type));
+  }
+  return annotations
+}
+
+
+function getContainerAnnotationsForSelection (doc, sel, containerId, options) {
+  
+  
+  
+  
+  
+  if (!containerId) {
+    throw new Error("'containerId' is required.")
+  }
+  options = options || {};
+  let index = doc.getIndex('container-annotations');
+  let annotations = [];
+  if (index) {
+    annotations = index.get(containerId, options.type);
+    annotations = filter(annotations, function (anno) {
+      return sel.overlaps(anno.getSelection())
+    });
+  }
+  return annotations
+}
+
+
+function isContainerAnnotation (doc, type) {
+  let schema = doc.getSchema();
+  return schema.isInstanceOf(type, '@container-annotation')
+}
+
+
+function getTextForSelection (doc, sel) {
+  if (!sel || sel.isNull()) {
+    return ''
+  } else if (sel.isPropertySelection()) {
+    let text = doc.get(sel.start.path);
+    return text.substring(sel.start.offset, sel.end.offset)
+  } else if (sel.isContainerSelection()) {
+    let result = [];
+    let nodeIds = sel.getNodeIds();
+    let L = nodeIds.length;
+    for (let i = 0; i < L; i++) {
+      let id = nodeIds[i];
+      let node = doc.get(id);
+      if (node.isText()) {
+        let text = node.getText();
+        if (i === L - 1) {
+          text = text.slice(0, sel.end.offset);
+        }
+        if (i === 0) {
+          text = text.slice(sel.start.offset);
+        }
+        result.push(text);
+      }
+    }
+    return result.join('\n')
+  }
+}
+
+function getMarkersForSelection (doc, sel) {
+  
+  if (!sel || !sel.isPropertySelection()) return []
+  const path = sel.getPath();
+  
+  let markers = doc.getIndex('markers').get(path);
+  const filtered = filter(markers, function (m) {
+    return m.containsSelection(sel)
+  });
+  return filtered
+}
+
+
+function deleteNode (doc, node) {
+  
+  if (!node) {
+    console.warn('Invalid arguments');
+    return
+  }
+  
+  if (node.isText()) {
+    
+    let annos = doc.getIndex('annotations').get(node.id);
+    for (let i = 0; i < annos.length; i++) {
+      doc.delete(annos[i].id);
+    }
+  }
+  let nodeSchema = node.getSchema();
+  
+  
+  
+  doc.delete(node.id);
+  
+  let ownedProps = nodeSchema.getOwnedProperties();
+  ownedProps.forEach(prop => {
+    let value = node[prop.name];
+    if (prop.isArray()) {
+      let ids = value;
+      if (ids.length > 0) {
+        
+        if (isArray(ids[0])) ids = flattenOften(ids, 2);
+        ids.forEach((id) => {
+          deleteNode(doc, doc.get(id));
+        });
+      }
+    } else {
+      deleteNode(doc, doc.get(value));
+    }
+  });
+}
+
+
+function copyNode (node) {
+  let nodes = [];
+  
+  let doc = node.getDocument();
+  let nodeSchema = node.getSchema();
+  for (let prop of nodeSchema) {
+    
+    
+    if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
+      let val = node[prop.name];
+      nodes.push(_copyChildren(val));
+    }
+  }
+  nodes.push(node.toJSON());
+  let annotationIndex = node.getDocument().getIndex('annotations');
+  let annotations = annotationIndex.get([node.id]);
+  forEach(annotations, function (anno) {
+    nodes.push(anno.toJSON());
+  });
+  let result = flatten(nodes).filter(Boolean);
+  
+  return result
+
+  function _copyChildren (val) {
+    if (!val) return null
+    if (isArray(val)) {
+      return flatten(val.map(_copyChildren))
+    } else {
+      let id = val;
+      if (!id) return null
+      let child = doc.get(id);
+      if (!child) return
+      return copyNode(child)
+    }
+  }
+}
+
+
+function deleteTextRange (doc, start, end) {
+  if (!start) {
+    start = {
+      path: end.path,
+      offset: 0
+    };
+  }
+  let path = start.path;
+  let text = doc.get(path);
+  if (!end) {
+    end = {
+      path: start.path,
+      offset: text.length
+    };
+  }
+  
+  if (!isArrayEqual(start.path, end.path)) {
+    throw new Error('start and end must be on one property')
+  }
+  let startOffset = start.offset;
+  if (startOffset < 0) throw new Error('start offset must be >= 0')
+  let endOffset = end.offset;
+  if (endOffset > text.length) throw new Error('end offset must be smaller than the text length')
+
+  doc.update(path, { type: 'delete', start: startOffset, end: endOffset });
+  
+  let annos = doc.getAnnotations(path);
+  annos.forEach(function (anno) {
+    let annoStart = anno.start.offset;
+    let annoEnd = anno.end.offset;
+    
+    if (annoEnd <= startOffset) ; else if (annoStart >= endOffset) {
+      doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - endOffset });
+      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
+    
+    } else if (annoStart >= startOffset && annoEnd <= endOffset) {
+      doc.delete(anno.id);
+    
+    } else if (annoStart >= startOffset && annoEnd >= endOffset) {
+      if (annoStart > startOffset) {
+        doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - annoStart });
+      }
+      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
+    
+    } else if (annoStart <= startOffset && annoEnd <= endOffset) {
+      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - annoEnd });
+    
+    } else if (annoStart < startOffset && annoEnd >= endOffset) {
+      doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
+    } else {
+      console.warn('TODO: handle annotation update case.');
+    }
+  });
+}
+
+function deleteListRange (doc, list, start, end) {
+  if (doc !== list.getDocument()) {
+    list = doc.get(list.id);
+  }
+  let startItem, endItem;
+  if (!start) {
+    startItem = list.getItemAt(0);
+    start = {
+      path: startItem.getPath(),
+      offset: 0
+    };
+  } else {
+    startItem = doc.get(start.path[0]);
+  }
+  if (!end) {
+    endItem = list.getLastItem();
+    end = {
+      path: endItem.getPath(),
+      offset: endItem.getLength()
+    };
+  } else {
+    endItem = doc.get(end.path[0]);
+  }
+  let startPos = list.getItemPosition(startItem);
+  let endPos = list.getItemPosition(endItem);
+  
+  if (startPos === endPos) {
+    deleteTextRange(doc, start, end);
+    return
+  }
+  
+  if (startPos > endPos) {
+    [start, end] = [end, start];
+    [startPos, endPos] = [endPos, startPos];
+    [startItem, endItem] = [endItem, startItem];
+  }
+  let firstEntirelySelected = isEntirelySelected(doc, startItem, start, null);
+  let lastEntirelySelected = isEntirelySelected(doc, endItem, null, end);
+
+  
+  if (lastEntirelySelected) {
+    list.removeItemAt(endPos);
+    deleteNode(doc, endItem);
+  } else {
+    deleteTextRange(doc, null, end);
+  }
+
+  
+  let items = list.getItems();
+  for (let i = endPos - 1; i > startPos; i--) {
+    let item = items[i];
+    list.removeItemAt(i);
+    deleteNode(doc, item);
+  }
+
+  
+  if (firstEntirelySelected) {
+    
+    
+    
+    
+    deleteTextRange(doc, start, null);
+  } else {
+    deleteTextRange(doc, start, null);
+  }
+
+  if (!firstEntirelySelected && !lastEntirelySelected) {
+    mergeListItems(doc, list.id, startPos);
+  }
+}
+
+function mergeListItems (doc, listId, itemPos) {
+  
+  let list = doc.get(listId);
+  let targetItem = list.getItemAt(itemPos);
+  let targetPath = targetItem.getPath();
+  let targetLength = targetItem.getLength();
+  let sourceItem = list.getItemAt(itemPos + 1);
+  let sourcePath = sourceItem.getPath();
+  
+  list.removeItemAt(itemPos + 1);
+  
+  doc.update(targetPath, { type: 'insert', start: targetLength, text: sourceItem.getText() });
+  
+  annotationHelpers.transferAnnotations(doc, sourcePath, 0, targetPath, targetLength);
+  deleteNode(doc, sourceItem);
+}
+
+function getNodes (doc, ids) {
+  return ids.map((id) => {
+    return doc.get(id, 'strict')
+  })
+}
+
+
+
+const SNIPPET_ID = 'snippet';
+const TEXT_SNIPPET_ID = 'text-snippet';
+
+var documentHelpers = /*#__PURE__*/Object.freeze({
+  getPropertyAnnotationsForSelection: getPropertyAnnotationsForSelection,
+  getContainerAnnotationsForSelection: getContainerAnnotationsForSelection,
+  isContainerAnnotation: isContainerAnnotation,
+  getTextForSelection: getTextForSelection,
+  getMarkersForSelection: getMarkersForSelection,
+  deleteNode: deleteNode,
+  copyNode: copyNode,
+  deleteTextRange: deleteTextRange,
+  deleteListRange: deleteListRange,
+  mergeListItems: mergeListItems,
+  getNodes: getNodes,
+  SNIPPET_ID: SNIPPET_ID,
+  TEXT_SNIPPET_ID: TEXT_SNIPPET_ID
+});
+
+function ContainerMixin (DocumentNode) {
+  class AbstractContainer extends DocumentNode {
+    contains (nodeId) {
+      return this.getPosition(nodeId) >= 0
+    }
+
+    getPosition (node, strict) {
+      if (isString(node)) {
+        node = this.document.get(node);
+      }
+      if (!node) return -1
+      let pos = this._getPosition(node);
+      if (strict && pos < 0) {
+        throw new Error('Node is not within this container: ' + node.id)
+      }
+      return pos
+    }
+
+    getNodeAt (idx) {
+      const nodeId = this.getNodeIdAt(idx);
+      if (nodeId) {
+        return this.getDocument().get(nodeId)
+      }
+    }
+
+    getNodeIdAt (idx) {
+      let content = this.getContent();
+      if (idx < 0 || idx >= content.length) {
+        
+        return undefined
+      } else {
+        return content[idx]
+      }
+    }
+
+    getNodes () {
+      const doc = this.getDocument();
+      return this.getContent().map(id => doc.get(id)).filter(Boolean)
+    }
+
+    show (nodeId, pos) {
+      
+      const arg1 = arguments[0];
+      if (!isString(arg1)) {
+        if (arg1._isNode) {
+          nodeId = arg1.id;
+        }
+      }
+      if (arguments.length > 1) {
+        console.error('DEPRECATED: use container.showAt(pos, nodeId) instead');
+      } else {
+        pos = this.getLength();
+      }
+      return this.showAt(pos, nodeId)
+    }
+
+    showAt (pos, nodeId) {
+      const doc = this.getDocument();
+      const length = this.getLength();
+      if (!isNumber(pos) || pos < 0 || pos > length) {
+        throw new Error('Index out of bounds')
+      }
+      if (!isString(nodeId)) {
+        if (nodeId._isNode) {
+          nodeId = nodeId.id;
+        } else {
+          throw new Error('Invalid argument.')
+        }
+      }
+      doc.update(this.getContentPath(), { type: 'insert', pos: pos, value: nodeId });
+    }
+
+    hide (nodeId) {
+      const pos = this.getPosition(nodeId);
+      this.hideAt(pos);
+    }
+
+    hideAt (pos) {
+      const length = this.getLength();
+      if (pos >= 0 && pos < length) {
+        const doc = this.getDocument();
+        doc.update(this.getContentPath(), { type: 'delete', pos: pos });
+      } else {
+        throw new Error('Index out of bounds.')
+      }
+    }
+
+    getAddress (coor) {
+      if (!coor._isCoordinate) {
+        
+        throw new Error('Illegal argument: Container.getAddress(coor) expects a Coordinate instance.')
+      }
+      var nodeId = coor.path[0];
+      var nodePos = this.getPosition(nodeId);
+      var offset;
+      if (coor.isNodeCoordinate()) {
+        if (coor.offset > 0) {
+          offset = Number.MAX_VALUE;
+        } else {
+          offset = 0;
+        }
+      } else {
+        offset = coor.offset;
+      }
+      return new ContainerAddress(nodePos, offset)
+    }
+
+    getLength () {
+      return this.getContent().length
+    }
+
+    get length () {
+      return this.getLength()
+    }
+
+    _getPosition (node) {
+      if (this._isCaching) {
+        return this._getCachedPosition(node)
+      } else {
+        return this._lookupPosition(node)
+      }
+    }
+
+    _getCachedPosition (node) {
+      let cache = this._cachedPositions || this._fillCache();
+      let nodeId = node.id;
+      let pos = -1;
+      if (cache.hasOwnProperty(nodeId)) {
+        pos = cache[nodeId];
+      } else {
+        pos = this._lookupPosition(node);
+        cache[nodeId] = pos;
+      }
+      return pos
+    }
+
+    _fillCache () {
+      let positions = {};
+      this.nodes.forEach((id, pos) => {
+        positions[id] = pos;
+      });
+      this._cachedPositions = positions;
+      return positions
+    }
+
+    _invalidateCache () {
+      this._cachedPositions = null;
+    }
+
+    _lookupPosition (node) {
+      if (node.hasParent()) {
+        node = node.getContainerRoot();
+      }
+      return this.getContent().indexOf(node.id)
+    }
+
+    _enableCaching () {
+      
+      if (this.document) {
+        this.document.data.on('operation:applied', this._onOperationApplied, this);
+        this._isCaching = true;
+      }
+    }
+
+    _onOperationApplied (op) {
+      if (op.type === 'set' || op.type === 'update') {
+        if (op.path[0] === this.id) {
+          this._invalidateCache();
+        }
+      }
+    }
+
+    _onDocumentChange (change) {
+      if (change.hasUpdated(this.getContentPath())) {
+        this._invalidateCache();
+      }
+    }
+
+    
+    
+
+    hasChildren () {
+      return this.getContent().length > 0
+    }
+
+    getChildIndex (child) {
+      return this.getContent().indexOf(child.id)
+    }
+
+    getChildren () {
+      return getNodes(this.getDocument(), this.getContent())
+    }
+
+    getChildAt (idx) {
+      var childrenIds = this.getContent();
+      if (idx < 0 || idx >= childrenIds.length) {
+        throw new Error('Array index out of bounds: ' + idx + ', ' + childrenIds.length)
+      }
+      return this.getDocument().get(childrenIds[idx], 'strict')
+    }
+
+    getChildCount () {
+      return this.getContent().length
+    }
+
+    static isContainer () {
+      return true
+    }
+  }
+  return AbstractContainer
+}
+
+class Container extends ContainerMixin(DocumentNode) {
+  constructor (...args) {
+    super(...args);
+
+    
+    
+    
+    this._enableCaching();
+  }
+
+  dispose () {
+    this.document.off(this);
+  }
+
+  getContentPath () {
+    return [this.id, 'nodes']
+  }
+
+  getContent () {
+    return this.nodes
+  }
+
+  
+  get _isContainer () { return true }
+}
+
+Container.schema = {
+  type: '@container',
+  nodes: { type: ['array', 'id'], default: [], owned: true }
+};
+
+function AnnotationMixin (DocumentNode) {
+  class AbstractAnnotation extends DocumentNode {
+    constructor (doc, props) {
+      super(doc, _normalizedProps(props));
+
+      
+      this.start = new Coordinate(this.start);
+      this.end = new Coordinate(this.end);
+    }
+
+    
+
+    get path () {
+      console.warn('DEPRECATED: use annotation.start.path instead');
+      return this.start.path
+    }
+
+    getPath () {
+      return this.start.path
+    }
+
+    get startPath () {
+      console.warn('DEPRECATED: use annotation.start.path instead.');
+      return this.start.path
+    }
+
+    set startPath (path) {
+      console.warn('DEPRECATED: use annotation.start.path instead.');
+      this.start.path = path;
+    }
+
+    get startOffset () {
+      console.warn('DEPRECATED: use annotation.start.offset instead.');
+      return this.start.offset
+    }
+
+    set startOffset (offset) {
+      console.warn('DEPRECATED: use annotation.start.offset instead.');
+      this.start.offset = offset;
+    }
+
+    get endPath () {
+      console.warn('DEPRECATED: use annotation.end.path instead.');
+      return this.end.path
+    }
+
+    set endPath (path) {
+      console.warn('DEPRECATED: use annotation.end.path instead.');
+      this.end.path = path;
+    }
+
+    get endOffset () {
+      console.warn('DEPRECATED: use annotation.end.offset instead.');
+      return this.end.offset
+    }
+
+    set endOffset (offset) {
+      console.warn('DEPRECATED: use annotation.end.offset instead.');
+      this.end.offset = offset;
+    }
+
+    
+
+    
+    getText () {
+      var doc = this.getDocument();
+      if (!doc) {
+        console.warn('Trying to use a Annotation which is not attached to the document.');
+        return ''
+      }
+      return getTextForSelection(doc, this.getSelection())
+    }
+
+    isAnnotation () {
+      return true
+    }
+
+    
+    canSplit () {
+      return true
+    }
+
+    
+    getSelection () {
+      const doc = this.getDocument();
+      
+      if (!doc) {
+        console.warn('Trying to use a ContainerAnnotation which is not attached to the document.');
+        return Selection.nullSelection()
+      }
+      if (this.isContainerAnnotation()) {
+        return doc.createSelection({
+          type: 'container',
+          containerId: this.containerId,
+          startPath: this.start.path,
+          startOffset: this.start.offset,
+          endPath: this.end.path,
+          endOffset: this.end.offset
+        })
+      } else {
+        return this.getDocument().createSelection({
+          type: 'property',
+          path: this.start.path,
+          startOffset: this.start.offset,
+          endOffset: this.end.offset
+        })
+      }
+    }
+
+    _updateRange (tx, sel) {
+      if (sel.isContainerSelection()) {
+        
+        if (!isEqual(this.start.path, sel.start.path)) {
+          tx.set([this.id, 'start', 'path'], sel.start.path);
+        }
+        if (this.start.offset !== sel.start.offset) {
+          tx.set([this.id, 'start', 'offset'], sel.start.offset);
+        }
+        if (!isEqual(this.end.path, sel.end.path)) {
+          tx.set([this.id, 'end', 'path'], sel.end.path);
+        }
+        if (this.end.offset !== sel.end.offset) {
+          tx.set([this.id, 'end', 'offset'], sel.end.offset);
+        }
+      } else if (sel.isPropertySelection()) {
+        if (!isArrayEqual(this.start.path, sel.start.path)) {
+          tx.set([this.id, 'path'], sel.start.path);
+        }
+        
+        if (this.start.offset !== sel.start.offset) {
+          tx.set([this.id, 'start', 'offset'], sel.start.offset);
+        }
+        if (this.end.offset !== sel.end.offset) {
+          tx.set([this.id, 'end', 'offset'], sel.end.offset);
+        }
+      } else {
+        throw new Error('Invalid selection.')
+      }
+    }
+
+    static isAnnotation () { return true }
+  }
+
+  AbstractAnnotation.schema = {
+    start: { type: 'coordinate', default: { path: [], offset: 0 } },
+    end: { type: 'coordinate', default: { path: [], offset: 0 } }
+  };
+
+  return AbstractAnnotation
+}
+
+function _normalizedProps (props) {
+  
+  
+  if (!props.hasOwnProperty('start')) {
+    
+    
+    
+    let start, end;
+    if (props.hasOwnProperty('startPath') || props.hasOwnProperty('path')) {
+      start = {
+        path: props.startPath || props.path,
+        offset: props.startOffset
+      };
+    }
+    if (props.hasOwnProperty('endPath') || props.hasOwnProperty('endOffset')) {
+      end = {
+        path: props.endPath || props.path,
+        offset: props.endOffset
+      };
+    }
+    if (start && !end) {
+      end = cloneDeep(start);
+    }
+    if (start) {
+      props = Object.assign({}, props);
+      delete props.path;
+      delete props.startPath;
+      delete props.endPath;
+      delete props.startOffset;
+      delete props.endOffset;
+      props.start = start;
+      props.end = end;
+    }
+  } else if (props.hasOwnProperty('end') && !props.end.path) {
+    props.end.path = props.start.path;
+  }
+  return props
+}
+
+class PropertyAnnotation extends AnnotationMixin(DocumentNode) {
+  
+  get _isAnnotation () { return true }
+
+  get _isPropertyAnnotation () { return true }
+
+  static isPropertyAnnotation () { return true }
+
+  static get autoExpandRight () { return true }
+}
+
+PropertyAnnotation.schema = {
+  type: '@annotation',
+  
+  
+  _content: { type: 'string', optional: true }
+};
+
+class ContainerAnnotation extends AnnotationMixin(DocumentNode) {
+  setHighlighted (highlighted, scope) {
+    if (this.highlighted !== highlighted) {
+      this.highlighted = highlighted;
+      this.highlightedScope = scope;
+      this.emit('highlighted', highlighted, scope);
+      forEach(this.fragments, function (frag) {
+        frag.emit('highlighted', highlighted, scope);
+      });
+    }
+  }
+
+  static isAnnotation () { return true }
+
+  static isContainerAnnotation () { return true }
+}
+
+ContainerAnnotation.schema = {
+  type: '@container-annotation',
+  containerId: 'string',
+  start: 'coordinate',
+  end: 'coordinate'
+};
+
+class DocumentSchema extends Schema {
+  constructor (schemaSpec) {
+    super(schemaSpec.name, schemaSpec.version);
+    
+    if (!schemaSpec.DocumentClass) {
+      throw new Error('DocumentClass is mandatory')
+    }
+    Object.assign(this, schemaSpec);
+  }
+
+  getDocumentClass () {
+    return this.DocumentClass
+  }
+
+  
+  getDefaultTextType () {
+    return this.defaultTextType
+  }
+
+  
+  getBuiltIns () {
+    return [DocumentNode, PropertyAnnotation, Container, ContainerAnnotation]
+  }
+}
+
+class ComponentRegistry extends DeprecatedRegistry {
+  constructor (entries) {
+    super(entries, function (ComponentClass) {
+      if (!ComponentClass.prototype._isComponent) {
+        throw new Error('Component registry: wrong type. Expected a ComponentClass. Was: ' + String(ComponentClass))
+      }
+    });
+  }
+}
+
+class FontAwesomeIcon extends Component {
+  render ($$) {
+    if (this.props.stack) {
+      return $$('span').addClass('fa-stack')
+        .append(this.props.stack.map(faClass => {
+          return $$('i').addClass('fa ' + faClass + ' fa-stack')
+        }))
+    } else {
+      return $$('i').addClass('fa ' + this.props.icon)
+    }
+  }
+}
+
+class FontAwesomeIconProvider {
+  constructor (icons) {
+    this.faMap = {};
+    this.textMap = {};
+    forEach(icons, (config, name) => {
+      let faConfig = config['fontawesome'];
+      if (faConfig) {
+        if (isString(faConfig)) {
+          faConfig = { icon: faConfig };
+        }
+        this.addFAIcon(name, faConfig);
+      }
+      let text = config['text'];
+      if (text) {
+        this.addTextIcon(name, text);
+      }
+    });
+  }
+
+  renderIcon ($$, name) {
+    let faProps = this.faMap[name];
+    let text = this.textMap[name];
+    if (faProps) {
+      return $$(FontAwesomeIcon, faProps)
+    } else if (text) {
+      return text
+    }
+  }
+
+  addFAIcon (name, faClass) {
+    this.faMap[name] = faClass;
+  }
+
+  addTextIcon (name, text) {
+    this.textMap[name] = text;
+  }
+}
+
+class DefaultLabelProvider {
+  constructor (labels, lang) {
+    this.lang = lang || 'en';
+    this.labels = labels;
+  }
+
+  getLabel (name, params) {
+    let labels = this.labels[this.lang];
+    if (!labels) return name
+    let rawLabel = labels[name] || name;
+    
+    if (params) {
+      return this._evalTemplate(rawLabel, params)
+    } else {
+      return rawLabel
+    }
+  }
+
+  setLanguage (lang) {
+    this.lang = lang || 'en';
+  }
+
+  _evalTemplate (label, params) {
+    let vars = this._extractVariables(label);
+    vars.forEach((varName) => {
+      let searchExp = new RegExp(`\\\${${varName}}`, 'g');
+      let replaceStr = params[varName];
+      label = label.replace(searchExp, replaceStr);
+    });
+    return label
+  }
+
+  _extractVariables (rawLabel) {
+    let qualityRegex = /\${(\w+)}/g;
+    let matches;
+    let vars = [];
+
+    while (matches = qualityRegex.exec(rawLabel)) { 
+      vars.push(matches[1]);
+    }
+    return vars
   }
 }
 
@@ -26332,40 +26714,6 @@ function getDOMRangeFromEvent (evt) {
   return range
 }
 
-
-function getSelectionRect (parentRect) {
-  if (platform.inBrowser) {
-    const wsel = window.getSelection();
-    if (wsel.rangeCount === 0) return
-    const wrange = wsel.getRangeAt(0);
-    let contentRect = parentRect;
-    let selectionRect = wrange.getBoundingClientRect();
-    if (selectionRect.top === 0 && selectionRect.bottom === 0) {
-      selectionRect = _fixForCursorRectBug();
-    }
-    return getRelativeRect(contentRect, selectionRect)
-  }
-}
-
-function _fixForCursorRectBug () {
-  let wsel = window.getSelection();
-  let el = wsel.anchorNode;
-  if (!el) return
-  while (el && el.nodeType !== 1) {
-    el = el.parentNode;
-  }
-  let rects = el.getClientRects();
-  let rect = rects[0];
-  return {
-    left: rect.left,
-    top: rect.top,
-    width: 0,
-    height: rect.height,
-    right: rect.width,
-    bottom: rect.bottom
-  }
-}
-
 function getRelativeRect (parentRect, childRect) {
   var left = childRect.left - parentRect.left;
   var top = childRect.top - parentRect.top;
@@ -26379,17 +26727,56 @@ function getRelativeRect (parentRect, childRect) {
   }
 }
 
-function isMouseInsideDOMSelection (e) {
+function getSelectionRect (parentRect) {
+  if (platform.inBrowser) {
+    const wsel = window.getSelection();
+    if (wsel.rangeCount === 0) return
+    const wrange = wsel.getRangeAt(0);
+    let contentRect = parentRect;
+    let selectionRect = wrange.getBoundingClientRect();
+
+    if (selectionRect.top === 0 && selectionRect.bottom === 0) {
+      let fixed = _fixCorruptDOMSelection(wsel, wrange);
+      if (fixed) selectionRect = fixed;
+    }
+    return getRelativeRect(contentRect, selectionRect)
+  }
+}
+
+
+function _fixCorruptDOMSelection (wsel, wrange) {
+  let anchorNode = wsel.anchorNode;
+  if (!anchorNode || !anchorNode.getBoundingClientRect) return
+  let rect = anchorNode.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: 0,
+    height: rect.height,
+    right: rect.width,
+    bottom: rect.bottom
+  }
+}
+
+function isMouseInsideDOMSelection (event) {
   let wsel = window.getSelection();
   if (wsel.rangeCount === 0) {
     return false
   }
   let wrange = wsel.getRangeAt(0);
   let selectionRect = wrange.getBoundingClientRect();
-  return e.clientX >= selectionRect.left &&
-         e.clientX <= selectionRect.right &&
-         e.clientY >= selectionRect.top &&
-         e.clientY <= selectionRect.bottom
+  return event.clientX >= selectionRect.left &&
+         event.clientX <= selectionRect.right &&
+         event.clientY >= selectionRect.top &&
+         event.clientY <= selectionRect.bottom
+}
+
+function getQueryStringParam (param, url) {
+  if (typeof window === 'undefined') return null
+  let href = url || window.location.href;
+  let reg = new RegExp('[?&]' + param + '=([^&#]*)', 'i');
+  let string = reg.exec(href);
+  return string ? decodeURIComponent(string[1]) : null
 }
 
 function setDOMSelection (startNode, startOffset, endNode, endOffset) {
@@ -26411,14 +26798,6 @@ function setDOMSelection (startNode, startOffset, endNode, endOffset) {
   wsel.addRange(wrange);
 }
 
-function getQueryStringParam (param, url) {
-  if (typeof window === 'undefined') return null
-  let href = url || window.location.href;
-  let reg = new RegExp('[?&]' + param + '=([^&#]*)', 'i');
-  let string = reg.exec(href);
-  return string ? decodeURIComponent(string[1]) : null
-}
-
 class DragAndDropHandler {
   match(dragState, context) { 
     return false
@@ -26433,7 +26812,7 @@ class DragAndDropHandler {
   }
 }
 
-class DragManager extends EventEmitter {
+class DeprecatedDragManager extends EventEmitter {
   constructor (customDropHandlers, context) {
     super();
 
@@ -26906,23 +27285,25 @@ class CustomHandler extends DragAndDropHandler {
   }
 }
 
-class FileManager {
-  constructor (editorSession, extensions, context) {
-    this.editorSession = editorSession;
+class DeprecatedFileManager {
+  constructor (extensions, context) {
     this.extensions = extensions;
     this.proxies = {};
     this.context = context;
+
+    const editorSession = context.editorSession;
+    if (!editorSession) throw new Error("'context.editorSession' is required.")
 
     
     forEach(editorSession.getDocument().getNodes(), (node) => {
       if (node._isFileNode) this.storeFile(node);
     });
 
-    this.editorSession.onUpdate('document', this._onDocumentChange, this);
+    editorSession.onUpdate('document', this._onDocumentChange, this);
   }
 
   dispose () {
-    this.editorSession.off(this);
+    this.context.editorSession.off(this);
   }
 
   storeFile (fileNode) {
@@ -26963,7 +27344,7 @@ class FileManager {
   }
 
   _onDocumentChange (change) {
-    let doc = this.editorSession.getDocument();
+    let doc = this.context.editorSession.getDocument();
     forEach(change.created, (_, id) => {
       let node = doc.get(id);
       if (node._isFileNode) {
@@ -26975,10 +27356,8 @@ class FileManager {
 
 const events = [ 'keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'copy' ];
 
-class GlobalEventHandler {
-  constructor (editorSession, surfaceManager) {
-    this.editorSession = editorSession;
-    this.surfaceManager = surfaceManager;
+class AbstractGlobalEventHandler {
+  constructor () {
     this.listeners = [];
     this.initialize();
   }
@@ -27019,8 +27398,7 @@ class GlobalEventHandler {
   }
 
   _getActiveListener (eventName) {
-    let editorSession = this.editorSession;
-    let sel = editorSession.getSelection();
+    const sel = this.getSelection();
     if (sel) {
       let surfaceId = sel.surfaceId;
       for (let i = 0; i < this.listeners.length; i++) {
@@ -27033,46 +27411,31 @@ class GlobalEventHandler {
   }
 
   _dispatch (eventName, e) {
-    let listener = this._getActiveListener(eventName);
+    const listener = this._getActiveListener(eventName);
     if (listener) {
       listener.handler(e);
     }
   }
+
+  on (...args) {
+    return DOMElement.prototype.on.apply(this, args)
+  }
+
+  off (...args) {
+    return DOMElement.prototype.off.apply(this, args)
+  }
 }
 
-GlobalEventHandler.prototype.on = DOMElement.prototype.on;
-GlobalEventHandler.prototype.off = DOMElement.prototype.off;
+class DeprecatedGlobalEventHandler extends AbstractGlobalEventHandler {
+  constructor (editorSession) {
+    super();
 
-let keys$1 = {
-  UNDEFINED: 0,
-  BACKSPACE: 8,
-  DELETE: 46,
-  INSERT: 45,
-  LEFT: 37,
-  RIGHT: 39,
-  UP: 38,
-  DOWN: 40,
-  ENTER: 13,
-  RETURN: 13,
-  END: 35,
-  HOME: 36,
-  TAB: 9,
-  PAGEUP: 33,
-  PAGEDOWN: 34,
-  ESCAPE: 27,
-  ESC: 27,
-  SHIFT: 16,
-  SPACE: 32,
-  PLUS: 171,
-  VOLUMEUP: 183,
-  VOLUMEDOWN: 182,
-  VOLUMEMUTE: 181,
-  PRINTSCREEN: 44
-};
+    this.editorSession = editorSession;
+  }
 
-
-for (let i = 1; i <= 24; i++) {
-  keys$1['F' + i] = 111 + i;
+  getSelection () {
+    return this.editorSession.getSelection()
+  }
 }
 
 function parseKeyEvent (event, onlyModifiers) {
@@ -27093,56 +27456,29 @@ function parseKeyEvent (event, onlyModifiers) {
   return frags.join('+')
 }
 
-class ExecuteCommandHandler {
-  constructor (editorSession, commandName) {
-    this.editorSession = editorSession;
-    this.commandName = commandName;
-  }
-
-  execute (params) {
-    let commandState = params.editorSession.getCommandStates()[this.commandName];
-    if (!commandState || commandState.disabled) return false
-    this.editorSession.executeCommand(this.commandName, params);
-    return true
+class HandlerParams {
+  constructor (context) {
+    const editorSession = context.editorSession;
+    if (editorSession) {
+      this.editorSession = editorSession;
+      this.selection = editorSession.getSelection();
+      this.selectionState = editorSession.getSelectionState();
+      this.surface = editorSession.getFocusedSurface();
+    }
   }
 }
 
-class KeyboardManager {
-  constructor (editorSession, bindings, options) {
-    this.editorSession = editorSession;
-    this.context = options.context || {};
-    this.keydownBindings = {};
-    this.textinputBindings = {};
-
-    bindings.forEach(({ key, spec }) => {
-      
-      let type = spec.type || 'keydown';
-      if (spec.command) {
-        let handler = new ExecuteCommandHandler(editorSession, spec.command);
-        let hook = handler.execute.bind(handler);
-        if (type === 'keydown') {
-          key = parseCombo(key);
-          if (!this.keydownBindings[key]) this.keydownBindings[key] = [];
-          this.keydownBindings[key].push(hook);
-        } else if (type === 'textinput') {
-          
-          this.textinputBindings[key] = hook;
-        }
-      } else {
-        throw new Error('Keyboard binding not supported', spec)
-      }
-    });
-  }
-
-  onKeydown (event) {
+class AbstractKeyboardManager {
+  onKeydown (event, context) {
     let key = parseKeyEvent(event);
-    let hooks = this.keydownBindings[key];
+    let hooks = this._getBindings('keydown', key);
     if (hooks) {
-      let params = this._getParams();
+      context = context || this._getContext();
+      let params = this._getParams(context);
       let hasExecuted = false;
       for (let i = 0; i < hooks.length && !hasExecuted; i++) {
         const hook = hooks[i];
-        hasExecuted = hook(params, this.context);
+        hasExecuted = hook(params, context);
       }
       if (hasExecuted) {
         event.preventDefault();
@@ -27152,29 +27488,34 @@ class KeyboardManager {
     }
   }
 
-  onTextInput (text) {
-    let hook = this.textinputBindings[text];
-    if (hook) {
-      let params = this._getParams();
-      return hook(params, this.context)
+  onTextInput (text, context) {
+    let hooks = this._getBindings('textinput', text);
+    if (hooks) {
+      context = context || this._getContext();
+      let params = this._getParams(context);
+      let hasExecuted = false;
+      for (let i = 0; i < hooks.length && !hasExecuted; i++) {
+        const hook = hooks[i];
+        hasExecuted = hook(params, context);
+      }
+      return hasExecuted
     }
   }
 
-  _getParams () {
-    let editorSession = this.editorSession;
-    let selectionState = editorSession.getSelectionState();
-    let sel = selectionState.getSelection();
-    let surface = this.context.surfaceManager.getFocusedSurface();
-    return {
-      editorSession: editorSession,
-      selectionState: selectionState,
-      surface: surface,
-      selection: sel
-    }
+  _getParams (context) {
+    return new HandlerParams(context)
+  }
+
+  _getBindings (type, key) {
+    throw new Error('This method is abstract')
+  }
+
+  _getContext () {
+    throw new Error('This method is abstract')
   }
 }
 
-function parseCombo (combo) {
+function parseKeyCombo (combo) {
   let frags = combo.split('+');
   let data = {
     keyCode: -1
@@ -27244,9 +27585,69 @@ function parseCombo (combo) {
   return parseKeyEvent(data)
 }
 
-KeyboardManager.parseCombo = parseCombo;
+class DeprecatedKeyboardManager extends AbstractKeyboardManager {
+  constructor (editorSession, bindings, options) {
+    super();
 
-class MacroManager {
+    this.editorSession = editorSession;
+    this.context = options.context || {};
+
+    this.keydownBindings = {};
+    this.textInputBindings = {};
+
+    bindings.forEach(({ key, spec }) => {
+      
+      let type = spec.type || 'keydown';
+      if (spec.command) {
+        let handler = new ExecuteCommandHandler(editorSession, spec.command);
+        let hook = handler.execute.bind(handler);
+        if (type === 'keydown') {
+          key = parseKeyCombo(key);
+          if (!this.keydownBindings[key]) this.keydownBindings[key] = [];
+          this.keydownBindings[key].push(hook);
+        } else if (type === 'textinput') {
+          
+          this.textInputBindings[key] = hook;
+        }
+      } else {
+        throw new Error('Keyboard binding not supported', spec)
+      }
+    });
+  }
+
+  _getBindings (type, key) {
+    switch (type) {
+      case 'keydown':
+        return this.keydownBindings[key]
+      case 'textinput':
+        return this.textInputBindings[key]
+      default:
+        throw new Error('Unsupported keyboard event type')
+    }
+  }
+
+  _getContext () {
+    return this.context
+  }
+
+  static parseCombo (...args) { return parseKeyCombo(...args) }
+}
+
+class ExecuteCommandHandler {
+  constructor (editorSession, commandName) {
+    this.editorSession = editorSession;
+    this.commandName = commandName;
+  }
+
+  execute (params) {
+    let commandState = params.editorSession.getCommandStates()[this.commandName];
+    if (!commandState || commandState.disabled) return false
+    this.editorSession.executeCommand(this.commandName, params);
+    return true
+  }
+}
+
+class DeprecatedMacroManager {
   constructor (context, macros) {
     this.context = context;
     this.macros = macros;
@@ -27344,6 +27745,16 @@ class MacroManager {
   }
 }
 
+function deleteFromArray (array, value) {
+  if (!array) return
+  for (var i = 0; i < array.length; i++) {
+    if (array[i] === value) {
+      array.splice(i, 1);
+      i--;
+    }
+  }
+}
+
 class ArrayTree {
   add (path, val) {
     if (!this[path]) {
@@ -27396,13 +27807,14 @@ class Marker extends PropertyAnnotation {
   set type (type) {
     this._type = type;
   }
+
+  
+  
+  get _isPropertyAnnotation () { return false }
+  get _isMarker () { return true }
 }
 
-
-Marker.prototype._isPropertyAnnotation = false;
-Marker.prototype._isMarker = true;
-
-class MarkersManager {
+class DeprecatedMarkersManager {
   constructor (editorSession) {
     this.editorSession = editorSession;
 
@@ -27414,7 +27826,7 @@ class MarkersManager {
 
     
     
-    editorSession.onUpdate(this._onChange, this);
+    editorSession.onUpdate('document', this._onChange, this);
 
     
     editorSession.onRender(this._updateProperties, this);
@@ -27475,12 +27887,10 @@ class MarkersManager {
     return annos.concat(markers)
   }
 
-  _onChange (editorSession) {
-    if (editorSession.hasDocumentChanged()) {
-      const change = editorSession.getChange();
-      this._markers._onDocumentChange(change);
-      this._recordDirtyTextProperties(change);
-    }
+  _onChange (change) {
+    
+    this._markers._onDocumentChange(change);
+    this._recordDirtyTextProperties(change);
   }
 
   _recordDirtyTextProperties (change) {
@@ -27715,7 +28125,7 @@ class MarkersIndex {
   }
 }
 
-class SurfaceManager {
+class DeprecatedSurfaceManager {
   constructor (editorSession) {
     this.editorSession = editorSession;
     this.surfaces = {};
@@ -27827,51 +28237,7 @@ class SaveHandlerStub {
   }
 }
 
-class DefaultLabelProvider {
-  constructor (labels, lang) {
-    this.lang = lang || 'en';
-    this.labels = labels;
-  }
-
-  getLabel (name, params) {
-    let labels = this.labels[this.lang];
-    if (!labels) return name
-    let rawLabel = labels[name] || name;
-    
-    if (params) {
-      return this._evalTemplate(rawLabel, params)
-    } else {
-      return rawLabel
-    }
-  }
-
-  setLanguage (lang) {
-    this.lang = lang || 'en';
-  }
-
-  _evalTemplate (label, params) {
-    let vars = this._extractVariables(label);
-    vars.forEach((varName) => {
-      let searchExp = new RegExp(`\\\${${varName}}`, 'g');
-      let replaceStr = params[varName];
-      label = label.replace(searchExp, replaceStr);
-    });
-    return label
-  }
-
-  _extractVariables (rawLabel) {
-    let qualityRegex = /\${(\w+)}/g;
-    let matches;
-    let vars = [];
-
-    while (matches = qualityRegex.exec(rawLabel)) { 
-      vars.push(matches[1]);
-    }
-    return vars
-  }
-}
-
-class Configurator {
+class DeprecatedConfigurator {
   constructor () {
     this.config = {
       schema: {},
@@ -27894,8 +28260,8 @@ class Configurator {
       labels: {},
       lang: 'en',
       editorOptions: [],
-      CommandManagerClass: CommandManager,
-      DragManagerClass: DragManager,
+      CommandManagerClass: DeprecatedCommandManager,
+      DragManagerClass: DeprecatedDragManager,
       SaveHandlerClass: null
     };
   }
@@ -28078,9 +28444,8 @@ class Configurator {
     this.config.seed = seed;
   }
 
-  
   addEditingBehavior (editingBehavior) {
-    this.config.editingBehaviors.push(editingBehavior);
+    console.error('Support for custom EditingBehaviors has been removed. Instead you can override Document.getEditingInterface()');
   }
 
   addMacro (macro) {
@@ -28183,10 +28548,6 @@ class Configurator {
     return new ExporterClass(config, context)
   }
 
-  getCommandGroups () {
-    return this.config.commandGroups
-  }
-
   getComponentRegistry () {
     var componentRegistry = new ComponentRegistry();
     forEach(this.config.components, function (ComponentClass, name) {
@@ -28201,20 +28562,16 @@ class Configurator {
     })
   }
 
-  getSurfaceCommandNames () {
-    var commands = this.getCommands();
-    var commandNames = commands.map(function (C) {
-      return C.name
-    });
-    return commandNames
+  getCommandGroups () {
+    return this.config.commandGroups
   }
 
   
   getConverterRegistry () {
     if (!this.converterRegistry) {
-      var converterRegistry = new Registry();
+      var converterRegistry = new DeprecatedRegistry();
       forEach(this.config.converters, function (converters, name) {
-        converterRegistry.add(name, new Registry(converters));
+        converterRegistry.add(name, new DeprecatedRegistry(converters));
       });
       this.converterRegistry = converterRegistry;
     }
@@ -28234,11 +28591,7 @@ class Configurator {
   }
 
   getEditingBehavior () {
-    var editingBehavior = new EditingBehavior();
-    this.config.editingBehaviors.forEach(function (behavior) {
-      behavior.register(editingBehavior);
-    });
-    return editingBehavior
+    console.error('Support for custom EditingBehaviors has been removed. Instead you can override Document.getEditingInterface()');
   }
 
   getMacros () {
@@ -28296,7 +28649,7 @@ class Configurator {
   }
 
   getCommandManagerClass () {
-    return this.config.CommandManagerClass || CommandManager
+    return this.config.CommandManagerClass || DeprecatedCommandManager
   }
 
   setDragManagerClass (DragManagerClass) {
@@ -28304,7 +28657,7 @@ class Configurator {
   }
 
   getDragManagerClass () {
-    return this.config.DragManagerClass || DragManager
+    return this.config.DragManagerClass || DeprecatedDragManager
   }
 
   setFileManagerClass (FileManagerClass) {
@@ -28312,7 +28665,7 @@ class Configurator {
   }
 
   getFileManagerClass () {
-    return this.config.FileManagerClass || FileManager
+    return this.config.FileManagerClass || DeprecatedFileManager
   }
 
   setGlobalEventHandlerClass (GlobalEventHandlerClass) {
@@ -28320,7 +28673,7 @@ class Configurator {
   }
 
   getGlobalEventHandlerClass () {
-    return this.config.GlobalEventHandlerClass || GlobalEventHandler
+    return this.config.GlobalEventHandlerClass || DeprecatedGlobalEventHandler
   }
 
   setKeyboardManagerClass (KeyboardManagerClass) {
@@ -28328,7 +28681,7 @@ class Configurator {
   }
 
   getKeyboardManagerClass () {
-    return this.config.KeyboardManagerClass || KeyboardManager
+    return this.config.KeyboardManagerClass || DeprecatedKeyboardManager
   }
 
   setMacroManagerClass (MacroManagerClass) {
@@ -28336,7 +28689,7 @@ class Configurator {
   }
 
   getMacroManagerClass () {
-    return this.config.MacroManagerClass || MacroManager
+    return this.config.MacroManagerClass || DeprecatedMacroManager
   }
 
   setMarkersManagerClass (MarkersManagerClass) {
@@ -28344,7 +28697,7 @@ class Configurator {
   }
 
   getMarkersManagerClass () {
-    return this.config.MarkersManagerClass || MarkersManager
+    return this.config.MarkersManagerClass || DeprecatedMarkersManager
   }
 
   setSurfaceManagerClass (SurfaceManagerClass) {
@@ -28352,7 +28705,7 @@ class Configurator {
   }
 
   getSurfaceManagerClass () {
-    return this.config.SurfaceManagerClass || SurfaceManager
+    return this.config.SurfaceManagerClass || DeprecatedSurfaceManager
   }
 
   setSaveHandlerClass (SaveHandlerClass) {
@@ -28378,3681 +28731,3214 @@ class Configurator {
   }
 }
 
-function TextNodeMixin (SuperClass) {
-  class TextNodeMixin extends SuperClass {
-    getTextPath () {
-      
-      console.warn('DEPRECATED: use node.getPath()');
-      return this.getPath()
-    }
-
-    getText () {
-      return this.content
-    }
-
-    isEmpty () {
-      return !this.getText()
-    }
-
-    getLength () {
-      return this.getText().length
-    }
-
-    getAnnotations () {
-      return this.getDocument().getIndex('annotations').get(this.getPath())
-    }
-  }
-  return TextNodeMixin
-}
-
-const ENTER = 1;
-const EXIT = -1;
-const ANCHOR = -2;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Fragmenter {
-  constructor (options) {
-    Object.assign(this, options);
+class DeprecatedToolPanel extends Component {
+  didMount () {
+    this.context.editorSession.onRender('commandStates', this._onCommandStatesChanged, this);
   }
 
-  start (rootContext, text, annotations) {
-    if (!isString(text)) {
-      throw new Error("Illegal argument: 'text' must be a String, but was " + text)
-    }
-    this._start(rootContext, text, annotations);
+  dispose () {
+    this.context.editorSession.off(this);
   }
 
-  onText(context, text, entry) { 
+  render($$) { 
+    throw new Error('This method is abstract')
   }
 
   
-  onEnter(entry, parentContext) { 
-    return null
-  }
-
-  onExit(entry, context, parentContext) { 
-  }
-
-  _enter (entry, parentContext) {
-    entry.counter++;
-    return this.onEnter(entry, parentContext)
-  }
-
-  _exit (entry, context, parentContext) {
-    this.onExit(entry, context, parentContext);
-  }
-
-  _createText (context, text, entry) {
-    this.onText(context, text, entry);
-  }
-
-  _start (rootContext, text, annotations) {
-    var entries = _extractEntries.call(this, annotations);
-    var stack = [{context: rootContext, entry: null}];
-
-    var pos = 0;
-    for (var i = 0; i < entries.length; i++) {
-      var entry = entries[i];
-      var textFragment = text.substring(pos, entry.pos);
-      if (textFragment) {
-        
-        this._createText(stack[stack.length - 1].context, textFragment, entry);
-      }
-
-      pos = entry.pos;
-      var stackLevel, idx, _entry;
-      if (entry.mode === ENTER || entry.mode === ANCHOR) {
-        
-        for (stackLevel = 1; stackLevel < stack.length; stackLevel++) {
-          if (entry.level < stack[stackLevel].entry.level) {
-            break
-          }
-        }
-        
-        
-        for (idx = stack.length - 1; idx >= stackLevel; idx--) {
-          _entry = stack[idx].entry;
-          
-          _entry.length = pos - _entry.pos;
-          this._exit(_entry, stack[idx].context, stack[idx - 1].context);
-        }
-        stack.splice(stackLevel, 0, {entry: entry});
-        
-        for (idx = stackLevel; idx < stack.length; idx++) {
-          _entry = stack[idx].entry;
-          
-          _entry.pos = pos;
-          stack[idx].context = this._enter(_entry, stack[idx - 1].context);
-        }
-      }
-      if (entry.mode === EXIT || entry.mode === ANCHOR) {
-        
-        for (stackLevel = 1; stackLevel < stack.length; stackLevel++) {
-          if (stack[stackLevel].entry.node === entry.node) {
-            break
-          }
-        }
-        for (idx = stack.length - 1; idx >= stackLevel; idx--) {
-          _entry = stack[idx].entry;
-          
-          _entry.length = pos - _entry.pos;
-          this._exit(_entry, stack[idx].context, stack[idx - 1].context);
-        }
-        stack.splice(stackLevel, 1);
-        
-        for (idx = stackLevel; idx < stack.length; idx++) {
-          _entry = stack[idx].entry;
-          
-          _entry.pos = pos;
-          stack[idx].context = this._enter(_entry, stack[idx - 1].context);
-        }
-      }
+  getEntryTypeComponents () {
+    return {
+      'tool-group': this.getComponent('tool-group'),
+      'tool-dropdown': this.getComponent('tool-dropdown'),
+      'tool-prompt': this.getComponent('tool-prompt'),
+      'tool-separator': this.getComponent('tool-separator')
     }
+  }
 
-    
-    var trailingText = text.substring(pos);
-    if (trailingText) {
-      this._createText(rootContext, trailingText);
-    }
+  renderEntries ($$) {
+    return this.props.toolPanel.map(entry => {
+      let entryTypeComponents = this.getEntryTypeComponents();
+      let ComponentClass = entryTypeComponents[entry.type];
+      if (!ComponentClass) throw new Error('Toolpanel entry type not found')
+      let props = Object.assign({}, entry, { theme: this.getTheme() });
+      let el = $$(ComponentClass, props);
+      if (entry.name) el.ref(entry.name);
+      return el
+    })
+  }
+
+  hasEnabledTools () {
+    let entriesContainer = this.refs.entriesContainer;
+    let entries = entriesContainer.childNodes;
+    let hasEnabledTools = false;
+    entries.forEach((entry) => {
+      if (entry.hasEnabledTools()) {
+        hasEnabledTools = true;
+      }
+    });
+    return hasEnabledTools
+  }
+
+  getActiveToolGroupNames () {
+    throw new Error('Abstract method')
+  }
+
+  showDisabled () {
+    return false
+  }
+
+  
+  getToolStyle () {
+    throw new Error('Abstract method')
+  }
+
+  getTheme () {
+    return this.props.theme || 'dark'
+  }
+
+  _onCommandStatesChanged () {
+    this.rerender();
   }
 }
 
-Fragmenter.SHOULD_NOT_SPLIT = 0;
-Fragmenter.NORMAL = 10;
-Fragmenter.ANY = 100;
-Fragmenter.ALWAYS_ON_TOP = Number.MAX_VALUE;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function _extractEntries (annotations) {
-  var openers = [];
-  var closers = [];
-  forEach(annotations, function (a) {
-    var isAnchor = (a.isAnchor ? a.isAnchor() : false);
-    
-    if (isAnchor) {
-      openers.push({
-        mode: ANCHOR,
-        pos: a.offset,
-        id: a.id,
-        level: Fragmenter.ALWAYS_ON_TOP,
-        type: 'anchor',
-        node: a,
-        counter: -1,
-        length: 0
-      });
-    } else {
-      
-      
-      
-      
-      
-      
-      
-
-      
-      var l = Fragmenter.NORMAL;
-      var isInline = (a.isInline ? a.isInline() : false);
-      if (isInline) {
-        l = Number.MAX_VALUE;
-      } else if (a.constructor.hasOwnProperty('fragmentation')) {
-        l = a.constructor.fragmentation;
-      } else if (a.hasOwnProperty('fragmentationHint')) {
-        l = a.fragmentationHint;
-      }
-      var startOffset = Math.min(a.start.offset, a.end.offset);
-      var endOffset = Math.max(a.start.offset, a.end.offset);
-      var opener = {
-        pos: startOffset,
-        mode: ENTER,
-        level: l,
-        id: a.id,
-        type: a.type,
-        node: a,
-        length: 0,
-        counter: -1
-      };
-      openers.push(opener);
-      closers.push({
-        pos: endOffset,
-        mode: EXIT,
-        level: l,
-        id: a.id,
-        type: a.type,
-        node: a,
-        opener: opener
-      });
+class DeprecatedContextMenu extends DeprecatedToolPanel {
+  didMount () {
+    super.didMount();
+    if (!this.context.scrollPane) {
+      throw new Error('Requires a scrollPane context')
     }
+    this.context.scrollPane.on('context-menu:opened', this._onContextMenuOpened, this);
+  }
+
+  dispose () {
+    super.dispose();
+    this.context.scrollPane.off(this);
+  }
+
+  render ($$) {
+    let el = $$('div').addClass('sc-context-menu sm-hidden');
+    el.addClass('sm-theme-' + this.getTheme());
+    el.append(
+      $$('div').addClass('se-active-tools').append(
+        this.renderEntries($$)
+      ).ref('entriesContainer')
+    );
+    return el
+  }
+
+  show (hints) {
+    this.el.removeClass('sm-hidden');
+    this._position(hints);
+  }
+
+  hide () {
+    this.el.addClass('sm-hidden');
+  }
+
+  
+  _onContextMenuOpened (hints) {
+    let mouseBounds = hints.mouseBounds;
+    this.el.removeClass('sm-hidden');
+    let contextMenuWidth = this.el.htmlProp('offsetWidth');
+
+    
+    this.el.css('top', mouseBounds.top);
+    let leftPos = mouseBounds.left;
+    
+    leftPos = Math.max(leftPos, 0);
+    
+    let maxLeftPos = mouseBounds.left + mouseBounds.right - contextMenuWidth;
+    leftPos = Math.min(leftPos, maxLeftPos);
+    this.el.css('left', leftPos);
+  }
+
+  getTheme () {
+    return this.props.theme || 'dark'
+  }
+}
+
+function getRelativeBoundingRect (els, containerEl) {
+  let nativeCotainerEl;
+  if (containerEl._isDOMElement) {
+    nativeCotainerEl = containerEl.getNativeElement();
+  } else {
+    nativeCotainerEl = containerEl;
+  }
+  if (!isArray(els)) els = [els];
+  let elRects = els.map((el) => {
+    let nativeEl;
+    if (el._isDOMElement) {
+      nativeEl = el.getNativeElement();
+    } else {
+      nativeEl = el;
+    }
+    return _getBoundingOffsetsRect(nativeEl, nativeCotainerEl)
   });
 
-  
-  openers.sort(_compareOpeners);
-  
-  for (var i = openers.length - 1; i >= 0; i--) {
-    openers[i].idx = i;
+  let elsRect = _getBoundingRect(elRects);
+  let containerElRect = nativeCotainerEl.getBoundingClientRect();
+  return {
+    left: elsRect.left,
+    top: elsRect.top,
+    right: containerElRect.width - elsRect.left - elsRect.width,
+    bottom: containerElRect.height - elsRect.top - elsRect.height,
+    width: elsRect.width,
+    height: elsRect.height
   }
-  closers.sort(_compareClosers);
-  
-  var entries = new Array(openers.length + closers.length);
-  var idx = 0;
-  var idx1 = 0;
-  var idx2 = 0;
-  var opener = openers[idx1];
-  var closer = closers[idx2];
-  while (opener || closer) {
-    if (opener && closer) {
-      
-      if (closer.pos <= opener.pos && closer.opener !== opener) {
-        entries[idx] = closer;
-        idx2++;
-      } else {
-        entries[idx] = opener;
-        idx1++;
-      }
-    } else if (opener) {
-      entries[idx] = opener;
-      idx1++;
-    } else if (closer) {
-      entries[idx] = closer;
-      idx2++;
+}
+
+
+function _getBoundingRect (rects) {
+  var bounds = {
+    left: Number.POSITIVE_INFINITY,
+    top: Number.POSITIVE_INFINITY,
+    right: Number.NEGATIVE_INFINITY,
+    bottom: Number.NEGATIVE_INFINITY,
+    width: Number.NaN,
+    height: Number.NaN
+  };
+
+  forEach(rects, function (rect) {
+    if (rect.left < bounds.left) {
+      bounds.left = rect.left;
     }
-    opener = openers[idx1];
-    closer = closers[idx2];
-    idx++;
-  }
-  return entries
-}
-
-function _compareOpeners (a, b) {
-  if (a.pos < b.pos) return -1
-  if (a.pos > b.pos) return 1
-  if (a.mode < b.mode) return -1
-  if (a.mode > b.mode) return 1
-  if (a.mode === b.mode) {
-    if (a.level < b.level) return -1
-    if (a.level > b.level) return 1
-  }
-  return 0
-}
-
-
-function _compareClosers (a, b) {
-  if (a.pos < b.pos) return -1
-  if (a.pos > b.pos) return 1
-  
-  
-  
-  
-  
-  if (a.pos === a.opener.pos && b.pos === b.opener.pos) {
-    if (a.opener.idx < b.opener.idx) {
-      return -1
-    } else {
-      return 1
+    if (rect.top < bounds.top) {
+      bounds.top = rect.top;
     }
-  }
-  if (a.opener.idx > b.opener.idx) return -1
-  if (a.opener.idx < b.opener.idx) return 1
-  return 0
-}
-
-function appendChild (xmlNode, child) {
-  insertAt(xmlNode, xmlNode._childNodes.length, child);
-  return xmlNode
-}
-
-function getChildPos (xmlNode, child) {
-  return xmlNode._childNodes.indexOf(child.id)
-}
-
-function removeChild (xmlNode, child) {
-  const childPos = getChildPos(xmlNode, child);
-  if (childPos >= 0) {
-    removeAt(xmlNode, childPos);
-  } else {
-    throw new Error(`Node ${child.id} is not a child of ${xmlNode.id}`)
-  }
-  return xmlNode
-}
-
-function insertBefore (xmlNode, newChild, ref) {
-  if (!ref) {
-    appendChild(xmlNode, newChild);
-  } else {
-    let pos = getChildPos(xmlNode, ref);
-    if (pos < 0) {
-      throw new Error(`Node ${newChild.id} is not a child of ${xmlNode.id}`)
+    if (rect.left + rect.width > bounds.right) {
+      bounds.right = rect.left + rect.width;
     }
-    insertAt(xmlNode, pos, newChild);
-  }
-  return xmlNode
-}
-
-function insertAt (xmlNode, pos, child) {
-  const length = xmlNode._childNodes.length;
-  if (pos >= 0 && pos <= length) {
-    const doc = xmlNode.getDocument();
-    doc.update([xmlNode.id, '_childNodes'], { type: 'insert', pos, value: child.id });
-  } else {
-    throw new Error('Index out of bounds.')
-  }
-  return xmlNode
-}
-
-function removeAt (xmlNode, pos) {
-  const length = xmlNode._childNodes.length;
-  if (pos >= 0 && pos < length) {
-    const doc = xmlNode.getDocument();
-    doc.update([xmlNode.id, '_childNodes'], { type: 'delete', pos: pos });
-  } else {
-    throw new Error('Index out of bounds.')
-  }
-  return xmlNode
-}
-
-function getInnerXML (xmlNode) {
-  if (xmlNode._childNodes) {
-    return xmlNode.getChildNodes().map(child => {
-      return child.toXML().serialize()
-    }).join('')
-  } else if (xmlNode.isText()) {
-    return xmlNode.toXML().getInnerXML()
-  }
-  return ''
-}
-
-function getChildAt (xmlNode, idx) {
-  let childId = xmlNode._childNodes[idx];
-  if (childId) {
-    return xmlNode.getDocument().get(childId)
-  }
-}
-
-
-function node2element (node) {
-  
-  let dom = DefaultDOMElement.createDocument('xml');
-  let el = _node2element(dom, node);
-  return el
-}
-
-function _node2element (dom, node) {
-  let el;
-  switch (node._elementType) {
-    case 'text': {
-      el = _renderTextNode(dom, node);
-      break
+    if (rect.top + rect.height > bounds.bottom) {
+      bounds.bottom = rect.top + rect.height;
     }
-    case 'element':
-    case 'inline-element':
-    case 'container': {
-      el = _renderElementNode(dom, node);
-      break
-    }
-    case 'anchor':
-    case 'annotation': {
-      el = _createElement$1(dom, node);
-      break
-    }
-    case 'external': {
-      el = DefaultDOMElement.parseSnippet(node.xml, 'xml');
-      break
-    }
-    default:
-      throw new Error('Invalid element type.')
-  }
-  return el
+  });
+  bounds.width = bounds.right - bounds.left;
+  bounds.height = bounds.bottom - bounds.top;
+  return bounds
 }
 
-function _createElement$1 (dom, node) {
-  let el = dom.createElement(node.type);
-  el.attr('id', node.id);
-  el.attr(node.attributes);
-  return el
-}
 
-function _renderElementNode (dom, node) {
-  let el = _createElement$1(dom, node);
-  el.append(node.getChildren().map(child => _node2element(dom, child)));
-  return el
-}
+function _getBoundingOffsetsRect (el, relativeParentEl) {
+  var relativeParentElRect = relativeParentEl.getBoundingClientRect();
+  var elRect = _getBoundingRect(el.getClientRects());
 
-function _renderTextNode (dom, node) {
-  const annos = node.getAnnotations();
-  const text = node.getText();
-  let el = _createElement$1(dom, node);
-  if (annos && annos.length > 0) {
-    let fragmenter = new Fragmenter({
-      onText: (context, text) => {
-        const node = context.node;
-        if (node.isText() || (node.isAnnotation() && !node._isInlineNode)) {
-          context.el.append(text);
-        }
-      },
-      onEnter: (fragment) => {
-        return {
-          el: _node2element(dom, fragment.node),
-          node: fragment.node
-        }
-      },
-      onExit: (fragment, context, parentContext) => {
-        parentContext.el.append(context.el);
-      }
-    });
-    fragmenter.start({ el, node }, text, annos);
-  } else {
-    el.append(text);
-  }
-  return el
-}
-
-function nameWithoutNS$1 (name) {
-  const idx = name.indexOf(':');
-  if (idx > 0) {
-    return name.slice(idx + 1)
-  } else {
-    return name
+  var left = elRect.left - relativeParentElRect.left;
+  var top = elRect.top - relativeParentElRect.top;
+  return {
+    left: left,
+    top: top,
+    right: relativeParentElRect.width - left - elRect.width,
+    bottom: relativeParentElRect.height - top - elRect.height,
+    width: elRect.width,
+    height: elRect.height
   }
 }
 
-class Adapter extends domUtils.DomUtils {
-  
-  isTag () {
-    return true
-  }
-
-  getChildren (elem) {
-    return elem.getChildren() || []
-  }
-
-  getAttributeValue (elem, name) {
-    return elem.getAttribute(name)
-  }
-
-  getAttributes (elem) {
-    return ['id', elem.id].concat(map(elem.attributes, (val, key) => { return [key, val] }))
-  }
-
-  hasAttrib (elem, name) {
-    return name === 'id' || elem.attributes.hasOwnProperty(name)
-  }
-
-  getName (elem) {
-    return elem.type
-  }
-
-  getNameWithoutNS (elem) {
-    return nameWithoutNS$1(this.getName(elem))
-  }
-
-  getText (elem) {
-    if (elem._elementType === 'text') {
-      return elem.getText()
-    }
-    
-    return ''
-  }
-}
-
-var cssSelectAdapter = new Adapter()
-
-class XMLDocumentNode extends DocumentNode {
-  _initialize (doc, props) {
-    
-    
-    
-    if (props.attributes) {
-      delete props.attributes.id;
-    }
-    super._initialize(doc, props);
-  }
-
-  toXML () {
-    return node2element(this)
-  }
-
-  
-  findChild (tagName) {
-    const children = this.getChildren();
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      if (child.type === tagName) return child
-    }
-  }
-
-  find (cssSelector) {
-    return cssSelect.selectOne(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
-  }
-
-  findAll (cssSelector) {
-    return cssSelect.selectAll(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
-  }
-
-  isContainer () {
-    return false
-  }
-
-  
-  isBlock () {
-    const parentNode = this.parentNode;
-    return (parentNode && parentNode.isContainer())
-  }
-
-  get children () {
-    return this.getChildren()
-  }
-
-  getChildren () {
-    
-    return this.getChildNodes()
-  }
-
-  getChildNodes () {
-    if (this._childNodes) {
-      return getNodes(this.getDocument(), this._childNodes)
-    } else {
-      return []
-    }
-  }
-
-  getChildCount () {
-    if (this._childNodes) {
-      return this._childNodes.length
-    } else {
-      return 0
-    }
-  }
-
-  getChildPosition (child) {
-    if (!child || !this._childNodes) return -1
-    return this._childNodes.indexOf(child.id)
-  }
-
-  getChildNodeIterator () {
-    return new ArrayIterator(this.getChildNodes())
-  }
-
-  getFirstChild () {
-    if (this._childNodes) {
-      return this.getDocument().get(this._childNodes[0])
-    }
-  }
-
-  getLastChild () {
-    if (this._childNodes) {
-      return this.getDocument().get(last$1(this._childNodes))
-    }
-  }
-
-  getParent () {
-    return this.parentNode
-  }
-
-  setParent (parentNode) {
-    this.parentNode = parentNode;
-  }
-
-  get tagName () {
-    return this.type
-  }
-
-  
-  get parent () {
-    return this.parentNode
-  }
-
-  setAttribute (name, val) {
-    if (name === 'id') {
-      throw new Error("'id' is read-only and can not be changed")
-    }
-    this.getDocument().set([this.id, 'attributes', name], val);
-    return this
-  }
-
-  getAttribute (name) {
-    if (name === 'id') return this.id
-    return this.attributes[name]
-  }
-
-  removeAttribute (name) {
-    if (this.attributes.hasOwnProperty(name)) {
-      this.getDocument().set([this.id, 'attributes', name], undefined);
-      delete this.attributes[name];
-    }
-    return this
-  }
-
-  getAttributes () {
-    return clone(this.attributes)
-  }
-
-  getElementSchema () {
-    return this.getDocument().getElementSchema(this.type)
-  }
-
-  serialize () {
-    return this.toXML()
-  }
-
-  isTextNode () {
-    return false
-  }
-
-  isElementNode () {
-    return false
-  }
-
-  getInnerXML () {
-    return getInnerXML(this)
-  }
-}
-
-XMLDocumentNode.prototype.attr = DOMElement.prototype.attr;
-
-XMLDocumentNode.schema = {
-  attributes: { type: 'object', default: {} }
-};
-
-class XMLTextElement extends TextNodeMixin(XMLDocumentNode) {
-  getPath () {
-    return [this.id, 'content']
-  }
-
-  getText () {
-    return this.content
-  }
-
-  
-  getChildren () {
-    const annos = this.getAnnotations();
-    
-    annos.sort(_byStartOffset);
-    return annos
-  }
-
-  setText (text) {
-    const doc = this.getDocument();
-    const path = this.getPath();
-    const oldText = this.getText();
-    
-    if (oldText.length > 0) {
-      doc.update(path, { type: 'delete', start: 0, end: oldText.length });
-    }
-    doc.update(path, { type: 'insert', start: 0, text });
-    return this
-  }
-
-  
-
-  getTextContent () {
-    return this.getText()
-  }
-
-  setTextContent (text) {
-    return this.setText(text)
-  }
-
-  get textContent () {
-    return this.getText()
-  }
-
-  set textContent (text) {
-    this.setText(text);
-  }
-
-  appendChild(child) { 
-    
-    
-    
-    
-    
-    
-    
-    throw new Error('This is not implemented yet.')
-  }
-
-  removeChild(child) { 
-    
-    throw new Error('This is not implemented yet.')
-  }
-
-  
-  isElementNode () {
-    return true
-  }
-}
-
-XMLTextElement.prototype._isXMLTextElement = true;
-
-XMLTextElement.prototype.text = DOMElement.prototype.text;
-
-XMLTextElement.prototype._elementType = 'text';
-
-XMLTextElement.isText = true;
-XMLTextElement.isBlock = true;
-
-XMLTextElement.type = 'text';
-
-XMLTextElement.schema = {
-  content: 'text'
-};
-
-function _byStartOffset (a, b) {
-  return a.start.offset - b.start.offset
-}
-
-class XMLNodeConverter {
-  constructor (type) {
-    this.type = type;
-    this.tagName = nameWithoutNS$1(type);
-    this.tagNameNS = type;
-  }
-
-  matchElement (el) {
-    return (el.tagName === this.tagNameNS)
-  }
-
-  export (node, el) {
-    el.tagName = this.tagNameNS;
-    el.setAttributes(node.attributes);
-  }
-}
-
-class XMLTextElementConverter extends XMLNodeConverter {
-  import (el, node, converter) {
-    node.content = converter.annotatedText(el, [node.id, 'content'], { preserveWhitespace: true });
-  }
-
-  export (node, el, converter) {
-    el.tagName = this.tagNameNS;
-    el.setAttributes(node.attributes);
-    el.append(converter.annotatedText([node.id, 'content']));
-  }
-}
-
-class XMLElementNode extends XMLDocumentNode {
-  appendChild (child) {
-    return appendChild(this, child)
-  }
-
-  removeChild (child) {
-    return removeChild(this, child)
-  }
-
-  insertBefore (newChild, ref) {
-    return insertBefore(this, newChild, ref)
-  }
-
-  insertAt (pos, child) {
-    return insertAt(this, pos, child)
-  }
-
-  removeAt (pos) {
-    return removeAt(this, pos)
-  }
-
-  getChildAt (idx) {
-    return getChildAt(this, idx)
-  }
-
-  isElementNode () {
-    return true
-  }
-
-  
-}
-
-XMLElementNode.prototype.append = DOMElement.prototype.append;
-
-XMLElementNode.prototype._elementType = 'element';
-
-XMLElementNode.type = 'element';
-
-XMLElementNode.schema = {
-  _childNodes: { type: ['array', 'id'], default: [], owned: true }
-};
-
-XMLElementNode.isBlock = true;
-
-class ElementNodeConverter extends XMLNodeConverter {
-  import (el, node, converter) {
-    let it = converter.getChildNodeIterator(el);
-    let childNodeIds = [];
-    while (it.hasNext()) {
-      const childEl = it.next();
-      if (childEl.isElementNode()) {
-        let childNode = converter.convertElement(childEl);
-        childNodeIds.push(childNode.id);
-      }
-    }
-    node._childNodes = childNodeIds;
-  }
-
-  export (node, el, converter) {
-    el.tagName = this.tagNameNS;
-    el.setAttributes(node.attributes);
-    el.childNodes.forEach((childNode) => {
-      let childEl = converter.convertNode(childNode);
-      el.appendChild(childEl);
-    });
-  }
-}
-
-class XMLAnnotationNode extends AnnotationMixin(XMLDocumentNode) {
-  
-  get parentNode () {
-    const path = this.start.path;
-    const doc = this.getDocument();
-    return doc.get(path[0])
-  }
-
-  isPropertyAnnotation () {
-    return true
-  }
-}
-
-XMLAnnotationNode.prototype._elementType = 'annotation';
-
-
-XMLAnnotationNode.prototype._isPropertyAnnotation = true;
-
-XMLAnnotationNode.type = '@annotation';
-
-
-XMLAnnotationNode.schema = {};
-
-class XMLAnchorNode extends XMLDocumentNode {
-  
-  get parentNode () {
-    const path = this.coor.start.path;
-    const doc = this.getDocument();
-    return doc.get(path[0])
-  }
-}
-
-XMLAnchorNode.prototype._elementType = 'anchor';
-
-XMLAnchorNode.type = 'anchor';
-
-XMLAnchorNode.schema = {
-  coor: { type: 'coordinate', optional: true }
-};
-
-class XMLInlineElementNode extends XMLAnnotationNode {
-  
-  get parentNode () {
-    const path = this.start.path;
-    if (path[0]) {
-      const doc = this.getDocument();
-      return doc.get(path[0])
-    }
-    return this._parentNode
-  }
-
-  set parentNode (parent) {
-    const path = this.start.path;
-    if (path[0]) {
-      throw new Error('parent of inline-element is implicitly given')
-    }
-    this._parentNode = parent;
-  }
-
-  getChildAt (idx) {
-    return getChildAt(this, idx)
-  }
-
-  appendChild (child) {
-    return appendChild(this, child)
-  }
-
-  removeChild (child) {
-    return removeChild(this, child)
-  }
-
-  insertBefore (newChild, ref) {
-    return insertBefore(this, newChild, ref)
-  }
-
-  insertAt (pos, child) {
-    return insertAt(this, pos, child)
-  }
-
-  removeAt (pos) {
-    return removeAt(this, pos)
-  }
-
-  getInnerXML () {
-    return this.getChildren().map(child => {
-      return child.toXML().outerHTML
-    }).join('')
-  }
-}
-
-XMLInlineElementNode.prototype._elementType = 'inline-element';
-
-
-
-XMLInlineElementNode.prototype._isInlineNode = true;
-XMLInlineElementNode.isInline = true;
-
-XMLInlineElementNode.type = 'inline-element';
-
-XMLInlineElementNode.schema = {
-  _childNodes: { type: ['array', 'id'], default: [], owned: true }
-};
-
-class XMLExternalNode extends XMLDocumentNode {}
-
-XMLExternalNode.prototype._elementType = 'external';
-
-XMLExternalNode.type = 'external';
-
-XMLExternalNode.schema = {
-  xml: { type: 'string', default: '' }
-};
-
-XMLExternalNode.isBlock = true;
-
-class ExternalNodeConverter extends XMLNodeConverter {
-  import (el, node) {
-    node.xml = el.innerHTML;
-  }
-
-  export (node, el) {
-    el.tagName = this.tagNameNS;
-    el.setAttributes(node.attributes);
-    el.innerHTML = node.xml;
-  }
-}
-
-class XMLContainerNode extends ContainerMixin(XMLElementNode) {
-  getContentPath () {
-    return [this.id, '_childNodes']
-  }
-
-  getContent () {
-    return this._childNodes
-  }
-
-  isContainer () {
-    return true
-  }
-
-  appendChild (child) {
-    super.show(child.id);
-  }
-}
-
-XMLContainerNode.prototype._elementType = 'container';
-
-XMLContainerNode.type = 'container';
-
-XMLContainerNode.schema = {};
-
-XMLContainerNode.isBlock = true;
-
-function createCountingIdGenerator () {
-  var counters = {};
-  return function uuid (prefix) {
-    if (!counters.hasOwnProperty(prefix)) {
-      counters[prefix] = 1;
-    }
-    var result = [prefix, '-', counters[prefix]++].join('');
-    return result
-  }
-}
-
-const WS_LEFT = /^\s+/g;
-
-
-const WS_RIGHT = /\s+$/g;
-const WS_ALL = /\s+/g;
-
-
-const SPACE = ' ';
-const TABS_OR_NL = /[\t\n\r]+/g;
-
-const INVISIBLE_CHARACTER = '\u200B';
-
-
-class DOMImporter {
-  constructor (config, context) {
-    this.context = context || {};
-
-    if (!config.schema) {
-      throw new Error('"config.schema" is mandatory')
-    }
-    if (!config.converters) {
-      throw new Error('"config.converters" is mandatory')
-    }
-
-    this.config = Object.assign({ idAttribute: 'id' }, config);
-    this.schema = config.schema;
-    this.converters = config.converters;
-    this.state = null;
-
-    this._defaultBlockConverter = null;
-    this._allConverters = [];
-    this._blockConverters = [];
-    this._propertyAnnotationConverters = [];
-
-    this.state = new DOMImporter.State();
-
-    this._initialize();
-  }
-
-  
-  _initialize () {
-    const schema = this.schema;
-    const defaultTextType = schema.getDefaultTextType();
-    const converters = this.converters;
-    for (let i = 0; i < converters.length; i++) {
-      let converter;
-      if (typeof converters[i] === 'function') {
-        const Converter = converters[i];
-        converter = new Converter();
-      } else {
-        converter = converters[i];
-      }
-      if (!converter.type) {
-        throw new Error('Converter must provide the type of the associated node.')
-      }
-      if (!converter.matchElement && !converter.tagName) {
-        throw new Error('Converter must provide a matchElement function or a tagName property.')
-      }
-      if (!converter.matchElement) {
-        converter.matchElement = this._defaultElementMatcher.bind(converter);
-      }
-      const NodeClass = schema.getNodeClass(converter.type);
-      if (!NodeClass) {
-        throw new Error('No node type defined for converter')
-      }
-      if (!this._defaultBlockConverter && defaultTextType === converter.type) {
-        this._defaultBlockConverter = converter;
-      }
-      this._allConverters.push(converter);
-      
-      if (NodeClass.prototype._isPropertyAnnotation) {
-        this._propertyAnnotationConverters.push(converter);
-      } else {
-        this._blockConverters.push(converter);
-      }
+class DeprecatedDropzones extends Component {
+  didMount () {
+    const dragManager = this._getDragManager();
+    if (dragManager) {
+      dragManager.on('drag:started', this.onDragStarted, this);
+      dragManager.on('drag:finished', this.onDragFinished, this);
     }
   }
 
   dispose () {
-    if (this.state.doc) {
-      this.state.doc.dispose();
+    const dragManager = this._getDragManager();
+    if (dragManager) {
+      dragManager.off(this);
     }
   }
 
-  
-  reset () {
-    if (this.state.doc) {
-      this.state.doc.dispose();
-    }
-    this.state.reset();
-    this.state.doc = this._createDocument();
-  }
+  render ($$) {
+    let el = $$('div').addClass('sc-dropzones');
 
-  getDocument () {
-    return this.state.doc
-  }
+    if (this.state.dropzones) {
+      el.on('dragenter', this.onDrag)
+        .on('dragover', this.onDrag);
 
-  
-  convertContainer (elements, containerId) {
-    if (!this.state.doc) this.reset();
-    const state = this.state;
-    const iterator = new ArrayIterator(elements);
-    const nodeIds = [];
-    while (iterator.hasNext()) {
-      const el = iterator.next();
-      let node;
-      const blockTypeConverter = this._getConverterForElement(el, 'block');
-      if (blockTypeConverter) {
-        state.pushContext(el.tagName, blockTypeConverter);
-        let nodeData = this._createNodeData(el, blockTypeConverter.type);
-        nodeData = blockTypeConverter.import(el, nodeData, this) || nodeData;
-        node = this._createNode(nodeData);
-        let context = state.popContext();
-        context.annos.forEach((a) => {
-          this._createNode(a);
-        });
-      } else if (el.isCommentNode()) {
-        continue
-      } else {
-        
-        if (el.isTextNode() && /^\s*$/.exec(el.textContent)) continue
-        
-        
-        iterator.back();
-        node = this._wrapInlineElementsIntoBlockElement(iterator);
-      }
-      if (node) {
-        nodeIds.push(node.id);
-      }
-    }
-    return this._createNode({
-      type: '@container',
-      id: containerId,
-      nodes: nodeIds
-    })
-  }
-
-  
-  convertElement (el) {
-    if (!this.state.doc) this.reset();
-    let isTopLevel = !this.state.isConverting;
-    if (isTopLevel) {
-      this.state.isConverting = true;
-    }
-
-    let nodeData, annos;
-    const converter = this._getConverterForElement(el);
-    if (converter) {
-      const NodeClass = this.schema.getNodeClass(converter.type);
-      nodeData = this._createNodeData(el, converter.type);
-      this.state.pushContext(el.tagName, converter);
       
-      
-      
-      
-      
-      if (NodeClass.isInline) {
-        nodeData = this._convertInlineNode(el, nodeData, converter);
-      } else if (NodeClass.prototype._isPropertyAnnotation) {
-        nodeData = this._convertPropertyAnnotation(el, nodeData);
-      } else {
-        nodeData = converter.import(el, nodeData, this) || nodeData;
-      }
-      let context = this.state.popContext();
-      annos = context.annos;
-    } else {
-      throw new Error('No converter found for ' + el.tagName)
-    }
-    
-    const node = this._createNode(nodeData);
-    
-    annos.forEach((a) => {
-      this._createNode(a);
-    });
-
-    
-    
-    if (this.config['stand-alone'] && isTopLevel) {
-      this.state.isConverting = false;
-      this.reset();
-    }
-    return node
-  }
-
-  
-  annotatedText (el, path, options = {}) {
-    if (!path) {
-      throw new Error('path is mandatory')
-    }
-    const state = this.state;
-    const context = last$1(state.contexts);
-    
-    
-    if (!context) {
-      throw new Error('This should be called from within an element converter.')
-    }
-    
-    const oldPreserveWhitespace = state.preserveWhitespace;
-    if (options.preserveWhitespace) {
-      state.preserveWhitespace = true;
-    }
-    state.stack.push({ path: path, offset: 0, text: '', annos: [] });
-    
-    
-    
-    this.state.lastChar = '';
-    const iterator = this.getChildNodeIterator(el);
-    const text = this._annotatedText(iterator);
-    
-    
-    const top = state.stack.pop();
-    context.annos = context.annos.concat(top.annos);
-
-    
-    state.preserveWhitespace = oldPreserveWhitespace;
-
-    return text
-  }
-
-  
-  plainText (el) {
-    var state = this.state;
-    var text = el.textContent;
-    if (state.stack.length > 0) {
-      var context = last$1(state.stack);
-      context.offset += text.length;
-      context.text += context.text.concat(text);
-    }
-    return text
-  }
-
-  
-  _customText (text) {
-    var state = this.state;
-    if (state.stack.length > 0) {
-      var context = last$1(state.stack);
-      context.offset += text.length;
-      context.text += context.text.concat(text);
-    }
-    return text
-  }
-
-  
-  nextId (prefix) {
-    
-    
-    
-    
-    return this.state.uuid(prefix)
-  }
-
-  _getNextId (dom, type) {
-    let id = this.nextId(type);
-    while (this.state.ids[id] || dom.find('#' + id)) {
-      id = this.nextId(type);
-    }
-    return id
-  }
-
-  _getIdForElement (el, type) {
-    let id = el.getAttribute(this.config.idAttribute);
-    if (id && !this.state.ids[id]) return id
-    return this._getNextId(el.getOwnerDocument(), type)
-  }
-
-  
-  
-  _createDocument () {
-    
-    const schema = this.config.schema;
-    const DocumentClass = schema.getDocumentClass();
-    return new DocumentClass(schema)
-  }
-
-  _convertPropertyAnnotation (el, nodeData) {
-    const path = [nodeData.id, '_content'];
-    
-    
-    
-    nodeData._content = this.annotatedText(el, path);
-    nodeData.start = { path, offset: 0 };
-    nodeData.end = { offset: nodeData._content.length };
-    return nodeData
-  }
-
-  _convertInlineNode (el, nodeData, converter) {
-    const path = [nodeData.id, '_content'];
-    if (converter.import) {
-      nodeData = converter.import(el, nodeData, this) || nodeData;
-    }
-    nodeData._content = '$';
-    nodeData.start = { path, offset: 0 };
-    nodeData.end = { offset: 1 };
-    return nodeData
-  }
-
-  _createNodeData (el, type) {
-    if (!type) {
-      throw new Error('type is mandatory.')
-    }
-    let nodeData = {
-      type,
-      id: this._getIdForElement(el, type)
-    };
-    this.state.ids[nodeData.id] = true;
-    return nodeData
-  }
-
-  _createNode (nodeData) {
-    let doc = this.state.doc;
-    
-    
-    
-    let node = doc.get(nodeData.id);
-    if (node) {
-      
-      doc.delete(node.id);
-    }
-    return doc.create(nodeData)
-  }
-
-  getChildNodeIterator (el) {
-    return el.getChildNodeIterator()
-  }
-
-  _defaultElementMatcher (el) {
-    return el.is(this.tagName)
-  }
-
-  
-  _annotatedText (iterator) {
-    const state = this.state;
-    const context = last$1(state.stack);
-    
-    if (!context) {
-      throw new Error('Illegal state: context is null.')
-    }
-    while (iterator.hasNext()) {
-      var el = iterator.next();
-      var text = '';
-      
-      
-      if (el.isTextNode()) {
-        text = this._prepareText(el.textContent);
-        if (text.length) {
-          
-          
-          context.text = context.text.concat(text);
-          context.offset += text.length;
-        }
-      } else if (el.isCommentNode()) {
-        
-        continue
-      } else if (el.isElementNode()) {
-        const annoConverter = this._getConverterForElement(el, 'inline');
-        
-        if (!annoConverter) {
-          
-          if (!this.IGNORE_DEFAULT_WARNINGS) {
-            console.warn('Unsupported inline element. We will not create an annotation for it, but process its children to extract annotated text.', el.outerHTML);
+      forEach(this.state.dropzones, (dropzones, surfaceId) => {
+        dropzones.forEach((dropzone, index) => {
+          let dropType = dropzone.type;
+          let dropzoneEl;
+          if (dropType === 'place') {
+            dropzoneEl = $$('div').addClass('se-dropzone')
+              .attr({
+                'data-dropzone-index': index,
+                'data-dropzone-surface': surfaceId
+              }).append(
+                $$('div').addClass('se-drop-teaser').css({
+                  top: dropzone.teaserPos
+                })
+              );
+          } else if (dropType === 'custom') {
+            dropzoneEl = $$('div').addClass('se-custom-dropzone').attr({
+              'data-dropzone-index': index,
+              'data-dropzone-surface': surfaceId
+            }).append(
+              
+              
+              $$('div').addClass('se-message').append(dropzone.message)
+            );
           }
-          
-          
-          const iterator = this.getChildNodeIterator(el);
-          this._annotatedText(iterator);
-          continue
-        }
-        
-        
-        
-        var startOffset = context.offset;
-        const annoType = annoConverter.type;
-        const AnnoClass = this.schema.getNodeClass(annoType);
-        let annoData = this._createNodeData(el, annoType);
-        
-        let stackFrame = {
-          path: context.path,
-          offset: startOffset,
-          text: '',
-          annos: []
-        };
-        state.stack.push(stackFrame);
-        
-        if (annoConverter.import) {
-          state.pushContext(el.tagName, annoConverter);
-          annoData = annoConverter.import(el, annoData, this) || annoData;
-          state.popContext();
-        }
-        
-        
-        
-        
-        if (AnnoClass.isInline) {
-          this._customText(INVISIBLE_CHARACTER);
-          
-          
-          
-          state.lastChar = '';
-        } else {
-          
-          
-          
-          const iterator = this.getChildNodeIterator(el);
-          this._annotatedText(iterator);
-        }
-        
-        state.stack.pop();
-        context.offset = stackFrame.offset;
-        context.text = context.text.concat(stackFrame.text);
-        
-        const endOffset = context.offset;
-        annoData.start = {
-          path: context.path.slice(0),
-          offset: startOffset
-        };
-        annoData.end = {
-          offset: endOffset
-        };
-        
-        let parentFrame = last$1(state.stack);
-        parentFrame.annos = parentFrame.annos.concat(stackFrame.annos, annoData);
-      } else {
-        console.warn('Unknown element type. Taking plain text.', el.outerHTML);
-        text = this._prepareText(el.textContent);
-        context.text = context.text.concat(text);
-        context.offset += text.length;
-      }
-    }
-    
-    return context.text
-  }
-
-  _getConverterForElement (el, mode) {
-    var converters;
-    if (mode === 'block') {
-      if (!el.tagName) return null
-      converters = this._blockConverters;
-    } else if (mode === 'inline') {
-      converters = this._propertyAnnotationConverters;
+          if (dropzoneEl) {
+            let shield = $$('div').addClass('se-drop-shield')
+              .on('dragenter', this.onDragEnter)
+              .on('dragleave', this.onDragLeave)
+              .on('drop', this.onDrop)
+              .on('mouseenter', this.onDragEnter)
+              .on('mouseleave', this.onDragLeave)
+              .on('mouseup', this.onDrop);
+            dropzoneEl.append(shield);
+            dropzoneEl.css({
+              position: 'absolute',
+              top: dropzone.top,
+              left: dropzone.left,
+              width: dropzone.width,
+              height: dropzone.height
+            });
+            el.append(dropzoneEl);
+          }
+        });
+      });
     } else {
-      converters = this._allConverters;
-    }
-    var converter = null;
-    for (var i = 0; i < converters.length; i++) {
-      if (this._converterCanBeApplied(converters[i], el)) {
-        converter = converters[i];
-        break
-      }
-    }
-    return converter
-  }
-
-  _converterCanBeApplied (converter, el) {
-    return converter.matchElement(el, this)
-  }
-
-  
-  _wrapInlineElementsIntoBlockElement (childIterator) {
-    if (!childIterator.hasNext()) return
-
-    const converter = this._defaultBlockConverter;
-    if (!converter) {
-      throw new Error('Wrapping inline elements automatically is not supported in this schema.')
-    }
-
-    let dom = childIterator.peek().getOwnerDocument();
-    let wrapper = dom.createElement('wrapper');
-    while (childIterator.hasNext()) {
-      const el = childIterator.next();
-      
-      const blockTypeConverter = this._getConverterForElement(el, 'block');
-      if (blockTypeConverter) {
-        childIterator.back();
-        break
-      }
-      wrapper.append(el.clone());
-    }
-    const type = this.schema.getDefaultTextType();
-    const id = this._getNextId(dom, type);
-    let nodeData = { type, id };
-    this.state.pushContext('wrapper', converter);
-    nodeData = converter.import(wrapper, nodeData, this) || nodeData;
-    let context = this.state.popContext();
-    let annos = context.annos;
-    
-    const node = this._createNode(nodeData);
-    
-    annos.forEach((a) => {
-      this._createNode(a);
-    });
-    return node
-  }
-
-  
-  
-  
-  
-  _prepareText (text) {
-    const state = this.state;
-    if (state.preserveWhitespace) {
-      return text
-    }
-    var repl = SPACE;
-    
-    text = text.replace(TABS_OR_NL, '');
-    
-    
-    
-    
-    
-    if (state.lastChar === SPACE) {
-      
-      text = text.replace(WS_LEFT, '');
-    } else {
-      text = text.replace(WS_LEFT, repl);
-    }
-    text = text.replace(WS_RIGHT, repl);
-    
-    
-    
-    if (this.config.REMOVE_INNER_WS || state.removeInnerWhitespace) {
-      text = text.replace(WS_ALL, SPACE);
-    }
-    state.lastChar = text[text.length - 1] || state.lastChar;
-    return text
-  }
-
-  
-  _trimTextContent (el) {
-    var nodes = el.getChildNodes();
-    var firstNode = nodes[0];
-    var lastNode = last$1(nodes);
-    var text, trimmed;
-    
-    if (firstNode && firstNode.isTextNode()) {
-      text = firstNode.textContent;
-      trimmed = this._trimLeft(text);
-      firstNode.textContent = trimmed;
-    }
-    if (lastNode && lastNode.isTextNode()) {
-      text = lastNode.textContent;
-      trimmed = this._trimRight(text);
-      lastNode.textContent = trimmed;
+      el.addClass('sm-hidden');
     }
     return el
   }
 
-  _trimLeft (text) {
-    return text.replace(WS_LEFT, '')
+  
+  onDragStarted (dragState) {
+    let dropzones = this._computeDropzones(dragState);
+    setTimeout(() => {
+      this.setState({
+        dropzones: dropzones
+      });
+    }, 250);
   }
 
-  _trimRight (text) {
-    return text.replace(WS_RIGHT, '')
+  
+  onDragFinished () {
+    this.setState({});
+  }
+
+  onDragEnter (e) {
+    
+    e.target.parentNode.classList.add('sm-over');
+  }
+
+  onDragLeave (e) {
+    
+    e.target.parentNode.classList.remove('sm-over');
+  }
+
+  
+  onDrag(e) { 
+    
+    e.preventDefault();
+  }
+
+  onDrop (e) {
+    
+    
+    e.__reserved__ = true;
+    e.preventDefault();
+    e.stopPropagation();
+    let dropzoneIndex = e.target.parentNode.dataset.dropzoneIndex;
+    let dropzoneSurface = e.target.parentNode.dataset.dropzoneSurface;
+    let dropzone = this.state.dropzones[dropzoneSurface][dropzoneIndex];
+    let dropParams = dropzone.dropParams;
+    let dropType = dropzone.type;
+    
+    let targetSurface = this.context.surfaceManager.getSurface(dropzoneSurface);
+    
+    let component = dropzone.component;
+    let dropzoneComponent = dropzone.dropzoneComponent;
+    
+    let dragManager = this.context.dragManager;
+    dragManager.extendDragState({
+      targetSurface,
+      dropType,
+      dropParams,
+      component,
+      dropzoneComponent
+    });
+    dragManager._onDragEnd(e);
+  }
+
+  _getDragManager () {
+    return this.context.dragManager
+  }
+
+  
+  _getBoundingRect (comp) {
+    let scrollPane = comp.context.scrollPane;
+    let contentElement = scrollPane.getContentElement();
+    let rect = getRelativeBoundingRect(comp.el, contentElement);
+    return rect
+  }
+
+  _computeDropzones (dragState) {
+    let scrollPaneName = this.context.scrollPane.getName();
+    let surfaces = dragState.scrollPanes[scrollPaneName].surfaces;
+    let scopedDropzones = {};
+
+    forEach(surfaces, (surface) => {
+      let components = surface.childNodes;
+
+      
+      let numDropzones = components.length + 1;
+      let dropzones = [];
+
+      for (let i = 0; i < numDropzones; i++) {
+        if (i === 0) {
+          
+          let firstComp = this._getBoundingRect(components[0]);
+          dropzones.push({
+            type: 'place',
+            left: firstComp.left,
+            top: firstComp.top,
+            width: firstComp.width,
+            height: firstComp.height / 2,
+            teaserPos: 0,
+            dropParams: {
+              insertPos: i
+            }
+          });
+        } else if (i === numDropzones - 1) {
+          
+          let lastComp = this._getBoundingRect(components[i - 1]);
+          dropzones.push({
+            type: 'place',
+            left: lastComp.left,
+            top: lastComp.top + lastComp.height / 2,
+            width: lastComp.width,
+            height: lastComp.height / 2,
+            teaserPos: lastComp.height / 2,
+            dropParams: {
+              insertPos: i
+            }
+          });
+        } else {
+          
+          let upperComp = this._getBoundingRect(components[i - 1]);
+          let lowerComp = this._getBoundingRect(components[i]);
+          let topBound = upperComp.top + upperComp.height / 2;
+          let bottomBound = lowerComp.top + lowerComp.height / 2;
+
+          dropzones.push({
+            type: 'place',
+            left: upperComp.left,
+            top: topBound,
+            width: upperComp.width,
+            height: bottomBound - topBound,
+            teaserPos: (upperComp.top + upperComp.height + lowerComp.top) / 2 - topBound,
+            dropParams: {
+              insertPos: i
+            }
+          });
+        }
+
+        if (i < numDropzones - 1) {
+          let comp = components[i];
+          
+          if (comp._isIsolatedNodeComponent) {
+            comp = comp.getContent();
+          }
+          
+          if (comp.getDropzoneSpecs) {
+            let dropzoneSpecs = comp.getDropzoneSpecs();
+            dropzoneSpecs.forEach((dropzoneSpec) => {
+              let dropzoneComp = dropzoneSpec.component;
+              let rect = this._getBoundingRect(dropzoneComp);
+              dropzones.push({
+                type: 'custom',
+                component: comp,
+                dropzoneComponent: dropzoneComp,
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+                message: dropzoneSpec.message,
+                dropParams: dropzoneSpec.dropParams
+              });
+            });
+          }
+        }
+      }
+      scopedDropzones[surface.getName()] = dropzones;
+    });
+    return scopedDropzones
+  }
+
+  _renderDropTeaser (hints) {
+    if (hints.visible) {
+      this.el.removeClass('sm-hidden');
+      this.el.css('top', hints.rect.top);
+      this.el.css('left', hints.rect.left);
+      this.el.css('right', hints.rect.right);
+    } else {
+      this.el.addClass('sm-hidden');
+    }
   }
 }
 
-class DOMImporterState {
+class ChangeHistory {
   constructor () {
     this.reset();
   }
 
   reset () {
-    this.preserveWhitespace = false;
-    this.nodes = [];
-    this.annotations = [];
-    this.containerId = null;
-    this.container = [];
-    this.ids = {};
     
-    this.contexts = [];
+    this.doneChanges = [];
     
-    this.stack = [];
-    this.lastChar = '';
-    this.skipTypes = {};
-    this.ignoreAnnotations = false;
-    this.isConverting = false;
-
+    this.undoneChanges = [];
     
-    
-    this.uuid = createCountingIdGenerator();
+    this.lastChange = null;
   }
 
-  pushContext (tagName, converter) {
-    this.contexts.push({ tagName: tagName, converter: converter, annos: [] });
+  canUndo () {
+    return this.doneChanges.length > 0
   }
 
-  popContext () {
-    return this.contexts.pop()
+  canRedo () {
+    return this.undoneChanges.length > 0
   }
 
-  getCurrentContext () {
-    return last$1(this.contexts)
+  push (change) {
+    this.doneChanges.push(change);
+    this.undoneChanges = [];
   }
 }
 
-DOMImporter.State = DOMImporterState;
-
-DOMImporter.INVISIBLE_CHARACTER = INVISIBLE_CHARACTER;
-
-const START = 'START';
-const END = 'END';
-const EPSILON = 'EPSILON';
-const TEXT$1 = 'TEXT';
-
-class DFA {
-  constructor (transitions) {
-    if (!transitions || Object.keys(transitions).length === 0) {
-      transitions = { START: { EPSILON: END } };
-    }
-    this.transitions = transitions;
+class Transaction {
+  
+  constructor (master) {
+    this.master = master;
+    
+    this.stage = master.newInstance().createFromDocument(master);
+    
+    
+    this.stage._isTransactionDocument = true;
+    
+    this.tx = this.stage.createEditingInterface();
+    
+    this._isTransacting = false;
+    
+    
+    master._ops.length = 0;
   }
 
-  consume (state, id) {
-    const T = this.transitions;
-    
-    
-    if (!T[state]) return -1
-    let nextState = T[state][id];
-    if (nextState !== undefined) {
-      return nextState
-    }
-    while (T[state][EPSILON] !== undefined) {
-      state = T[state][EPSILON];
-      if (state === END) {
-        return -1
+  dispose () {
+    this.stage.dispose();
+  }
+
+  
+
+  get ops () {
+    return this.stage._ops
+  }
+
+  set ops (ops) {
+    this.stage._ops = ops;
+  }
+
+  _reset () {
+    this._before = {};
+    this._after = {};
+    this.stage._ops.length = 0;
+    this._info = {};
+  }
+
+  
+  _recordChange (transformation, info) {
+    if (this._isTransacting) throw new Error('Nested transactions are not supported.')
+    if (!isFunction$1(transformation)) throw new Error('Document.transaction() requires a transformation function.')
+    let hasFinished = false;
+    this._isTransacting = true;
+    this._reset();
+    let change;
+    try {
+      const tx = this.tx;
+      transformation(tx);
+      let ops = this.ops;
+      if (ops.length > 0) {
+        change = new DocumentChange(ops, {}, {});
+        change.info = info;
+        
+        
+        if (this.master._isXMLDocument) {
+          if (info && info.action === 'type') ; else {
+            let res = this.stage._validateChange(change);
+            if (!res.ok) {
+              
+              throw new Error('Transaction is violating the schema: \n' + res.errors.map(err => err.msg).join('\n'))
+            }
+          }
+        }
       }
-      nextState = T[state][id];
-      if (nextState !== undefined) {
-        return nextState
+      hasFinished = true;
+    } finally {
+      if (!hasFinished) {
+        this._rollback();
+      }
+      this._isTransacting = false;
+    }
+    return change
+  }
+
+  _sync () {
+    const master = this.master;
+    const stage = this.stage;
+    let ops = master._ops;
+    for (let i = 0; i < ops.length; i++) {
+      stage._applyOp(ops[i]);
+    }
+    ops.length = 0;
+  }
+
+  
+  __applyChange__ (change) {
+    const stage = this.stage;
+    const ops = change.ops;
+    for (let i = 0; i < ops.length; i++) {
+      stage._applyOp(ops[i]);
+    }
+  }
+
+  _rollback () {
+    const stage = this.stage;
+    let ops = stage._ops;
+    for (let i = ops.length - 1; i >= 0; i--) {
+      stage._applyOp(ops[i].invert());
+    }
+    ops.length = 0;
+  }
+}
+
+class DeprecatedSelectionState {
+  constructor (doc) {
+    this.document = doc;
+    this.selection = Selection.nullSelection;
+
+    this._reset();
+  }
+
+  getSelection () {
+    return this.selection
+  }
+
+  setSelection (sel) {
+    
+    if (!sel) {
+      sel = Selection.nullSelection;
+    } else {
+      sel.attach(this.document);
+    }
+    this.selection = sel;
+    
+    
+    this._deriveState(sel);
+    return true
+  }
+
+  _deriveState (sel) {
+    this._reset();
+
+    this._deriveContainerSelectionState(sel);
+    this._deriveAnnoState(sel);
+    if (this.document.getIndex('markers')) {
+      this._deriveMarkerState(sel);
+    }
+    
+  }
+
+  _deriveContainerSelectionState (sel) {
+    let doc = this.document;
+    if (sel.containerId) {
+      let container = doc.get(sel.containerId);
+      this.container = container;
+      let startId = sel.start.getNodeId();
+      let endId = sel.end.getNodeId();
+      let startNode = doc.get(startId).getContainerRoot();
+      let startPos = container.getPosition(startNode);
+      if (startPos > 0) {
+        this.previousNode = container.getNodeAt(startPos - 1);
+      }
+      this.isFirst = isFirst(doc, sel.start);
+      let endNode, endPos;
+      if (endId === startId) {
+        endNode = startNode;
+        endPos = startPos;
+      } else {
+        endNode = doc.get(endId).getContainerRoot();
+        endPos = container.getPosition(endNode);
+      }
+      if (endPos < container.getLength() - 1) {
+        this.nextNode = container.getNodeAt(endPos + 1);
+      }
+      this.isLast = isLast(doc, sel.end);
+    }
+  }
+
+  _deriveAnnoState (sel) {
+    const doc = this.document;
+
+    
+    let annosByType = {};
+    function _add (anno) {
+      if (!annosByType[anno.type]) {
+        annosByType[anno.type] = [];
+      }
+      annosByType[anno.type].push(anno);
+    }
+    const propAnnos = getPropertyAnnotationsForSelection(doc, sel);
+    propAnnos.forEach(_add);
+    if (propAnnos.length === 1 && propAnnos[0].isInlineNode()) {
+      this.isInlineNodeSelection = propAnnos[0].getSelection().equals(sel);
+    }
+    const containerId = sel.containerId;
+    if (containerId) {
+      const containerAnnos = getContainerAnnotationsForSelection(doc, sel, containerId);
+      containerAnnos.forEach(_add);
+    }
+    this.annosByType = annosByType;
+  }
+
+  _deriveMarkerState (sel) {
+    const doc = this.document;
+    let markers = getMarkersForSelection(doc, sel);
+    this.markers = markers;
+  }
+
+  _reset () {
+    
+    this.annosByType = {};
+    
+    this.markers = null;
+    
+    this.isInlineNodeSelection = false;
+    
+    this.container = null;
+    this.previousNode = null;
+    this.nextNode = null;
+    
+    this.isFirst = false;
+    
+    this.isLast = false;
+    
+    
+    this.surface = null;
+    this.isolatedNodes = null;
+  }
+}
+
+class DeprecatedEditorSession extends EventEmitter {
+  constructor (doc, options) {
+    super();
+    options = options || {};
+
+    this.__id__ = uuid();
+    this.document = doc;
+    const configurator = options.configurator;
+    if (!configurator) {
+      throw new Error('No configurator provided.')
+    }
+    this.configurator = configurator;
+
+    this._transaction = new Transaction(doc);
+    
+    
+    _patchTxSetSelection(this._transaction, this);
+
+    this._history = new ChangeHistory();
+    
+    this._currentChange = null;
+
+    
+    
+    
+    
+    this._selectionState = new DeprecatedSelectionState(doc);
+
+    this._commandStates = [];
+
+    
+    this._resources = ['document', 'selection', 'commandStates'];
+    
+    this._dirtyFlags = {};
+    
+    this._change = null;
+    this._info = null;
+
+    this._flowStages = ['update', 'pre-render', 'render', 'post-render', 'position', 'finalize'];
+    
+    this._postponed = [];
+    this._observers = {};
+
+    this._lang = options.lang || this.configurator.getDefaultLanguage();
+    this._dir = options.dir || 'ltr';
+
+    
+    
+    const CommandManager = configurator.getCommandManagerClass();
+    const DragManager = configurator.getDragManagerClass();
+    const FileManager = configurator.getFileManagerClass();
+    const GlobalEventHandler = configurator.getGlobalEventHandlerClass();
+    const KeyboardManager = configurator.getKeyboardManagerClass();
+    const MacroManager = configurator.getMacroManagerClass();
+    const MarkersManager = configurator.getMarkersManagerClass();
+    const SurfaceManager = configurator.getSurfaceManagerClass();
+
+    
+    
+    this.surfaceManager = new SurfaceManager(this);
+    
+    this._context = {
+      editorSession: this,
+      
+      surfaceManager: this.surfaceManager
+    };
+    
+    if (options.context) {
+      Object.assign(this._context, options.context);
+    }
+
+    let commands = configurator.getCommands();
+    let dropHandlers = configurator.getDropHandlers();
+    let macros = configurator.getMacros();
+    let converterRegistry = configurator.getConverterRegistry();
+
+    this.fileManager = options.fileManager || new FileManager(configurator.getFileAdapters(), this._context);
+
+    
+    this._hasUnsavedChanges = false;
+    this._isSaving = false;
+
+    if (options.saveHandler) {
+      this.saveHandler = options.saveHandler;
+    } else {
+      this.saveHandler = configurator.getSaveHandler();
+    }
+
+    
+    this._managers = {};
+    forEach(configurator.getManagers(), (ManagerClass, name) => {
+      this._managers[name] = new ManagerClass(this._context);
+    });
+
+    
+    
+    this.commandManager = options.commandManager || new CommandManager(this._context, commands);
+
+    
+    
+    this.dragManager = new DragManager(dropHandlers, Object.assign({}, this._context, {
+      commandManager: this.commandManager
+    }));
+    
+    this.macroManager = new MacroManager(this._context, macros);
+    this.globalEventHandler = new GlobalEventHandler(this, this.surfaceManager);
+    this.markersManager = new MarkersManager(this);
+    this.keyboardManager = new KeyboardManager(this, configurator.getKeyboardShortcuts(), {
+      context: this._context
+    });
+
+    
+    this.converterRegistry = converterRegistry;
+  }
+
+  dispose () {
+    this._transaction.dispose();
+    this.surfaceManager.dispose();
+    this.fileManager.dispose();
+    this.commandManager.dispose();
+    this.dragManager.dispose();
+    this.macroManager.dispose();
+    this.globalEventHandler.dispose();
+    this.markersManager.dispose();
+
+    forEach(this._managers, (manager) => {
+      if (manager.dispose) {
+        manager.dispose();
+      }
+    });
+  }
+
+  hasChanged (resource) {
+    return this._dirtyFlags[resource]
+  }
+
+  hasDocumentChanged () {
+    return this.hasChanged('document')
+  }
+
+  hasSelectionChanged () {
+    return this.hasChanged('selection')
+  }
+
+  hasCommandStatesChanged () {
+    return this.hasChanged('commandStates')
+  }
+
+  hasLanguageChanged () {
+    return this.hasChanged('lang')
+  }
+
+  hasTextDirectionChanged () {
+    return this.hasChanged('dir')
+  }
+
+  get (resourceName) {
+    switch (resourceName) {
+      case 'document':
+        return this.getDocument()
+      case 'selection':
+        return this.getSelection()
+      case 'commandStates':
+        return this.getCommandStates()
+      case 'change':
+        return this.getChange()
+      case 'lang':
+        return this.getLanguage()
+      case 'dir':
+        return this.getTextDirection()
+      default:
+        throw new Error('Unknown resource: ' + resourceName)
+    }
+  }
+
+  getConfigurator () {
+    return this.configurator
+  }
+
+  getContext () {
+    return this._context
+  }
+
+  getDocument () {
+    return this.document
+  }
+
+  getManager (name) {
+    return this._managers[name]
+  }
+
+  getSelection () {
+    return this.getSelectionState().getSelection()
+  }
+
+  getSelectionState () {
+    return this._selectionState
+  }
+
+  getCommandStates () {
+    return this._commandStates
+  }
+
+  getChange () {
+    return this._change
+  }
+
+  getChangeInfo () {
+    return this._info
+  }
+
+  getFocusedSurface () {
+    return this.surfaceManager.getFocusedSurface()
+  }
+
+  getSurface (surfaceId) {
+    return this.surfaceManager.getSurface(surfaceId)
+  }
+
+  getLanguage () {
+    return this._lang
+  }
+
+  getTextDirection () {
+    return this._dir
+  }
+
+  canUndo () {
+    return this._history.canUndo()
+  }
+
+  canRedo () {
+    return this._history.canRedo()
+  }
+
+  
+  resetHistory () {
+    this._history.reset();
+    this._setDirty('commandStates');
+    if (!this._flowing) {
+      this.startFlow();
+    }
+  }
+
+  executeCommand (...args) {
+    this.commandManager.executeCommand(...args);
+  }
+
+  
+  attachEditor (editor) {
+    this.editor = editor;
+  }
+
+  detachEditor () {
+    this.editor = undefined;
+  }
+
+  getEditor () {
+    return this.editor
+  }
+
+  setSelection (sel, skipFlow) {
+    
+    if (sel && isPlainObject(sel)) {
+      sel = this.getDocument().createSelection(sel);
+    }
+    if (sel && !sel.isNull()) {
+      if (!sel.surfaceId) {
+        let fs = this.getFocusedSurface();
+        if (fs) {
+          sel.surfaceId = fs.id;
+        }
       }
     }
-    return -1
-  }
 
-  canConsume (state, id) {
-    let nextState = this.consume(state, id);
-    return (nextState !== -1)
-  }
+    _addSurfaceId(sel, this);
+    _addContainerId(sel, this);
 
-  isFinished (state) {
-    const T = this.transitions;
-    if (state === 'END') return true
-    
-    if (!T[state]) return false
-    while (T[state][EPSILON] !== undefined) {
-      state = T[state][EPSILON];
-      if (state === 'END') return true
+    if (this._setSelection(sel) && !skipFlow) {
+      this.startFlow();
     }
+    return sel
+  }
+
+  selectNode (nodeId) {
+    let surface = this.getFocusedSurface();
+    this.setSelection({
+      type: 'node',
+      nodeId: nodeId,
+      containerId: surface.getContainerId(),
+      surfaceId: surface.id
+    });
+  }
+
+  setCommandStates (commandStates) {
+    this._commandStates = commandStates;
+    this._setDirty('commandStates');
+  }
+
+  setLanguage (lang) {
+    if (this._lang !== lang) {
+      this._lang = lang;
+      this._setDirty('lang');
+      this.startFlow();
+    }
+  }
+
+  setTextDirection (dir) {
+    if (this._dir !== dir) {
+      this._dir = dir;
+      this._setDirty('dir');
+      this.startFlow();
+    }
+  }
+
+  createSelection () {
+    const doc = this.getDocument();
+    return doc.createSelection.apply(doc, arguments)
+  }
+
+  getCollaborators () {
+    return null
+  }
+
+  
+  setSaveHandler (saveHandler) {
+    this.saveHandler = saveHandler;
+  }
+
+  
+  transaction (transformation, info) {
+    const t = this._transaction;
+    const tx = t.tx;
+    info = info || {};
+    t._sync();
+    
+    let selBefore = this.getSelection();
+    tx.selection = selBefore;
+    let change = t._recordChange(transformation, info);
+    let selAfter = tx.selection;
+    if (change) {
+      change.before = { selection: selBefore };
+      change.after = { selection: selAfter };
+      this._commit(change, info);
+    } else {
+      
+      this._setSelection(tx.selection);
+      this.startFlow();
+    }
+    return change
+  }
+
+  undo () {
+    this._undoRedo('undo');
+  }
+
+  redo () {
+    this._undoRedo('redo');
+  }
+
+  
+
+  on (...args) {
+    let name = args[0];
+    if (this._flowStages.indexOf(name) >= 0) {
+      
+      args.shift();
+      let options = args[2] || {};
+      let resource = options.resource;
+      if (resource) {
+        delete options.resource;
+        args.unshift(resource);
+      }
+      this._registerObserver(name, args);
+    } else {
+      EventEmitter.prototype.on.apply(this, args);
+    }
+  }
+
+  off (...args) {
+    if (args.length === 1) {
+      let observer = args[0];
+      super.off(...args);
+      
+      
+      if (observer[this.__id__]) {
+        const records = observer[this.__id__];
+        delete observer[this.__id__];
+        records.forEach((record) => {
+          this.__deregisterObserver(record);
+        });
+      }
+    } else {
+      const stage = args[0];
+      const method = args[1];
+      const observer = args[2];
+      this._deregisterObserver(stage, method, observer);
+    }
+  }
+
+  
+  onUpdate (...args) {
+    return this._registerObserver('update', args)
+  }
+
+  onPreRender (...args) {
+    return this._registerObserver('pre-render', args)
+  }
+
+  
+  onRender (...args) {
+    return this._registerObserver('render', args)
+  }
+
+  
+  onPostRender (...args) {
+    return this._registerObserver('post-render', args)
+  }
+
+  
+  onPosition (...args) {
+    return this._registerObserver('position', args)
+  }
+
+  onFinalize (...args) {
+    return this._registerObserver('finalize', args)
+  }
+
+  _setSelection (sel) {
+    
+    
+    
+    
+    
+
+    let hasChanged = this.getSelectionState().setSelection(sel);
+    if (hasChanged) this._setDirty('selection');
+    return hasChanged
+  }
+
+  _undoRedo (which) {
+    const doc = this.getDocument();
+    var from, to;
+    if (which === 'redo') {
+      from = this._history.undoneChanges;
+      to = this._history.doneChanges;
+    } else {
+      from = this._history.doneChanges;
+      to = this._history.undoneChanges;
+    }
+    var change = from.pop();
+    if (change) {
+      this._applyChange(change, {});
+      this._transaction.__applyChange__(change);
+      
+      to.push(doc.invert(change));
+      
+      let sel = change.after.selection;
+      if (sel) sel.attach(doc);
+      this._setSelection(sel);
+      
+      this.startFlow();
+    } else {
+      console.warn('No change can be %s.', (which === 'undo' ? 'undone' : 'redone'));
+    }
+  }
+
+  _transformLocalChangeHistory (externalChange) {
+    
+    
+    
+    
+    var clone = {
+      ops: externalChange.ops.map(function (op) { return op.clone() })
+    };
+    transformDocumentChange(clone, this._history.doneChanges);
+    transformDocumentChange(clone, this._history.undoneChanges);
+  }
+
+  _transformSelection (change) {
+    var oldSelection = this.getSelection();
+    var newSelection = transformSelection(oldSelection, change);
+    
+    return newSelection
+  }
+
+  _commit (change, info) {
+    this._commitChange(change, info);
+    
+    this._hasUnsavedChanges = true;
+    this.startFlow();
+  }
+
+  _commitChange (change, info) {
+    change.timestamp = Date.now();
+    this._applyChange(change, info);
+    if (info['history'] !== false && !info['hidden']) {
+      let inverted = this.getDocument().invert(change);
+      this._history.push(inverted);
+    }
+    var newSelection = change.after.selection || Selection.nullSelection;
+    
+    
+    if (!newSelection.isNull() && !newSelection.surfaceId) {
+      newSelection.surfaceId = change.after.surfaceId;
+    }
+    this._setSelection(newSelection);
+    this.emit('commit', change);
+  }
+
+  _applyChange (change, info) {
+    if (!change) {
+      console.error('FIXME: change is null.');
+      return
+    }
+    const doc = this.getDocument();
+    doc._apply(change);
+    doc._notifyChangeListeners(change, info);
+    this._setDirty('document');
+    this._change = change;
+    this._info = info;
+  }
+
+  _applyRemoteChange (change) {
+    
+    if (change.ops.length > 0) {
+      this._applyChange(change, { remote: true });
+      
+      this._transaction.__applyChange__(change);
+      this._transformLocalChangeHistory(change);
+      this._setSelection(this._transformSelection(change));
+      this.startFlow();
+    }
+  }
+
+  
+  hasUnsavedChanges () {
+    return this._hasUnsavedChanges
+  }
+
+  
+  save () {
+    var saveHandler = this.saveHandler;
+
+    if (this._hasUnsavedChanges && !this._isSaving) {
+      this._isSaving = true;
+      
+      if (saveHandler) {
+        let saveParams = {
+          editorSession: this,
+          fileManager: this.fileManager
+        };
+        return saveHandler.saveDocument(saveParams)
+          .then(() => {
+            this._hasUnsavedChanges = false;
+            
+            
+            
+            
+            this.setSelection(this.getSelection());
+          })
+          .catch((err) => {
+            console.error('Error during save', err);
+          }).then(() => { 
+            this._isSaving = false;
+          })
+      } else {
+        let errMsg = 'Document saving is not handled at the moment. Make sure saveHandler instance provided to editorSession';
+        console.error(errMsg);
+        return Promise.reject(new Error(errMsg))
+      }
+    }
+  }
+
+  
+  startFlow () {
+    if (this._flowing) {
+      throw new Error('Already in a flow. You need to postpone the update.')
+    }
+    this._flowing = true;
+    try {
+      this.performFlow();
+    } finally {
+      this._resetFlow();
+      this._flowing = false;
+    }
+    
+    
+    
+    const postponed = this._postponed;
+    const self = this;
+    this._postponed = [];
+    setTimeout(function () {
+      postponed.forEach(function (fn) {
+        fn(self);
+      });
+    }, 0);
+  }
+
+  
+  performFlow () {
+    this._flowStages.forEach((stage) => {
+      this._notifyObservers(stage);
+    });
+  }
+
+  postpone (fn) {
+    this._postponed.push(fn);
+  }
+
+  _parseObserverArgs (args) {
+    let params = { stage: null, resource: null, handler: null, context: null, options: {} };
+    
+    let idx = 0;
+    let arg = args[idx];
+    if (isString(arg)) {
+      params.resource = arg;
+      idx++;
+      arg = args[idx];
+    }
+    if (!arg) {
+      throw new Error('Provided handler function was nil.')
+    }
+    if (!isFunction$1(arg)) {
+      throw new Error('Expecting a handler Function.')
+    }
+    params.handler = arg;
+    idx++;
+    arg = args[idx];
+    if (arg) {
+      params.context = arg;
+      idx++;
+      arg = args[idx];
+    }
+    if (arg) {
+      params.options = arg;
+    }
+    return params
+  }
+
+  
+
+  _registerObserver (stage, args) {
+    
+    
+    let record = this._parseObserverArgs(args);
+    record.stage = stage;
+    this.__registerObserver(stage, record);
+  }
+
+  __registerObserver (stage, record) {
+    
+    
+    if (record.context) {
+      const observer = record.context;
+      if (!observer[this.__id__]) {
+        observer[this.__id__] = [];
+      }
+      observer[this.__id__].push(record);
+    }
+    let observers = this._observers[stage];
+    if (!observers) {
+      observers = this._observers[stage] = [];
+    }
+    observers.push(record);
+  }
+
+  
+  _deregisterObserver (stage, method, observer) {
+    let self = this; 
+    if (arguments.length === 1) {
+      
+      
+      forEach(self._observers, (observers) => {
+        for (let i = observers.length - 1; i >= 0; i--) {
+          const o = observers[i];
+          if (o.context === observer) {
+            observers.splice(i, 1);
+            o._deregistered = true;
+          }
+        }
+      });
+    } else {
+      let observers = self._observers[stage];
+      
+      
+      if (!observers) {
+        EventEmitter.prototype.off.apply(self, arguments);
+      } else {
+        for (let i = observers.length - 1; i >= 0; i--) {
+          let o = observers[i];
+          if (o.handler === method && o.context === observer) {
+            observers.splice(i, 1);
+            o._deregistered = true;
+          }
+        }
+      }
+    }
+  }
+
+  __deregisterObserver (record) {
+    const stage = record.stage;
+    const observers = this._observers[stage];
+    const observer = record.context;
+    const method = record.handler;
+    for (let i = observers.length - 1; i >= 0; i--) {
+      let o = observers[i];
+      if (o.handler === method && o.context === observer) {
+        observers.splice(i, 1);
+        o._deregistered = true;
+      }
+    }
+  }
+
+  _notifyObservers (stage) {
+    
+    
+    
+    
+    
+    
+    let _observers = this._observers[stage];
+    if (!_observers) return
+    
+    
+    
+    let observers = _observers.slice();
+    for (let i = 0; i < observers.length; i++) {
+      
+      let o = observers[i];
+      if (o._deregistered) continue
+      if (!o.resource) {
+        o.handler.call(o.context, this);
+      } else if (o.resource === 'document') {
+        if (!this.hasDocumentChanged()) continue
+        const change = this.getChange();
+        const info = this.getChangeInfo();
+        const path = o.options.path;
+        if (!path) {
+          o.handler.call(o.context, change, info, this);
+        } else if (change.hasUpdated(path)) {
+          o.handler.call(o.context, change, info, this);
+        }
+      } else {
+        if (!this.hasChanged(o.resource)) continue
+        const resource = this.get(o.resource);
+        o.handler.call(o.context, resource, this);
+      }
+    }
+  }
+
+  _setDirty (resource) {
+    this._dirtyFlags[resource] = true;
+  }
+
+  _resetFlow () {
+    Object.keys(this._dirtyFlags).forEach((resource) => {
+      this._dirtyFlags[resource] = false;
+    });
+    this._change = null;
+    this._info = null;
+  }
+
+  
+
+  setBlurred (blurred) {
+    this._blurred = blurred;
+    
+    this.commandManager._updateCommandStates(this);
+    this._setDirty('commandStates');
+  }
+
+  isBlurred () {
+    return Boolean(this._blurred)
+  }
+}
+
+function _patchTxSetSelection (tx, editorSession) {
+  tx.setSelection = function (sel) {
+    sel = Transaction.prototype.setSelection.call(tx, sel);
+    _addSurfaceId(sel, editorSession);
+    _addContainerId(sel, editorSession);
+    return sel
+  };
+}
+
+
+function _addSurfaceId (sel, editorSession) {
+  if (sel && !sel.isNull() && !sel.surfaceId) {
+    
+    let surface = editorSession.getFocusedSurface();
+    if (surface) {
+      sel.surfaceId = surface.id;
+    }
+    
+    
+    
+    
+    
+  }
+}
+
+function _addContainerId (sel, editorSession) {
+  if (sel && !sel.isNull() && sel.surfaceId && !sel.containerId) {
+    let surface = editorSession.getSurface(sel.surfaceId);
+    if (surface) {
+      let containerId = surface.getContainerId();
+      if (containerId) {
+        sel.containerId = containerId;
+      }
+    }
+  }
+}
+
+class DeprecatedMenuItem extends Component {
+  render ($$) {
+    let commandState = this.props.commandState;
+    let el = $$('button')
+      .addClass('sc-menu-item')
+      .append(
+        this._renderIcon($$),
+        this._renderLabel($$),
+        this._renderKeyboardShortcut($$)
+      )
+      .on('click', this._onClick);
+
+    if (this.props.label) {
+      el.append(this.renderLabel($$));
+    }
+    if (commandState.active) {
+      el.addClass('sm-active');
+    }
+    if (commandState.disabled) {
+      
+      el.attr('tabindex', -1)
+        .attr('disabled', true);
+    } else {
+      
+      el.attr('tabindex', 1);
+    }
+    return el
+  }
+
+  _renderLabel ($$) {
+    return $$('div').addClass('se-label').append(
+      this._getLabel()
+    )
+  }
+
+  _renderIcon ($$) {
+    return $$('div').addClass('se-icon').append(
+      this.context.iconProvider.renderIcon($$, this.props.name)
+    )
+  }
+
+  _renderKeyboardShortcut ($$) {
+    return $$('div').addClass('se-keyboard-shortcut').append(
+      this._getKeyboardShortcut()
+    )
+  }
+
+  _getLabel () {
+    let labelProvider = this.context.labelProvider;
+    return labelProvider.getLabel(this.props.name, this.props.commandState)
+  }
+
+  _getKeyboardShortcut () {
+    let name = this.props.name;
+    let keyboardShortcuts = this.context.keyboardShortcuts;
+    if (keyboardShortcuts[name]) {
+      return keyboardShortcuts[name]
+    } else {
+      return ''
+    }
+  }
+
+  _onClick (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this.props.commandState.disabled) this.executeCommand();
+  }
+
+  
+  executeCommand (props) {
+    
+    this.context.commandManager.executeCommand(this.props.name, props);
+  }
+}
+
+class DeprecatedMenu extends Component {
+  render ($$) {
+    let commandState = this.props.commandStates;
+    let el = $$('div').addClass('sc-menu');
+    this.props.items.forEach((item) => {
+      if (item.command) {
+        el.append(
+          $$(DeprecatedMenuItem, {
+            name: item.command,
+            commandState: commandState[item.command]
+          })
+        );
+      } else if (item.type === 'separator') {
+        el.append(
+          $$('div').addClass('separator')
+        );
+      }
+    });
+    return el
+  }
+}
+
+class Tooltip extends Component {
+  render ($$) {
+    let el = $$('div').addClass('sc-tooltip');
+    el.append(this.props.text);
+    return el
+  }
+}
+
+class DeprecatedToggleTool extends Component {
+  
+  render ($$) {
+    let el = $$('div')
+      .addClass('sc-toggle-tool');
+
+    let customClassNames = this.getClassNames();
+    if (customClassNames) {
+      el.addClass(customClassNames);
+    }
+
+    el.append(
+      this.renderButton($$)
+    );
+
+    
+    el.append(
+      $$(Tooltip, {
+        text: this._getTooltipText()
+      })
+    );
+    return el
+  }
+
+  renderButton ($$) {
+    let commandState = this.props.commandState;
+    let Button = this.getComponent('button');
+    let btn = $$(Button, {
+      icon: this.getIconName(),
+      active: commandState.active,
+      disabled: commandState.disabled,
+      theme: this.props.theme
+    }).on('click', this.onClick);
+    return btn
+  }
+
+  getClassNames () {
+    return ''
+  }
+
+  getCommandName () {
+    return this.getName()
+  }
+
+  getName () {
+    return this.props.name
+  }
+
+  getIconName () {
+    return this.props.name
+  }
+
+  onClick (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this.props.disabled) {
+      this.executeCommand();
+    }
+  }
+
+  _getTooltipText () {
+    let name = this.props.name;
+    let label = this.context.labelProvider.getLabel(name);
+    let keyboardShortcuts = this.context.keyboardShortcuts;
+    if (keyboardShortcuts[name]) {
+      return [label, ' (', keyboardShortcuts[name], ')'].join('')
+    } else {
+      return label
+    }
+  }
+
+  
+  executeCommand (props) {
+    props = Object.assign({ mode: this.props.mode }, props);
+    this.context.commandManager.executeCommand(this.getCommandName(), props);
+  }
+
+  get _isTool () { return true }
+}
+
+class DeprecatedToolGroup extends Component {
+  
+  isToolEnabled (commandName, commandState) {
+    let enabled = true;
+    if (this.props.contextual && !commandState.showInContext) {
+      enabled = false;
+    }
+    if (commandState.disabled) {
+      enabled = false;
+    }
+    return enabled
+  }
+
+  
+  hasEnabledTools (commandStates) {
+    if (!commandStates) {
+      commandStates = this._getCommandStates();
+    }
+    let hasEnabledTools;
+    forEach(commandStates, (commandState, commandName) => {
+      if (this.isToolEnabled(commandName, commandState)) {
+        hasEnabledTools = true;
+      }
+    });
+    return hasEnabledTools
+  }
+
+  render ($$) {
+    let commandStates = this._getCommandStates();
+    let el = $$('div').addClass(this._getClassNames());
+    el.addClass('sm-' + this.props.name);
+    forEach(commandStates, (commandState, commandName) => {
+      if (this.isToolEnabled(commandName, commandState) || this.props.showDisabled) {
+        let ToolClass = this._getToolClass(commandName);
+        el.append(
+          $$(ToolClass, {
+            name: commandName,
+            commandState: commandState,
+            style: this.props.style,
+            theme: this.props.theme
+          }).ref(commandName)
+        );
+      }
+    });
+    return el
+  }
+
+  
+  _getCommandStates () {
+    let commandStates = this.context.editorSession.getCommandStates();
+    let commandGroups = this.context.commandGroups;
+    let filteredCommandStates = {}; 
+    this.props.commandGroups.forEach((commandGroup) => {
+      
+      
+      if (!commandGroups[commandGroup]) {
+        
+        return
+      }
+      commandGroups[commandGroup].forEach((commandName) => {
+        
+        
+        
+        
+        
+        if (commandStates[commandName]) {
+          filteredCommandStates[commandName] = commandStates[commandName];
+        }
+      });
+    });
+    return filteredCommandStates
+  }
+
+  _getClassNames () {
+    return 'sc-tool-group'
+  }
+
+  _getToolClass (commandName) {
+    let tools = this.context.tools;
+    let DefaultToolClass;
+    if (this.props.style === 'descriptive') {
+      DefaultToolClass = DeprecatedMenuItem;
+    } else {
+      DefaultToolClass = DeprecatedToggleTool;
+    }
+    return tools[commandName] || DefaultToolClass
+  }
+}
+
+class DeprecatedMenuGroup extends DeprecatedToolGroup {
+  _getToolClass (commandName) {
+    let tools = this.context.tools;
+    return tools[commandName] || DeprecatedMenuItem
+  }
+
+  _getClassNames () {
+    return 'sc-menu-group'
+  }
+}
+
+class DeprecatedOverlay extends DeprecatedToolPanel {
+  didMount () {
+    super.didMount();
+    if (!this.context.scrollPane) {
+      throw new Error('Requires scrollPane context')
+    }
+    this.context.scrollPane.on('selection:positioned', this._onSelectionPositioned, this);
+  }
+
+  dispose () {
+    super.dispose();
+    this.context.scrollPane.off(this);
+  }
+
+  render ($$) {
+    let el = $$('div').addClass('sc-overlay');
+    el.addClass('sm-hidden');
+    el.addClass('sm-theme-' + this.getTheme());
+    el.append(
+      $$('div').addClass('se-active-tools').append(
+        this.renderEntries($$)
+      ).ref('entriesContainer')
+    );
+    return el
+  }
+
+  show (hints) {
+    this.el.removeClass('sm-hidden');
+    this._position(hints);
+  }
+
+  hide () {
+    this.el.addClass('sm-hidden');
+  }
+
+  _onSelectionPositioned (hints) {
+    if (this.hasEnabledTools()) {
+      this.el.removeClass('sm-hidden');
+      let overlayWidth = this.el.htmlProp('offsetWidth');
+      let selRect = hints.selectionRect;
+      let selectionMaxWidth = selRect.width;
+      
+      this.el.css('top', selRect.top + selRect.height);
+      let leftPos = selRect.left + selectionMaxWidth / 2 - overlayWidth / 2;
+      
+      leftPos = Math.max(leftPos, 0);
+      
+      let maxLeftPos = selRect.left + selectionMaxWidth + selRect.right - overlayWidth;
+      leftPos = Math.min(leftPos, maxLeftPos);
+      this.el.css('left', leftPos);
+    } else {
+      this.el.addClass('sm-hidden');
+    }
+  }
+
+  getTheme () {
+    return this.props.theme || 'dark'
+  }
+}
+
+class DeprecatedResponsiveApplication extends Component {
+  constructor (...args) {
+    super(...args);
+
+    this.pages = {};
+
+    this.handleActions({
+      'navigate': this.navigate
+    });
+  }
+
+  getInitialState () {
+    return {
+      route: undefined,
+      mobile: this._isMobile()
+    }
+  }
+
+  didMount () {
+    if (platform.inBrowser) {
+      let _window = DefaultDOMElement.getBrowserWindow();
+      _window.on('resize', this._onResize, this);
+    }
+    this.router = this.getRouter();
+    this.router.on('route:changed', this._onRouteChanged, this);
+    let route = this.router.readRoute();
+    
+    
+    this.navigate(route, {replace: true});
+  }
+
+  dispose () {
+    this.router.off(this);
+    this.router.dispose();
+  }
+
+  
+  navigate (route, opts) {
+    this.extendState({
+      route: route
+    });
+    this.router.writeRoute(route, opts);
+  }
+
+  _onRouteChanged (route) {
+    
+    this.navigate(route, {replace: true});
+  }
+
+  _isMobile () {
+    if (platform.inBrowser) {
+      return window.innerWidth < 700
+    }
+  }
+
+  _onResize () {
+    if (this._isMobile()) {
+      
+      if (!this.state.mobile) {
+        this.extendState({
+          mobile: true
+        });
+      }
+    } else {
+      if (this.state.mobile) {
+        this.extendState({
+          mobile: false
+        });
+      }
+    }
+  }
+
+  _getPage () {
+    return this.state.route.page || this.getDefaultPage()
+  }
+
+  _getPageClass () {
+    let page = this._getPage();
+    return this.pages[page]
+  }
+
+  _getPageProps () {
+    let props = cloneDeep(this.state.route);
+    delete props.page;
+    props.mobile = this.state.mobile;
+    return props
+  }
+
+  addPage (pageName, PageClass) {
+    this.pages[pageName] = PageClass;
+  }
+
+  renderPage ($$) {
+    let PageClass = this._getPageClass();
+    let pageName = this._getPage();
+    return $$(PageClass, this._getPageProps()).ref(pageName)
+  }
+
+  render ($$) {
+    let el = $$('div').addClass('sc-responsive-application');
+
+    if (this.state.route === undefined) {
+      
+      return el
+    }
+
+    el.append(
+      this.renderPage($$)
+    );
+
+    return el
+  }
+}
+
+class DeprecatedScrollbar extends Component {
+  didMount () {
+    
+    DefaultDOMElement.getBrowserWindow().on('resize', this.onResize, this);
+    
+    this.props.scrollPane.on('scroll', this.onScroll, this);
+    
+    setTimeout(() => {
+      this.updatePositions();
+    });
+  }
+
+  dispose () {
+    DefaultDOMElement.getBrowserWindow().off(this);
+    this.props.scrollPane.off(this);
+  }
+
+  didUpdate () {
+    this.updatePositions();
+  }
+
+  render ($$) {
+    let el = $$('div')
+      .addClass('sc-scrollbar')
+      .on('mousedown', this.onMouseDown);
+
+    if (this.props.highlights) {
+      let highlightEls = [];
+
+      forEach(this.props.highlights, function (highlights, scope) {
+        forEach(highlights, function (h) {
+          highlightEls.push(
+            $$('div').ref(h).addClass('se-highlight sm-' + scope)
+          );
+        });
+      });
+
+      el.append(
+        $$('div').ref('highlights')
+          .addClass('se-highlights')
+          .append(highlightEls)
+      );
+    }
+    el.append($$('div').ref('thumb').addClass('se-thumb'));
+    return el
+  }
+
+  updatePositions () {
+    let scrollPane = this.props.scrollPane;
+    let scrollableEl = scrollPane.getScrollableElement();
+    let contentHeight = scrollPane.getContentHeight();
+    let scrollPaneHeight = scrollPane.getHeight();
+    let scrollTop = scrollPane.getScrollPosition();
+    let contentEl = scrollPane.getContentElement();
+
+    
+    this.factor = (contentHeight / scrollPaneHeight);
+
+    if (this.factor <= 1) {
+      this.el.addClass('sm-hide-thumb');
+    } else {
+      this.el.removeClass('sm-hide-thumb');
+    }
+
+    this.refs.thumb.css({
+      top: scrollTop / this.factor,
+      height: scrollPaneHeight / this.factor
+    });
+
+    
+    if (this.props.highlights) {
+      
+      forEach(this.props.highlights, function (highlights) {
+        forEach(highlights, function (nodeId) {
+          let nodeEl = scrollableEl.find('*[data-id="' + nodeId + '"]');
+
+          if (!nodeEl) return
+
+          
+          let rect = getRelativeBoundingRect(nodeEl, contentEl);
+          let top = rect.top / this.factor;
+          let height = rect.height / this.factor;
+
+          
+          if (height < DeprecatedScrollbar.overlayMinHeight) {
+            height = DeprecatedScrollbar.overlayMinHeight;
+          }
+
+          let highlightEl = this.refs[nodeId];
+          if (highlightEl) {
+            this.refs[nodeId].css({
+              top: top,
+              height: height
+            });
+          } else {
+            console.warn('no ref found for highlight', nodeId);
+          }
+        }.bind(this));
+      }.bind(this));
+    }
+  }
+
+  getScrollableElement () {
+    return this.props.scrollPane.getScrollableElement()
+  }
+
+  onResize () {
+    this.rerender();
+  }
+
+  onScroll () {
+    this.updatePositions();
+  }
+
+  onMouseDown (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    this._mouseDown = true;
+
+    
+    
+    let _window = DefaultDOMElement.getBrowserWindow();
+    _window.on('mousemove', this.onMouseMove, this);
+    _window.on('mouseup', this.onMouseUp, this);
+
+    let scrollBarOffset = this.el.getOffset().top;
+    let y = e.pageY - scrollBarOffset;
+    let thumbEl = this.refs.thumb.el;
+    if (e.target !== thumbEl.getNativeElement()) {
+      
+      this.offset = thumbEl.height / 2;
+      this.onMouseMove(e);
+    } else {
+      this.offset = y - thumbEl.getPosition().top;
+    }
+  }
+
+  onMouseUp () {
+    this._mouseDown = false;
+    let _window = DefaultDOMElement.getBrowserWindow();
+    _window.off('mousemove', this.onMouseMove, this);
+    _window.off('mouseup', this.onMouseUp, this);
+  }
+
+  onMouseMove (e) {
+    if (this._mouseDown) {
+      let scrollPane = this.props.scrollPane;
+      let scrollableEl = scrollPane.getScrollableElement();
+      let scrollBarOffset = this.el.getOffset().top;
+      let y = e.pageY - scrollBarOffset;
+
+      
+      let scroll = (y - this.offset) * this.factor;
+      scrollableEl.setProperty('scrollTop', scroll);
+    }
+  }
+}
+
+DeprecatedScrollbar.overlayMinHeight = 2;
+
+function getRelativeMouseBounds (mouseEvent, containerEl) {
+  let containerElRect = containerEl.getBoundingClientRect();
+  let left = mouseEvent.clientX - containerElRect.left;
+  let top = mouseEvent.clientY - containerElRect.top;
+  let res = {
+    left: left,
+    right: containerElRect.width - left,
+    top: top,
+    bottom: containerElRect.height - top
+  };
+  return res
+}
+
+class AbstractScrollPane extends Component {
+  
+  getChildContext () {
+    return {
+      scrollPane: this
+    }
+  }
+
+  didMount () {
+    if (platform.inBrowser) {
+      this.windowEl = DefaultDOMElement.wrapNativeElement(window);
+      this.windowEl.on('resize', this.onSelectionPositioned, this);
+    }
+  }
+
+  dispose () {
+    if (this.windowEl) {
+      this.windowEl.off(this);
+    }
+  }
+
+  getName () {
+    return this.props.name
+  }
+
+  
+  onSelectionPositioned () {
+    let contentRect = this._getContentRect();
+    let selectionRect = this._getSelectionRect();
+    if (!selectionRect) return
+    let hints = {
+      contentRect,
+      selectionRect
+    };
+    this._emitSelectionPositioned(hints);
+    this._scrollSelectionIntoView(selectionRect);
+  }
+
+  _emitSelectionPositioned (hints) {
+    
+    
+    this.emit('selection:positioned', hints);
+    
+    this.emit('dom-selection:rendered', hints);
+  }
+
+  
+  _onContextMenu (e) {
+    e.preventDefault();
+    let mouseBounds = this._getMouseBounds(e);
+    this.emit('context-menu:opened', {
+      mouseBounds: mouseBounds
+    });
+  }
+
+  _scrollSelectionIntoView (selectionRect) {
+    let upperBound = this.getScrollPosition();
+    let lowerBound = upperBound + this.getHeight();
+    let selTop = selectionRect.top;
+    let selBottom = selectionRect.top + selectionRect.height;
+    if ((selTop < upperBound && selBottom < upperBound) ||
+        (selTop > lowerBound && selBottom > lowerBound)) {
+      this.setScrollPosition(selTop);
+    }
+  }
+
+  
+  getHeight () {
+    throw new Error('Abstract method')
+  }
+
+  
+  getContentHeight () {
+    throw new Error('Abstract method')
+  }
+
+  getContentElement () {
+    
+    throw new Error('Abstract method')
+  }
+
+  
+  getScrollableElement () {
+    throw new Error('Abstract method')
+  }
+
+  
+  getScrollPosition () {
+    throw new Error('Abstract method')
+  }
+
+  setScrollPosition () {
+    throw new Error('Abstract method')
+  }
+
+  
+  getPanelOffsetForElement(el) { 
+    throw new Error('Abstract method')
+  }
+
+  
+  scrollTo(componentId, onlyIfNotVisible) { 
+    throw new Error('Abstract method')
+  }
+
+  _getContentRect () {
+    return this.getContentElement().getNativeElement().getBoundingClientRect()
+  }
+
+  
+  _getSelectionRect () {
+    return getSelectionRect(this._getContentRect())
+  }
+
+  _getMouseBounds (e) {
+    return getRelativeMouseBounds(e, this.getContentElement().getNativeElement())
+  }
+}
+
+class DeprecatedScrollPane extends AbstractScrollPane {
+  didMount () {
+    super.didMount();
+    if (this.refs.scrollbar && this.props.highlights) {
+      this.props.highlights.on('highlights:updated', this.onHighlightsUpdated, this);
+    }
+    if (this.refs.scrollbar) {
+      if (platform.inBrowser) {
+        this.domObserver = new window.MutationObserver(this._onContentChanged.bind(this));
+        this.domObserver.observe(this.el.getNativeElement(), {
+          subtree: true,
+          attributes: true,
+          characterData: true,
+          childList: true
+        });
+      }
+      this.context.editorSession.onPosition(this._onPosition, this);
+    }
+  }
+
+  dispose () {
+    super.dispose();
+    if (this.props.highlights) {
+      this.props.highlights.off(this);
+    }
+    this.context.editorSession.off(this);
+    this.context.dragManager.off(this);
+    if (this.domObserver) {
+      this.domObserver.disconnect();
+    }
+  }
+
+  render ($$) {
+    let el = $$('div')
+      .addClass('sc-scroll-pane');
+
+    if (platform.isFF) {
+      el.addClass('sm-firefox');
+    }
+
+    
+    
+    if (!this.props.noStyle) {
+      el.addClass('sm-default-style');
+    }
+
+    
+    if (this.props.scrollbarType === 'substance') {
+      el.addClass('sm-substance-scrollbar');
+      el.addClass('sm-scrollbar-position-' + this.props.scrollbarPosition);
+
+      el.append(
+        
+        
+        $$(DeprecatedScrollbar, {
+          scrollPane: this
+        }).ref('scrollbar')
+          .attr('id', 'content-scrollbar')
+      );
+
+      
+      el.append(
+        $$('div').ref('scanline').addClass('se-scanline')
+      );
+    }
+
+    el.append(
+      $$('div').ref('scrollable').addClass('se-scrollable').append(
+        this.renderContent($$)
+      ).on('scroll', this.onScroll)
+    );
+    return el
+  }
+
+  renderContent ($$) {
+    let contentEl = $$('div').ref('content').addClass('se-content');
+    contentEl.append(this.props.children);
+    if (this.props.contextMenu === 'custom') {
+      contentEl.on('contextmenu', this._onContextMenu);
+    }
+    return contentEl
+  }
+
+  _onContentChanged () {
+    this._contentChanged = true;
+  }
+
+  _onPosition () {
+    if (this.refs.scrollbar && this._contentChanged) {
+      this._contentChanged = false;
+      this._updateScrollbar();
+    }
+  }
+
+  _updateScrollbar () {
+    if (this.refs.scrollbar) {
+      this.refs.scrollbar.updatePositions();
+    }
+  }
+
+  onHighlightsUpdated (highlights) {
+    this.refs.scrollbar.extendProps({
+      highlights: highlights
+    });
+  }
+
+  onScroll () {
+    let scrollPos = this.getScrollPosition();
+    let scrollable = this.refs.scrollable;
+    if (this.props.onScroll) {
+      this.props.onScroll(scrollPos, scrollable);
+    }
+    
+    if (this.props.tocProvider) {
+      this.props.tocProvider.markActiveEntry(this);
+    }
+    this.emit('scroll', scrollPos, scrollable);
+  }
+
+  
+  getHeight () {
+    let scrollableEl = this.getScrollableElement();
+    return scrollableEl.height
+  }
+
+  
+  getContentHeight () {
+    let contentEl = this.refs.content.el.getNativeElement();
+    
+    
+    
+    return contentEl.scrollHeight
+  }
+
+  
+  getContentElement () {
+    return this.refs.content.el
+  }
+
+  
+  getScrollableElement () {
+    return this.refs.scrollable.el
+  }
+
+  
+  getScrollPosition () {
+    let scrollableEl = this.getScrollableElement();
+    return scrollableEl.getProperty('scrollTop')
+  }
+
+  setScrollPosition (scrollPos) {
+    let scrollableEl = this.getScrollableElement();
+    scrollableEl.setProperty('scrollTop', scrollPos);
+  }
+
+  
+  getPanelOffsetForElement (el) {
+    let contentContainerEl = this.refs.content.el;
+    let rect = getRelativeBoundingRect(el, contentContainerEl);
+    return rect.top
+  }
+
+  
+  scrollTo (selector, onlyIfNotVisible) {
+    let scrollableEl = this.getScrollableElement();
+    let targetNode = scrollableEl.find(selector);
+    if (targetNode) {
+      const offset = this.getPanelOffsetForElement(targetNode);
+      let shouldScroll = true;
+      if (onlyIfNotVisible) {
+        const height = scrollableEl.height;
+        const oldOffset = scrollableEl.getProperty('scrollTop');
+        shouldScroll = (offset < oldOffset || oldOffset + height < offset);
+      }
+      if (shouldScroll) {
+        this.setScrollPosition(offset);
+      }
+    } else {
+      console.warn(`No match found for selector '${selector}' in scrollable container`);
+    }
+  }
+
+  
+  onSelectionPositioned (...args) {
+    super.onSelectionPositioned(...args);
+    this._updateScrollbar();
+  }
+
+  _onContextMenu (e) {
+    super._onContextMenu(e);
+    this._updateScrollbar();
+  }
+}
+
+class DeprecatedToolbar extends DeprecatedToolPanel {
+  render ($$) {
+    let el = $$('div').addClass('sc-toolbar');
+    el.append(
+      $$('div').addClass('se-active-tools').append(
+        this.renderEntries($$)
+      ).ref('entriesContainer')
+    );
+    return el
+  }
+
+  getTheme () {
+    return this.props.theme || 'light'
+  }
+}
+
+class DeprecatedToolDropdown extends DeprecatedToolGroup {
+  
+  willReceiveProps () {
+    this.setState({showChoices: false});
+  }
+
+  render ($$) {
+    let Button = this.getComponent('button');
+    let commandStates = this._getCommandStates();
+    let el = $$('div').addClass('sc-tool-dropdown');
+    el.addClass('sm-' + this.props.name);
+
+    
+    const toggleName = this._getToggleName(commandStates) || this.props.name;
+
+    
+    
+    if (this.props.showDisabled || this.hasEnabledTools(commandStates)) {
+      let toggleButton;
+      if (this.props.style === 'minimal') {
+        toggleButton = $$(Button, {
+          icon: toggleName,
+          dropdown: true,
+          active: this.state.showChoices,
+          theme: this.props.theme
+        }).on('click', this._toggleChoices);
+      } else if (this.props.style === 'descriptive') {
+        toggleButton = $$(Button, {
+          label: toggleName,
+          
+          commandState: commandStates[toggleName],
+          dropdown: true,
+          active: this.state.showChoices,
+          theme: this.props.theme
+        }).on('click', this._toggleChoices);
+      } else {
+        throw new Error('Style ' + this.props.style + ' not supported')
+      }
+      el.append(toggleButton);
+
+      if (this.state.showChoices) {
+        el.append(
+          $$('div').addClass('se-choices').append(
+            $$(DeprecatedMenu, {
+              commandStates: commandStates,
+              items: this._getMenuItems(commandStates)
+            })
+          )
+        );
+      } else if (this.props.style === 'minimal' || toggleName !== this.props.name) {
+        
+        el.append(
+          this._renderToolTip($$)
+        );
+      }
+    }
+    return el
+  }
+
+  _renderToolTip ($$) {
+    let labelProvider = this.context.labelProvider;
+    return $$(Tooltip, {
+      text: labelProvider.getLabel(this.props.name)
+    })
+  }
+
+  
+  _getToggleName (commandStates) {
+    return this._getActiveCommandName(commandStates)
+  }
+
+  
+  _getMenuItems (commandStates) {
+    const showDisabled = this.props.showDisabled;
+    let menuItems = [];
+    forEach(commandStates, (commandState, commandName) => {
+      
+      
+      if (showDisabled || this.isToolEnabled(commandName, commandState)) {
+        menuItems.push({
+          command: commandName
+        });
+      }
+    });
+    return menuItems
+  }
+
+  _getActiveCommandName (commandStates) {
+    let activeCommand;
+
+    forEach(commandStates, (commandState, commandName) => {
+      if (commandState.active && !activeCommand) {
+        activeCommand = commandName;
+      }
+    });
+    return activeCommand
+  }
+
+  _toggleChoices () {
+    this.setState({
+      showChoices: !(this.state.showChoices)
+    });
+  }
+}
+
+class DeprecatedToolPrompt extends DeprecatedToolGroup {
+  _getClassNames () {
+    return 'sc-tool-prompt'
+  }
+}
+
+class DeprecatedToolSeparator extends Component {
+  render ($$) {
+    let el = $$('div').addClass('sc-tool-separator');
+    return el
+  }
+
+  hasEnabledTools () {
     return false
   }
+}
 
-  
+class DeprecatedWorkflowPane extends DeprecatedToolPanel {
+  render ($$) {
+    let el = $$('div').addClass('sc-workflow-pane');
+    el.append(
+      $$('div').addClass('se-active-tools').append(
+        this.renderEntries($$)
+      ).ref('entriesContainer')
+    );
+    return el
+  }
 
-  
-  _tokensByPath () {
-    const result = [];
-    const transitions = this.transitions;
-    if (!transitions) return []
-
-    
-    let first = {};
-    forEach(transitions[START], (to, token) => {
-      if (!first[to]) first[to] = [];
-      first[to].push(token);
-    });
-
-    let visited = {START: true, END: true};
-    forEach(first, (tokens, state) => {
-      
-      
-      
-      
-      let _siblings = {};
-      tokens.forEach((t) => {
-        if (t !== EPSILON) {
-          _siblings[t] = true;
-        }
-      });
-      let stack = [state];
-      while (stack.length > 0) {
-        let from = stack.pop();
-        if (state === END) continue
-        visited[from] = true;
-        let T = transitions[from];
-        if (!T) throw new Error(`Internal Error: no transition from state ${from}`)
-        let tokens = Object.keys(T);
-        for (let i = 0; i < tokens.length; i++) {
-          const token = tokens[i];
-          const to = T[token];
-          if (!visited[to]) stack.push(to);
-          if (token !== EPSILON) {
-            _siblings[token] = true;
-          }
-        }
-      }
-      let _siblingTokens = Object.keys(_siblings);
-      if (_siblingTokens.length > 0) {
-        result.push(_siblingTokens);
-      }
-    });
-    return result
+  getTheme () {
+    return this.props.theme || 'light'
   }
 }
 
-DFA.START = START;
-DFA.END = END;
-DFA.EPSILON = EPSILON;
-DFA.TEXT = TEXT$1;
-
-function _isTextNodeEmpty (el) {
-  return Boolean(/^\s*$/.exec(el.textContent))
-}
-
-const { TEXT: TEXT$2 } = DFA;
-
-class ValidatingChildNodeIterator {
-  constructor (el, it, expr) {
-    this.el = el;
-    this.it = it;
-    this.expr = expr;
-    this.state = expr.getInitialState();
-    this._oldStates = [];
-  }
-
-  hasNext () {
-    return this.it.hasNext()
-  }
-
-  next () {
-    const state = this.state;
-    const expr = this.expr;
-    let next = this.it.next();
-    let oldState = cloneDeep(this.state);
-    let ok;
-    if (next.isTextNode()) {
-      ok = expr.consume(state, TEXT$2);
-    } else if (next.isElementNode()) {
-      ok = expr.consume(state, next.tagName);
+class CollabSession extends DeprecatedEditorSession {
+  constructor (doc, config) {
+    super(doc, config);
+    config = config || {};
+    this.config = config;
+    this.collabClient = config.collabClient;
+    if (config.docVersion) {
+      console.warn('config.docVersion is deprecated: Use config.version instead');
     }
-    if (!ok) {
-      if (next.isTextNode()) {
-        if (!_isTextNodeEmpty(next)) {
-          console.error(`TEXT is invalid within <${expr.name}>. Skipping.`, next.textContent);
-        }
-      } else if (next.isElementNode()) {
-        let error = last$1(state.errors);
-        console.error(error.msg, this.el.getNativeElement());
-      }
-      
-      this.state = oldState;
-      return next.createComment(next.outerHTML)
+    if (config.docVersion) {
+      console.warn('config.docId is deprecated: Use config.documentId instead');
+    }
+    this.version = config.version;
+    this.documentId = config.documentId || config.docId;
+    if (config.autoSync !== undefined) {
+      this.autoSync = config.autoSync;
     } else {
-      this._oldStates.push(oldState);
-      return next
+      this.autoSync = true;
     }
-  }
-
-  back () {
-    this.it.back();
-    this.state = this._oldStates.pop();
-    return this
-  }
-
-  peek () {
-    return this.it.peek()
-  }
-}
-
-class XMLDocumentImporter extends DOMImporter {
-  constructor (config, context) {
+    if (!this.documentId) {
+      throw new SubstanceError('InvalidArgumentsError', {message: 'documentId is mandatory'})
+    }
+    if (typeof this.version === 'undefined') {
+      throw new SubstanceError('InvalidArgumentsError', {message: 'version is mandatory'})
+    }
     
-    super({
-      
-      schema: config.schema,
-      
-      converters: config.converters,
-      idAttribute: config.schema.xmlSchema.getIdAttribute()
-    }, context);
-    this.xmlSchema = config.schema.xmlSchema;
+    this._connected = false; 
+    this._nextChange = null; 
+    this._pendingChange = null; 
+    this._pendingSync = false;
+    this._error = null;
+    
+    this.onUpdate('document', this.afterDocumentChange, this);
+    
+    this.collabClient.on('connected', this.onCollabClientConnected, this);
+    this.collabClient.on('disconnected', this.onCollabClientDisconnected, this);
+    this.collabClient.on('message', this._onMessage.bind(this));
+    
+    
+    
+    if (this.collabClient.isConnected() && this.autoSync) {
+      this.sync();
+    }
   }
 
-  importDocument (dom) {
-    this.reset();
-    const doc = this.state.doc;
-    if (isString(dom)) {
-      dom = DefaultDOMElement.parseXML(dom);
-    }
-    const startTag = this.xmlSchema.getStartElement();
-    let rootEl;
-    if (dom.is(startTag)) {
-      rootEl = dom;
+  
+  dispose () {
+    this.disconnect();
+    this.collabClient.off(this);
+  }
+
+  
+  disconnect () {
+    
+    let msg = {
+      type: 'disconnect',
+      documentId: this.documentId
+    };
+    
+    this._abortSync();
+    this._send(msg);
+  }
+
+  
+  sync () {
+    
+    if (this.__canSync()) {
+      let nextChange = this._nextChange;
+      let msg = {
+        type: 'sync',
+        documentId: this.documentId,
+        version: this.version,
+        change: nextChange ? this.serializeChange(nextChange) : undefined
+      };
+      this._send(msg);
+      this._pendingSync = true;
+      this._pendingChange = nextChange;
+
+      
+      
+      this.emit('sync');
+      this._nextChange = null;
+      this._error = null;
     } else {
-      rootEl = dom.find(startTag);
+      console.error('Can not sync. Either collabClient is not connected or already syncing');
     }
-    if (!rootEl) throw new Error(`Could not find <${startTag}> element.`)
-    
-    
-    doc.root = this.convertElement(rootEl);
-    return this.state.doc
   }
 
-  _initialize () {
-    const schema = this.schema;
-    const defaultTextType = schema.getDefaultTextType();
-    const converters = this.converters;
+  getCollaborators () {
+    return this.collaborators
+  }
 
-    this._allConverters = [];
-    this._propertyAnnotationConverters = [];
-    this._blockConverters = [];
+  isConnected () {
+    return this._connected
+  }
 
-    for (let i = 0; i < converters.length; i++) {
-      let converter;
-      if (typeof converters[i] === 'function') {
-        const Converter = converters[i];
-        converter = new Converter();
-      } else {
-        converter = converters[i];
-      }
-      if (!converter.type) {
-        throw new Error('Converter must provide the type of the associated node.')
-      }
-      if (!converter.matchElement && !converter.tagName) {
-        throw new Error('Converter must provide a matchElement function or a tagName property.')
-      }
-      if (!converter.matchElement) {
-        converter.matchElement = this._defaultElementMatcher.bind(converter);
-      }
-      const NodeClass = schema.getNodeClass(converter.type);
-      if (!NodeClass) {
-        throw new Error('No node type defined for converter')
-      }
-      if (!this._defaultBlockConverter && defaultTextType === converter.type) {
-        this._defaultBlockConverter = converter;
-      }
+  serializeChange (change) {
+    return change.toJSON()
+  }
 
-      
-      if (NodeClass.prototype._isAnnotation) {
-        this._propertyAnnotationConverters.push(converter);
-      } else {
-        this._blockConverters.push(converter);
-      }
+  deserializeChange (serializedChange) {
+    return DocumentChange.fromJSON(serializedChange)
+  }
+
+  
+
+  
+  _onMessage (msg) {
+    
+    if (msg.documentId !== this.documentId) {
+      return false
     }
-    this._allConverters = this._blockConverters.concat(this._propertyAnnotationConverters);
-  }
-
-  _createNodeData (el, type) {
-    let nodeData = super._createNodeData(el, type);
-    let attributes = {};
-    el.getAttributes().forEach((value, key) => {
-      attributes[key] = value;
-    });
-    nodeData.attributes = attributes;
-    return nodeData
-  }
-
-  getChildNodeIterator (el) {
     
-    let schema = this.xmlSchema.getElementSchema(el.tagName);
-    let it = el.getChildNodeIterator();
-    return new ValidatingChildNodeIterator(el, it, schema.expr)
-  }
-
-  _convertPropertyAnnotation () {
-    throw new Error('stand-alone annotations are not supported.')
-  }
-
-  _convertInlineNode (el, nodeData, converter) {
-    const path = [];
-    if (converter.import) {
-      nodeData = converter.import(el, nodeData, this) || nodeData;
-    }
-    nodeData.start = { path, offset: 0 };
-    nodeData.end = { offset: 0 };
-    return nodeData
-  }
-}
-
-function registerSchema (config, xmlSchema, DocumentClass, options = {}) {
-  const schemaName = xmlSchema.getName();
-  let defaultTextType;
-  
-  
-  if (xmlSchema.getDefaultTextType) {
-    defaultTextType = xmlSchema.getDefaultTextType();
-  }
-  
-  config.defineSchema({
-    name: schemaName,
-    version: xmlSchema.getVersion(),
-    defaultTextType: defaultTextType,
-    DocumentClass: DocumentClass,
-    
-    xmlSchema: xmlSchema
-  });
-  const tagNames = xmlSchema.getTagNames();
-  
-  tagNames.forEach((tagName) => {
-    const elementSchema = xmlSchema.getElementSchema(tagName);
-    const name = elementSchema.name;
-    let NodeClass, ConverterClass;
-    switch (elementSchema.type) {
-      case 'element': {
-        NodeClass = XMLElementNode;
-        ConverterClass = ElementNodeConverter;
+    msg = cloneDeep(msg);
+    switch (msg.type) {
+      case 'syncDone':
+        this.syncDone(msg);
         break
-      }
-      case 'hybrid': {
-        throw new Error('Mixed element types are not supported yet.')
-      }
-      case 'text': {
-        NodeClass = XMLTextElement;
-        ConverterClass = XMLTextElementConverter;
+      case 'syncError':
+        this.syncError(msg);
         break
-      }
-      case 'annotation': {
-        NodeClass = XMLAnnotationNode;
-        ConverterClass = XMLNodeConverter;
+      case 'update':
+        this.update(msg);
         break
-      }
-      case 'anchor': {
-        NodeClass = XMLAnchorNode;
-        ConverterClass = XMLNodeConverter;
+      case 'disconnectDone':
+        this.disconnectDone(msg);
         break
-      }
-      case 'inline-element': {
-        NodeClass = XMLInlineElementNode;
-        
-        ConverterClass = ElementNodeConverter;
+      case 'error':
+        this.error(msg);
         break
-      }
-      case 'external': {
-        NodeClass = XMLExternalNode;
-        ConverterClass = ExternalNodeConverter;
-        break
-      }
-      case 'container': {
-        NodeClass = XMLContainerNode;
-        ConverterClass = ElementNodeConverter;
-        break
-      }
       default:
-        throw new Error('Illegal state')
-    }
-    
-    class Node extends NodeClass {}
-    Node.type = name;
-
-    
-    const attributes = elementSchema.attributes;
-    forEach(attributes, (spec, name) => {
-      _defineAttribute(Node, name, spec);
-    });
-
-    config.addNode(Node);
-    let converter = new ConverterClass(name);
-    config.addConverter(schemaName, converter);
-
-    let ImporterClass = options.ImporterClass || XMLDocumentImporter;
-    config.addImporter(schemaName, ImporterClass);
-  });
-}
-
-const BUILTIN_ATTRS = ['id', 'type', 'attributes', '_childNodes', '_content'];
-
-function _defineAttribute (Node, attributeName) {
-  let name = attributeName.replace(':', '_');
-  name = camelCase(name);
-  if (BUILTIN_ATTRS.indexOf(name) >= 0) {
-    
-    return
-  }
-  Object.defineProperty(Node.prototype, name, {
-    get () {
-      return this.getAttribute(attributeName)
-    },
-    set (val) {
-      this.setAttribute(attributeName, val);
-      return this
-    }
-  });
-}
-
-const START$1 = DFA.START;
-const END$1 = DFA.END;
-const EPSILON$1 = DFA.EPSILON;
-
-
-class DFABuilder {
-  constructor (transitions) {
-    this.transitions = transitions;
-  }
-
-  addTransition (from, to, tokens) {
-    if (!this.transitions) this.transitions = {};
-    if (!isArray(tokens)) tokens = [tokens];
-    tokens.forEach(token => _addTransition(this.transitions, from, to, token));
-    return this
-  }
-
-  
-  append (other) {
-    if (this.transitions && other.transitions) {
-      let t1 = cloneDeep(this.transitions);
-      let t2 = cloneDeep(other.transitions);
-      
-      
-      let firstIsOptional = Boolean(t1[START$1][EPSILON$1]);
-      let secondIsOptional = Boolean(t2[START$1][EPSILON$1]);
-
-      if (firstIsOptional) {
-        
-        
-        delete t1[START$1][EPSILON$1];
-      }
-      
-      
-      let newState = uuid();
-      
-      
-      forEach(t1, (T) => {
-        forEach(T, (to, token) => {
-          if (to === END$1) {
-            T[token] = newState;
-          }
-        });
-      });
-      
-      
-      if (firstIsOptional) {
-        forEach(t2[START$1], (to, token) => {
-          _addTransition(t1, START$1, to, token);
-        });
-      }
-      
-      
-      t2[newState] = t2[START$1];
-      forEach(t2, (T) => {
-        forEach(T, (to, token) => {
-          if (to === START$1) {
-            T[token] = newState;
-          }
-        });
-      });
-      delete t2[START$1];
-      
-      forEach(t2, (T, from) => {
-        forEach(T, (to, token) => {
-          _addTransition(t1, from, to, token);
-        });
-      });
-      
-      
-      if (firstIsOptional && secondIsOptional) {
-        _addTransition(t1, START$1, END$1, EPSILON$1);
-      }
-      this.transitions = t1;
-    } else if (other.transitions) {
-      this.transitions = cloneDeep(other.transitions);
-    }
-    return this
-  }
-
-  
-  merge (other) {
-    if (this.transitions && other.transitions) {
-      let t1 = this.transitions;
-      let t2 = other.transitions;
-      forEach(t2, (T, from) => {
-        forEach(T, (to, token) => {
-          _addTransition(t1, from, to, token);
-        });
-      });
-    } else if (other.transitions) {
-      this.transitions = cloneDeep(other.transitions);
-    }
-    return this
-  }
-
-  
-  optional () {
-    let dfa = new DFABuilder(cloneDeep(this.transitions));
-    if (this.transitions) {
-      dfa.addTransition(START$1, END$1, EPSILON$1);
-    }
-    return dfa
-  }
-
-  
-  kleene () {
-    let dfa = this.plus();
-    return dfa.optional()
-  }
-
-  
-  plus () {
-    let dfa;
-    if (this.transitions) {
-      let t1 = cloneDeep(this.transitions);
-      
-      
-      
-      
-      const isOptional = Boolean(t1[START$1][EPSILON$1]);
-      delete t1[START$1][EPSILON$1];
-      
-      
-      let newState = uuid();
-      forEach(t1, (T) => {
-        forEach(T, (to, token) => {
-          if (to === END$1) {
-            T[token] = newState;
-          }
-        });
-      });
-      
-      _addTransition(t1, newState, END$1, EPSILON$1);
-      
-      forEach(t1[START$1], (to, token) => {
-        _addTransition(t1, newState, to, token);
-      });
-      
-      if (isOptional) {
-        _addTransition(t1, START$1, END$1, EPSILON$1);
-      }
-      dfa = new DFABuilder(t1);
-    } else {
-      dfa = new DFABuilder(cloneDeep(this.transitions));
-    }
-    return dfa
-  }
-
-  toJSON () {
-    return cloneDeep(this.transitions)
-  }
-
-  
-  copy () {
-    let t = cloneDeep(this.transitions);
-    if (this.transitions) {
-      let states = Object.keys(t);
-      let map = { START: START$1, END: END$1 };
-      states.forEach((id) => {
-        if (id === START$1 || id === END$1) return
-        map[id] = uuid();
-      });
-      forEach(t, (T, from) => {
-        if (from !== START$1 && from !== END$1) {
-          t[map[from]] = T;
-          delete t[from];
-        }
-        forEach(T, (to, token) => {
-          if (to !== START$1 && to !== END$1) {
-            T[token] = map[to];
-          }
-        });
-      });
-    }
-    return new DFABuilder(t)
-  }
-}
-
-DFABuilder.singleToken = function (token) {
-  let dfa = new DFABuilder();
-  dfa.addTransition(START$1, END$1, token);
-  return dfa
-};
-
-function _addTransition (transitions, from, to, token) {
-  let T = transitions[from];
-  if (!T) {
-    transitions[from] = T = {};
-  }
-  if (token === EPSILON$1 && from === START$1 && to !== END$1) {
-    throw new Error('The only EPSILON transition from START must be START->END')
-  }
-  if (T[token] && T[token] !== to) {
-    console.error('Token %s already used. Ignoring this transition.', token);
-    return
-    
-  }
-  T[token] = to;
-}
-
-const { START: START$2, END: END$2, TEXT: TEXT$3, EPSILON: EPSILON$2 } = DFA;
-
-
-
-class Expression {
-  constructor (name, root) {
-    this.name = name;
-    this.root = root;
-
-    this._initialize();
-  }
-
-  _initialize () {
-    this._compile();
-  }
-
-  toString () {
-    return this.root.toString()
-  }
-
-  copy () {
-    return this.root.copy()
-  }
-
-  toJSON () {
-    return {
-      name: this.name,
-      content: this.root.toJSON()
-    }
-  }
-
-  isAllowed (tagName) {
-    return Boolean(this._allowedChildren[tagName])
-  }
-
-  
-  _normalize () {
-    this.root._normalize();
-  }
-
-  
-  _compile () {
-    
-    this.root._compile();
-  }
-
-  _describeError (state, token) {
-    let msg = [];
-    if (token !== TEXT$3) {
-      if (!this.isAllowed(token)) {
-        msg.push(`<${token}> is not valid in <${this.name}>\nSchema: ${this.toString()}`);
-      } else {
-        
-        msg.push(`<${token}> is not allowed at the current position in <${this.name}>.\n${this.toString()}`);
-        
-        
-        
-      }
-    } else {
-      msg.push(`TEXT is not allowed at the current position: ${state.trace.join(',')}\n${this.toString()}`);
-    }
-    return msg.join('')
-  }
-}
-
-Expression.fromJSON = function (data) {
-  const name = data.name;
-  const root = _fromJSON(data.content);
-  return createExpression(name, root)
-};
-
-function createExpression (name, root) {
-  if (root instanceof Interleave) {
-    return new InterleaveExpr(name, root)
-  } else {
-    return new DFAExpr(name, root)
-  }
-}
-
-class DFAExpr extends Expression {
-  
-  getInitialState () {
-    return {
-      dfaState: START$2,
-      errors: [],
-      trace: []
-    }
-  }
-
-  canConsume (state, token) {
-    return this.dfa.canConsume(state.dfaState, token)
-  }
-
-  consume (state, token) {
-    const dfa = this.dfa;
-    let oldState = state.dfaState;
-    let newState = dfa.consume(oldState, token);
-    state.dfaState = newState;
-    if (newState === -1) {
-      state.errors.push({
-        msg: this._describeError(state, token),
-        
-        
-        el: state.el
-      });
-      return false
-    } else {
-      state.trace.push(token);
-      return true
-    }
-  }
-
-  isFinished (state) {
-    return this.dfa.isFinished(state.dfaState)
-  }
-
-  _initialize () {
-    super._initialize();
-
-    this._computeAllowedChildren();
-  }
-
-  _compile () {
-    super._compile();
-    this.dfa = new DFA(this.root.dfa.transitions);
-  }
-
-  _computeAllowedChildren () {
-    this._allowedChildren = _collectAllTokensFromDFA(this.dfa);
-  }
-
-  _findInsertPos (el, newTag, mode) {
-    const root = this.root;
-    if (root instanceof Sequence) {
-      return this._findInsertPosInSequence(el, newTag, mode)
-    } else if (root instanceof Plus || root instanceof Kleene) {
-      if (mode === 'first') {
-        return 0
-      } else {
-        return el.childNodes.length
-      }
-    }
-  }
-
-  _isValid (_tokens) {
-    let state = this.getInitialState();
-    for (let i = 0; i < _tokens.length; i++) {
-      const token = _tokens[i];
-      
-      
-      
-      if (!token) continue
-      if (!this.consume(state, token)) {
+        console.error('CollabSession: unsupported message', msg.type, msg);
         return false
-      }
-    }
-    return this.isFinished(state)
-  }
-
-  _findInsertPosInSequence (el, newTag, mode) {
-    const childNodes = el.getChildNodes();
-    
-    
-    
-    const tokens = [];
-    childNodes.forEach((child) => {
-      
-      
-      
-      const tagName = child.tagName;
-      if (!tagName) {
-        if (child._isDOMElement && child.isTextNode() && !_isTextNodeEmpty(child)) {
-          tokens.push(TEXT$3);
-        } else {
-          tokens.push(null);
-        }
-      } else {
-        tokens.push(tagName);
-      }
-    });
-    const L = tokens.length;
-    const self = this;
-    function _isValid (pos) {
-      let _tokens = tokens.slice(0);
-      _tokens.splice(pos, 0, newTag);
-      return self._isValid(_tokens)
-    }
-    if (mode === 'first') {
-      for (let pos = 0; pos <= L; pos++) {
-        if (_isValid(pos)) {
-          return pos
-        }
-      }
-    } else {
-      for (let pos = L; pos >= 0; pos--) {
-        if (_isValid(pos)) {
-          return pos
-        }
-      }
-    }
-    return -1
-  }
-}
-
-function _collectAllTokensFromDFA (dfa) {
-  
-  const children = {};
-  if (dfa.transitions) {
-    forEach(dfa.transitions, (T) => {
-      Object.keys(T).forEach((tagName) => {
-        if (tagName === EPSILON$2) return
-        children[tagName] = true;
-      });
-    });
-  }
-  return children
-}
-
-class InterleaveExpr extends Expression {
-  getInitialState () {
-    const dfas = this.dfas;
-    const dfaStates = new Array(dfas.length);
-    dfaStates.fill(START$2);
-    return {
-      dfaStates,
-      errors: [],
-      trace: [],
-      
-      lastDFA: 0
-    }
-  }
-
-  canConsume (state, token) {
-    return (this._findNextDFA(state, token) >= 0)
-  }
-
-  consume (state, token) {
-    const idx = this._findNextDFA(state, token);
-    if (idx < 0) {
-      state.errors.push({
-        msg: this._describeError(state, token)
-      });
-      return false
-    } else {
-      const dfa = this.dfas[idx];
-      const oldState = state.dfaStates[idx];
-      const newState = dfa.consume(oldState, token);
-      state.dfaStates[idx] = newState;
-      state.trace.push(token);
-      return true
-    }
-  }
-
-  isFinished (state) {
-    const dfas = this.dfas;
-    for (let i = 0; i < dfas.length; i++) {
-      const dfa = dfas[i];
-      const dfaState = state.dfaStates[i];
-      if (!dfa.isFinished(dfaState)) {
-        return false
-      }
     }
     return true
   }
 
-  _initialize () {
-    super._initialize();
-
-    this._computeAllowedChildren();
-  }
-
-  _compile () {
-    super._compile();
-
-    this.blocks = this.root.blocks;
-    this.dfas = this.blocks.map(b => new DFA(b.dfa.transitions));
-  }
-
-  _computeAllowedChildren () {
-    this._allowedChildren = Object.assign(...this.blocks.map((block) => {
-      return _collectAllTokensFromDFA(block.dfa)
-    }));
-  }
-
-  _findNextDFA (state, token) {
-    console.assert(state.dfaStates.length === this.dfas.length);
-    const dfas = this.dfas;
-    for (let i = 0; i < state.dfaStates.length; i++) {
-      const dfa = dfas[i];
-      const dfaState = state.dfaStates[i];
-      if (dfa.canConsume(dfaState, token)) {
-        return i
-      }
-    }
-    return -1
-  }
-
-  _findInsertPos(el, newTag, mode) { 
-    
-    return el.childNodes.length
-  }
-}
-
-class Token {
-  constructor (name) {
-    this.name = name;
-  }
-
-  toString () {
-    return this.name
-  }
-
-  toJSON () {
-    return this.name
-  }
-
-  copy () {
-    return new Token(this.name)
-  }
-
-  _normalize () {}
-
-  _compile () {
-    this.dfa = DFABuilder.singleToken(this.name);
-  }
-}
-
-Token.fromJSON = function (data) {
-  return new Token(data)
-};
-
-
-class Choice {
-  constructor (blocks) {
-    this.blocks = blocks;
-  }
-
-  copy () {
-    return new Choice(this.blocks.map(b => b.copy()))
-  }
-
-  toJSON () {
-    return {
-      type: '|',
-      blocks: this.blocks.map(b => b.toJSON())
-    }
-  }
-
-  _normalize () {
-    const blocks = this.blocks;
-    for (let i = blocks.length - 1; i >= 0; i--) {
-      let block = blocks[i];
-      block._normalize();
-      
-      if (block instanceof Choice) {
-        blocks.splice(i, 1, ...(block.blocks));
-      }
-    }
-  }
-
-  _compile () {
-    let dfa = new DFABuilder();
-    this.blocks.forEach((block) => {
-      if (block instanceof Token) {
-        dfa.addTransition(START$2, END$2, block.name);
-      } else if (block instanceof Interleave) {
-        throw new Error('Nested interleave blocks are not supported.')
-      } else {
-        if (!block.dfa) {
-          block._compile();
-        }
-        dfa.merge(block.dfa);
-      }
-    });
-    this.dfa = dfa;
-    return dfa
-  }
-
-  toString () {
-    return '(' + this.blocks.map(b => b.toString()).join('|') + ')'
-  }
-}
-
-Choice.fromJSON = function (data) {
-  return new Choice(data.blocks.map((block) => {
-    return _fromJSON(block)
-  }))
-};
-
-
-class Sequence {
-  constructor (blocks) {
-    this.blocks = blocks;
-  }
-
-  copy () {
-    return new Sequence(this.blocks.map(b => b.copy()))
-  }
-
-  toJSON () {
-    return {
-      type: ',',
-      blocks: this.blocks.map(b => b.toJSON())
-    }
-  }
-
-  _compile () {
-    let dfa = new DFABuilder();
-    this.blocks.forEach((block) => {
-      if (block instanceof Token) {
-        dfa.append(DFABuilder.singleToken(block.name));
-      } else if (block instanceof Interleave) {
-        throw new Error('Nested interleave blocks are not supported.')
-      } else {
-        if (!block.dfa) {
-          block._compile();
-        }
-        dfa.append(block.dfa);
-      }
-    });
-    this.dfa = dfa;
-    return dfa
-  }
-
-  _normalize () {
-    const blocks = this.blocks;
-    for (let i = blocks.length - 1; i >= 0; i--) {
-      let block = blocks[i];
-      block._normalize();
-      
-      if (block instanceof Sequence) {
-        blocks.splice(i, 1, ...(block.blocks));
-      }
-    }
-  }
-
-  toString () {
-    return '(' + this.blocks.map(b => b.toString()).join(',') + ')'
-  }
-}
-
-Sequence.fromJSON = function (data) {
-  return new Sequence(data.blocks.map((block) => {
-    return _fromJSON(block)
-  }))
-};
-
-
-class Interleave {
-  constructor (blocks) {
-    this.blocks = blocks;
-  }
-
-  copy () {
-    return new Interleave(this.blocks.map(b => b.copy()))
-  }
-
-  toString () {
-    return '(' + this.blocks.map(b => b.toString()).join('~') + ')'
-  }
-
-  toJSON () {
-    return {
-      type: '~',
-      blocks: this.blocks.map(b => b.toJSON())
-    }
-  }
-
-  _normalize () {
-    
-  }
-
-  _compile () {
-    this.blocks.forEach(block => block._compile());
-  }
-}
-
-Interleave.fromJSON = function (data) {
-  return new Interleave(data.blocks.map((block) => {
-    return _fromJSON(block)
-  }))
-};
-
-
-class Optional {
-  constructor (block) {
-    this.block = block;
-  }
-
-  copy () {
-    return new Optional(this.block.copy())
-  }
-
-  toJSON () {
-    return {
-      type: '?',
-      block: this.block.toJSON()
-    }
-  }
-
-  _compile () {
-    const block = this.block;
-    if (block instanceof Interleave) {
-      throw new Error('Nested interleave blocks are not supported.')
-    }
-    if (!block.dfa) {
-      block._compile();
-    }
-    this.dfa = block.dfa.optional();
-    return this.dfa
-  }
-
-  _normalize () {
-    const block = this.block;
-    block._normalize();
-    if (block instanceof Optional) {
-      this.block = block.block;
-    } else if (block instanceof Kleene) {
-      console.error('FIXME -  <optional> is useless here', this.toString());
-    }
-  }
-
-  toString () {
-    return this.block.toString() + '?'
-  }
-}
-
-Optional.fromJSON = function (data) {
-  return new Optional(_fromJSON(data.block))
-};
-
-
-class Kleene {
-  constructor (block) {
-    this.block = block;
-  }
-
-  copy () {
-    return new Kleene(this.block.copy())
-  }
-
-  toJSON () {
-    return {
-      type: '*',
-      block: this.block.toJSON()
-    }
-  }
-
-  _compile () {
-    const block = this.block;
-    if (block instanceof Interleave) {
-      throw new Error('Nested interleave blocks are not supported.')
-    }
-    if (!block.dfa) {
-      block._compile();
-    }
-    this.dfa = block.dfa.kleene();
-    return this.dfa
-  }
-
-  _normalize () {
-    const block = this.block;
-    block._normalize();
-    if (block instanceof Optional || block instanceof Kleene) {
-      this.block = block.block;
-    } else if (block instanceof Plus) {
-      throw new Error('This does not make sense:' + this.toString())
-    }
-  }
-
-  toString () {
-    return this.block.toString() + '*'
-  }
-}
-
-Kleene.fromJSON = function (data) {
-  return new Kleene(_fromJSON(data.block))
-};
-
-
-class Plus {
-  constructor (block) {
-    this.block = block;
-  }
-
-  copy () {
-    return new Plus(this.block.copy())
-  }
-
-  toJSON () {
-    return {
-      type: '+',
-      block: this.block.toJSON()
-    }
-  }
-
-  _compile () {
-    const block = this.block;
-    if (block instanceof Interleave) {
-      throw new Error('Nested interleave blocks are not supported.')
-    }
-    if (!block.dfa) {
-      block._compile();
-    }
-    this.dfa = block.dfa.plus();
-    return this.dfa
-  }
-
-  _normalize () {
-    const block = this.block;
-    block._normalize();
-    if (block instanceof Optional || block instanceof Kleene) {
-      throw new Error('This does not make sense:' + this.toString())
-    } else if (block instanceof Plus) {
-      this.block = block.block;
-    }
-  }
-
-  toString () {
-    return this.block.toString() + '+'
-  }
-}
-
-Plus.fromJSON = function (data) {
-  return new Plus(_fromJSON(data.block))
-};
-
-function _fromJSON (data) {
-  switch (data.type) {
-    case ',':
-      return Sequence.fromJSON(data)
-    case '~':
-      return Interleave.fromJSON(data)
-    case '|':
-      return Choice.fromJSON(data)
-    case '?':
-      return Optional.fromJSON(data)
-    case '+':
-      return Plus.fromJSON(data)
-    case '*':
-      return Kleene.fromJSON(data)
-    default:
-      if (isString(data)) {
-        return new Token(data)
-      }
-      throw new Error('Unsupported data.')
-  }
-}
-
-const { TEXT: TEXT$4 } = DFA;
-
-class XMLSchema {
-  constructor (elementSchemas, startElement) {
-    if (!elementSchemas[startElement]) {
-      throw new Error('startElement must be a valid element.')
-    }
-    this._elementSchemas = {};
-    this.startElement = startElement;
-    
-    forEach(elementSchemas, (spec, name) => {
-      this._elementSchemas[name] = new ElementSchema(spec.name, spec.type, spec.attributes, spec.expr);
-    });
-  }
-
-  getIdAttribute () {
-    return 'id'
-  }
-
-  getTagNames () {
-    return Object.keys(this._elementSchemas)
-  }
-
-  getElementSchema (name) {
-    return this._elementSchemas[name]
-  }
-
-  getStartElement () {
-    return this.startElement
-  }
-
-  toJSON () {
-    let result = {
-      start: this.getStartElement(),
-      elements: {}
-    };
-    forEach(this._elementSchemas, (schema, name) => {
-      result.elements[name] = schema.toJSON();
-    });
-    return result
-  }
-
   
-  toMD () {
-    let result = [];
-    let elementNames = Object.keys(this._elementSchemas);
-    elementNames.sort();
-    elementNames.forEach((name) => {
-      let elementSchema = this._elementSchemas[name];
-      result.push(`# <${elementSchema.name}>`);
-      result.push('');
-      result.push(`type: ${elementSchema.type}`);
-      result.push('attributes: ' + map(elementSchema.attributes, (_, name) => { return name }).join(', '));
-      result.push('children:');
-      result.push('  ' + elementSchema.expr.toString());
-      result.push('');
-    });
-    return result.join('\n')
-  }
-
-  validateElement (el) {
-    let tagName = el.tagName;
-    let elementSchema = this.getElementSchema(tagName);
-    return _validateElement(elementSchema, el)
-  }
-}
-
-XMLSchema.fromJSON = function (data) {
-  let elementSchemas = {};
-  forEach(data.elements, (elData) => {
-    let elSchema = ElementSchema.fromJSON(elData);
-    elementSchemas[elSchema.name] = elSchema;
-  });
-  return new XMLSchema(elementSchemas, data.start)
-};
-
-class ElementSchema {
-  constructor (name, type, attributes, expr) {
-    this.name = name;
-    this.type = type;
-    this.attributes = attributes;
-    this.expr = expr;
-
-    if (!name) {
-      throw new Error("'name' is mandatory")
-    }
-    if (!type) {
-      throw new Error("'type' is mandatory")
-    }
-    if (!attributes) {
-      throw new Error("'attributes' is mandatory")
-    }
-    if (!expr) {
-      throw new Error("'expr' is mandatory")
-    }
-  }
-
-  toJSON () {
-    return {
-      name: this.name,
-      type: this.type,
-      attributes: this.attributes,
-      elements: this.expr.toJSON()
-    }
-  }
-
-  isAllowed (tagName) {
-    return this.expr.isAllowed(tagName)
-  }
-
-  isTextAllowed () {
-    return this.expr.isAllowed(TEXT$4)
-  }
-
-  printStructure () {
-    return `${this.name} ::= ${this.expr.toString()}`
-  }
-
-  findFirstValidPos (el, newTag) {
-    return this.expr._findInsertPos(el, newTag, 'first')
-  }
-
-  findLastValidPos (el, newTag) {
-    return this.expr._findInsertPos(el, newTag, 'last')
-  }
-}
-
-ElementSchema.fromJSON = function (data) {
-  return new ElementSchema(
-    data.name,
-    data.type,
-    data.attributes,
-    Expression.fromJSON(data.elements)
-  )
-};
-
-function _validateElement (elementSchema, el) {
-  let errors = [];
-  let valid = true;
-  { 
-    const res = _checkAttributes(elementSchema, el);
-    if (!res.ok) {
-      errors = errors.concat(res.errors);
-      valid = false;
-    }
-  }
-  
-  if (elementSchema.type === 'external') ; else {
-    
-    let res;
-    if (el._isXMLTextElement) {
-      res = _checkChildren(elementSchema, el.toXML());
+  _send (msg) {
+    if (this.collabClient.isConnected()) {
+      this.collabClient.send(msg);
+      return true
     } else {
-      res = _checkChildren(elementSchema, el);
+      console.warn('Try not to call _send when disconnected. Skipping message', msg);
+      return false
     }
-    if (!res.ok) {
-      errors = errors.concat(res.errors);
-      valid = false;
+  }
+
+  
+  update (args) {
+    
+    let serverChange = args.change;
+    let serverVersion = args.version;
+
+    if (!this._nextChange && !this._pendingSync) {
+      if (serverChange) {
+        serverChange = this.deserializeChange(serverChange);
+        this._applyRemoteChange(serverChange);
+      }
+      if (serverVersion) {
+        this.version = serverVersion;
+      }
+      this.startFlow();
+    } else {
+      console.info('skipped remote update. Pending sync or local changes.');
+    }
+  }
+
+  
+  syncDone (args) {
+    
+    let serverChange = args.serverChange;
+    let serverVersion = args.version;
+
+    if (serverChange) {
+      serverChange = this.deserializeChange(serverChange);
+      this._applyRemoteChange(serverChange);
+    }
+    this.version = serverVersion;
+    
+    
+    this._pendingChange = null;
+    this._pendingSync = false;
+    this._error = null;
+    
+    this._connected = true;
+    this.startFlow();
+    this.emit('connected');
+    
+    this._requestSync();
+  }
+
+  
+  syncError (error) {
+    console.info('SyncError occured. Aborting sync', error);
+    this._abortSync();
+  }
+
+  disconnectDone () {
+    
+    
+    this._afterDisconnected();
+  }
+
+  
+  error (message) {
+    let error = message.error;
+    let errorFn = this[error.name];
+    let err = SubstanceError.fromJSON(error);
+
+    if (!errorFn) {
+      error('CollabSession: unsupported error', error.name);
+      return false
+    }
+
+    this.emit('error', err);
+    errorFn = errorFn.bind(this);
+    errorFn(err);
+  }
+
+  
+
+  afterDocumentChange (change, info) {
+    
+    if (!info.remote) {
+      this._recordChange(change);
+    }
+  }
+
+  
+  onCollabClientConnected () {
+    
+    if (this.autoSync) {
+      this.sync();
+    }
+  }
+
+  
+  onCollabClientDisconnected () {
+    
+    this._abortSync();
+    if (this._connected) {
+      this._afterDisconnected();
+    }
+  }
+
+  
+
+  _commit (change, info) {
+    this._commitChange(change, info);
+    this.startFlow();
+  }
+
+  
+  _applyRemoteChange (change) {
+    
+    if (change.ops.length > 0) {
+      this._transaction.__applyChange__(change);
+      this.getDocument()._apply(change);
+      this._setDirty('document');
+      
+      this._transformLocalChangeHistory(change);
+      this._setSelection(this._transformSelection(change));
+      this._change = change;
+      this._info = { remote: true };
+      this.startFlow();
+    }
+  }
+
+  
+  _recordChange (change) {
+    if (!this._nextChange) {
+      this._nextChange = change;
+    } else {
+      
+      this._nextChange.ops = this._nextChange.ops.concat(change.ops);
+      this._nextChange.after = change.after;
+    }
+    this._requestSync();
+  }
+
+  __canSync () {
+    return this.collabClient.isConnected() && !this._pendingSync
+  }
+
+  
+  _requestSync () {
+    if (this._nextChange && this.__canSync()) {
+      this.sync();
+    }
+  }
+
+  
+  _abortSync () {
+    let newNextChange = this._nextChange;
+
+    if (this._pendingChange) {
+      newNextChange = this._pendingChange;
+      
+      if (this._nextChange) {
+        newNextChange.ops = newNextChange.ops.concat(this._nextChange.ops);
+        newNextChange.after = this._nextChange.after;
+      }
+      this._pendingChange = null;
+    }
+    this._pendingSync = false;
+    this._error = null;
+    this._nextChange = newNextChange;
+  }
+
+  
+  _afterDisconnected () {
+    this._connected = false;
+    this.emit('disconnected');
+  }
+
+  
+  _hasLocalChanges () {
+    return this._nextChange && this._nextChange.ops.length > 0
+  }
+}
+
+function findParentDOMElement (nativeEl) {
+  while (nativeEl) {
+    let el = DefaultDOMElement.unwrap(nativeEl);
+    if (el) return el
+    nativeEl = nativeEl.parentNode;
+  }
+}
+
+function findParent (el, selector) {
+  while (el) {
+    if (el.is(selector)) return el
+    el = el.getParent();
+  }
+}
+
+function stop (event) {
+  event.stopPropagation();
+}
+
+function stopAndPrevent (event) {
+  event.stopPropagation();
+  event.preventDefault();
+}
+
+function walk (el, cb) {
+  _walk(el, cb, 0);
+}
+
+function _walk (el, cb, level) {
+  cb(el, level);
+  if (el.getChildCount() > 0) {
+    let it = el.getChildNodeIterator();
+    while (it.hasNext()) {
+      _walk(it.next(), cb, level + 1);
+    }
+  }
+}
+
+function isRightButton (event) {
+  let isRightButton = false;
+  if ('which' in event) {
+    isRightButton = (event.which === 3);
+  } else if ('button' in event) {
+    isRightButton = (event.button === 2);
+  }
+  return isRightButton
+}
+
+function getBoundingRect (el) {
+  let _rect = el.getNativeElement().getBoundingClientRect();
+  return {
+    top: _rect.top,
+    left: _rect.left,
+    height: _rect.height,
+    width: _rect.width
+  }
+}
+
+function getBoundingRectForRects (...rects) {
+  let top, left, bottom, right;
+  if (rects.length > 0) {
+    let first = rects[0];
+    top = first.top;
+    left = first.left;
+    bottom = top + first.height;
+    right = left + first.width;
+    for (let i = 1; i < rects.length; i++) {
+      let r = rects[i];
+      top = Math.min(top, r.top);
+      left = Math.min(left, r.left);
+      bottom = Math.max(bottom, r.top + r.height);
+      right = Math.max(right, r.left + r.width);
     }
   }
   return {
-    errors,
-    ok: valid
+    top,
+    left,
+    right,
+    bottom,
+    height: bottom - top,
+    width: right - left
   }
 }
 
-function _checkAttributes(elementSchema, el) { 
-  return { ok: true }
+function isXInside (x, rect) {
+  return x >= rect.left && x <= rect.left + rect.width
 }
 
-function _checkChildren (elementSchema, el) {
-  
-  
-  if (elementSchema.type === 'external') {
-    return true
-  }
-  const expr = elementSchema.expr;
-  const state = expr.getInitialState();
-  const iterator = el.getChildNodeIterator();
-  let valid = true;
-  while (valid && iterator.hasNext()) {
-    const childEl = iterator.next();
-    let token;
-    if (childEl.isTextNode()) {
-      
-      if (elementSchema.type !== 'text' && _isTextNodeEmpty(childEl)) {
-        continue
-      }
-      token = TEXT$4;
-    } else if (childEl.isElementNode()) {
-      token = childEl.tagName;
-    } else {
-      continue
-    }
-    if (!expr.consume(state, token)) {
-      valid = false;
-    }
-  }
-  
-  if (state.errors.length > 0) {
-    state.errors.forEach((err) => {
-      err.el = el;
-    });
-  }
-  if (valid && !expr.isFinished(state)) {
-    state.errors.push({
-      msg: `<${el.tagName}> is incomplete.\nSchema: ${expr.toString()}`,
-      el
-    });
-    valid = false;
-  }
-  if (valid) {
-    state.ok = true;
-  }
-  return state
+function isYInside (y, rect) {
+  return y >= rect.top && y <= rect.top + rect.height
 }
 
-var ManifestSchemaData = {"start":"dar","elements":{"dar":{"name":"dar","type":"element","attributes":{},"elements":{"name":"dar","content":{"type":",","blocks":["documents","assets"]}}},"documents":{"name":"documents","type":"element","attributes":{},"elements":{"name":"documents","content":{"type":"*","block":"document"}}},"assets":{"name":"assets","type":"element","attributes":{},"elements":{"name":"assets","content":{"type":"*","block":"asset"}}},"document":{"name":"document","type":"element","attributes":{"id":{"name":"id"},"name":{"name":"name"},"type":{"name":"type"},"path":{"name":"path"}},"elements":{"name":"document","content":{"type":",","blocks":[]}}},"asset":{"name":"asset","type":"element","attributes":{"id":{"name":"id"},"name":{"name":"name"},"type":{"name":"type"},"path":{"name":"path"}},"elements":{"name":"asset","content":{"type":",","blocks":[]}}}}}
+var domHelpers = /*#__PURE__*/Object.freeze({
+  findParentDOMElement: findParentDOMElement,
+  findParent: findParent,
+  stop: stop,
+  stopAndPrevent: stopAndPrevent,
+  walk: walk,
+  isRightButton: isRightButton,
+  getBoundingRect: getBoundingRect,
+  getBoundingRectForRects: getBoundingRectForRects,
+  isXInside: isXInside,
+  isYInside: isYInside
+});
 
-const ManifestSchema = XMLSchema.fromJSON(ManifestSchemaData);
-
-
-ManifestSchema.getName = function() {
-  return 'RDC-Manifest'
-};
-
-ManifestSchema.getVersion = function() {
-  return '1.0'
-};
-
-ManifestSchema.getDocTypeParams = function() {
-  return ['manifest', 'RDC-Manifest 1.0', ManifestSchema.uri]
-};
+class TreeNode {}
 
 
-ManifestSchema.getDefaultTextType = function () {
-  return 'text'
-};
 
-ManifestSchema.uri = '//Manifest-1.0.dtd';
-
-class Data extends EventEmitter {
-  
-  constructor (schema, nodeFactory) {
-    super();
-
-    
-    if (!schema) {
-      throw new Error('schema is mandatory')
-    }
-    if (!nodeFactory) {
-      throw new Error('nodeFactory is mandatory')
-    }
-    
-
-    this.schema = schema;
-    this.nodeFactory = nodeFactory;
-    this.nodes = {};
-    this.indexes = {};
-
-    
-    
-    this.__QUEUE_INDEXING__ = false;
-    this.queue = [];
-  }
-
-  
-  contains (id) {
-    return Boolean(this.nodes[id])
-  }
-
-  
-  get (path, strict) {
-    let result = this._get(path);
-    if (strict && result === undefined) {
-      if (isString(path)) {
-        throw new Error("Could not find node with id '" + path + "'.")
-      } else if (!this.contains(path[0])) {
-        throw new Error("Could not find node with id '" + path[0] + "'.")
-      } else {
-        throw new Error("Property for path '" + path + "' us undefined.")
-      }
-    }
-    return result
-  }
-
-  _get (path) {
-    if (!path) return undefined
-    let result;
-    if (isString(path)) {
-      result = this.nodes[path];
-    } else if (path.length === 1) {
-      result = this.nodes[path[0]];
-    } else if (path.length > 1) {
-      let context = this.nodes[path[0]];
-      for (let i = 1; i < path.length - 1; i++) {
-        if (!context) return undefined
-        context = context[path[i]];
-      }
-      if (!context) return undefined
-      result = context[path[path.length - 1]];
-    }
-    return result
-  }
-
-  
-  getNodes () {
-    return this.nodes
-  }
-
-  
-  create (nodeData) {
-    var node = this.nodeFactory.create(nodeData.type, nodeData);
-    if (!node) {
-      throw new Error('Illegal argument: could not create node for data:', nodeData)
-    }
-    if (this.contains(node.id)) {
-      throw new Error('Node already exists: ' + node.id)
-    }
-    if (!node.id || !node.type) {
-      throw new Error('Node id and type are mandatory.')
-    }
-    this.nodes[node.id] = node;
-
-    var change = {
-      type: 'create',
-      node: node
-    };
-
-    if (this.__QUEUE_INDEXING__) {
-      this.queue.push(change);
-    } else {
-      this._updateIndexes(change);
-    }
-
-    return node
-  }
-
-  
-  delete (nodeId) {
-    var node = this.nodes[nodeId];
-    if (!node) return
-    node.dispose();
-    delete this.nodes[nodeId];
-
-    var change = {
-      type: 'delete',
-      node: node
-    };
-
-    if (this.__QUEUE_INDEXING__) {
-      this.queue.push(change);
-    } else {
-      this._updateIndexes(change);
-    }
-
-    return node
-  }
-
-  
-  set (path, newValue) {
-    let node = this.get(path[0]);
-    let oldValue = this._set(path, newValue);
-    var change = {
-      type: 'set',
-      node: node,
-      path: path,
-      newValue: newValue,
-      oldValue: oldValue
-    };
-    if (this.__QUEUE_INDEXING__) {
-      this.queue.push(change);
-    } else {
-      this._updateIndexes(change);
-    }
-    return oldValue
-  }
-
-  _set (path, newValue) {
-    let oldValue = _setValue(this.nodes, path, newValue);
-    return oldValue
-  }
-
-  
-  update (path, diff) {
-    var realPath = this.getRealPath(path);
-    if (!realPath) {
-      console.error('Could not resolve path', path);
-      return
-    }
-    let node = this.get(realPath[0]);
-    let oldValue = this._get(realPath);
-    let newValue;
-    if (diff.isOperation) {
-      newValue = diff.apply(oldValue);
-    } else {
-      diff = this._normalizeDiff(oldValue, diff);
-      if (isString(oldValue)) {
-        switch (diff.type) {
-          case 'delete': {
-            newValue = oldValue.split('').splice(diff.start, diff.end - diff.start).join('');
-            break
-          }
-          case 'insert': {
-            newValue = [oldValue.substring(0, diff.start), diff.text, oldValue.substring(diff.start)].join('');
-            break
-          }
-          default:
-            throw new Error('Unknown diff type')
-        }
-      } else if (isArray(oldValue)) {
-        newValue = oldValue.slice(0);
-        switch (diff.type) {
-          case 'delete': {
-            newValue.splice(diff.pos, 1);
-            break
-          }
-          case 'insert': {
-            newValue.splice(diff.pos, 0, diff.value);
-            break
-          }
-          default:
-            throw new Error('Unknown diff type')
-        }
-      } else if (oldValue._isCoordinate) {
-        switch (diff.type) {
-          case 'shift': {
-            
-            oldValue = { path: oldValue.path, offset: oldValue.offset };
-            newValue = oldValue;
-            newValue.offset += diff.value;
-            break
-          }
-          default:
-            throw new Error('Unknown diff type')
-        }
-      } else {
-        throw new Error('Diff is not supported:', JSON.stringify(diff))
-      }
-    }
-    this._set(realPath, newValue);
-
-    var change = {
-      type: 'update',
-      node: node,
-      path: realPath,
-      newValue: newValue,
-      oldValue: oldValue
-    };
-
-    if (this.__QUEUE_INDEXING__) {
-      this.queue.push(change);
-    } else {
-      this._updateIndexes(change);
-    }
-
-    return oldValue
-  }
-
-  
-  _normalizeDiff (value, diff) {
-    if (isString(value)) {
-      
-      if (diff['delete']) {
-        console.warn('DEPRECATED: use doc.update(path, {type:"delete", start:s, end: e}) instead');
-        diff = {
-          type: 'delete',
-          start: diff['delete'].start,
-          end: diff['delete'].end
-        };
-      } else if (diff['insert']) {
-        console.warn('DEPRECATED: use doc.update(path, {type:"insert", start:s, text: t}) instead');
-        diff = {
-          type: 'insert',
-          start: diff['insert'].offset,
-          text: diff['insert'].value
-        };
-      }
-    } else if (isArray(value)) {
-      
-      if (diff['delete']) {
-        console.warn('DEPRECATED: use doc.update(path, {type:"delete", pos:1}) instead');
-        diff = {
-          type: 'delete',
-          pos: diff['delete'].offset
-        };
-      } else if (diff['insert']) {
-        console.warn('DEPRECATED: use doc.update(path, {type:"insert", pos:1, value: "foo"}) instead');
-        diff = {
-          type: 'insert',
-          pos: diff['insert'].offset,
-          value: diff['insert'].value
-        };
-      }
-    } else if (value._isCoordinate) {
-      if (diff.hasOwnProperty('shift')) {
-        console.warn('DEPRECATED: use doc.update(path, {type:"shift", value:2}) instead');
-        diff = {
-          type: 'shift',
-          value: diff['shift']
-        };
-      }
-    }
-    return diff
-  }
-
-  
-  toJSON () {
-    let nodes = {};
-    forEach(this.nodes, (node) => {
-      nodes[node.id] = node.toJSON();
-    });
-    return {
-      schema: [this.schema.id, this.schema.version],
-      nodes: nodes
-    }
-  }
-
-  reset () {
-    this.clear();
-  }
-
-  
-  clear () {
-    this.nodes = {};
-    forEach(this.indexes, index => index.clear());
-  }
-
-  
-  addIndex (name, index) {
-    if (this.indexes[name]) {
-      console.error('Index with name %s already exists.', name);
-    }
-    index.reset(this);
-    this.indexes[name] = index;
-    return index
-  }
-
-  
-  getIndex (name) {
-    return this.indexes[name]
-  }
-
-  
-  _updateIndexes (change) {
-    if (!change || this.__QUEUE_INDEXING__) return
-    forEach(this.indexes, function (index) {
-      if (index.select(change.node)) {
-        if (!index[change.type]) {
-          console.error('Contract: every NodeIndex must implement ' + change.type);
-        }
-        index[change.type](change.node, change.path, change.newValue, change.oldValue);
-      }
-    });
-  }
-
-  
-  _stopIndexing () {
-    this.__QUEUE_INDEXING__ = true;
-  }
-
-  
-  _startIndexing () {
-    this.__QUEUE_INDEXING__ = false;
-    while (this.queue.length > 0) {
-      var change = this.queue.shift();
-      this._updateIndexes(change);
-    }
-  }
-}
-
-function _setValue (root, path, newValue) {
-  let ctx = root;
-  let L = path.length;
-  for (let i = 0; i < L - 1; i++) {
-    ctx = ctx[path[i]];
-    if (!ctx) throw new Error('Can not set value.')
-  }
-  let oldValue = ctx[path[L - 1]];
-  ctx[path[L - 1]] = newValue;
-  return oldValue
-}
-
-class IncrementalData extends Data {
-  
-  create (nodeData) {
-    if (nodeData._isNode) {
-      nodeData = nodeData.toJSON();
-    }
-    let op = ObjectOperation.Create([nodeData.id], nodeData);
-    this.apply(op);
-    return op
-  }
-
-  
-  delete (nodeId) {
-    var op = null;
-    var node = this.get(nodeId);
-    if (node) {
-      var nodeData = node.toJSON();
-      op = ObjectOperation.Delete([nodeId], nodeData);
-      this.apply(op);
-    }
-    return op
-  }
-
-  
-  update (path, diff) {
-    var diffOp = this._getDiffOp(path, diff);
-    var op = ObjectOperation.Update(path, diffOp);
-    this.apply(op);
-    return op
-  }
-
-  
-  set (path, newValue) {
-    var oldValue = this.get(path);
-    var op = ObjectOperation.Set(path, oldValue, newValue);
-    this.apply(op);
-    return op
-  }
-
-  
-  apply (op) {
-    if (op.type === ObjectOperation.NOP) return
-    else if (op.type === ObjectOperation.CREATE) {
-      
-      super.create(cloneDeep(op.val));
-    } else if (op.type === ObjectOperation.DELETE) {
-      super.delete(op.val.id);
-    } else if (op.type === ObjectOperation.UPDATE) {
-      var oldVal = this.get(op.path);
-      var diff = op.diff;
-      if (op.propertyType === 'array') {
-        if (!(diff._isArrayOperation)) {
-          diff = ArrayOperation.fromJSON(diff);
-        }
-        
-        diff.apply(oldVal);
-      } else if (op.propertyType === 'string') {
-        if (!(diff._isTextOperation)) {
-          diff = TextOperation.fromJSON(diff);
-        }
-        var newVal = diff.apply(oldVal);
-        super.set(op.path, newVal);
-      } else if (op.propertyType === 'coordinate') {
-        if (!(diff._isCoordinateOperation)) {
-          diff = CoordinateOperation.fromJSON(diff);
-        }
-        diff.apply(oldVal);
-      } else {
-        throw new Error('Unsupported type for operational update.')
-      }
-    } else if (op.type === ObjectOperation.SET) {
-      super.set(op.path, op.val);
-    } else {
-      throw new Error('Illegal state.')
-    }
-    this.emit('operation:applied', op, this);
-  }
-
-  
-  _getDiffOp (path, diff) {
-    var diffOp = null;
-    if (diff.isOperation) {
-      diffOp = diff;
-    } else {
-      var value = this.get(path);
-      diff = this._normalizeDiff(value, diff);
-      if (value === null || value === undefined) {
-        throw new Error('Property has not been initialized: ' + JSON.stringify(path))
-      } else if (isString(value)) {
-        switch (diff.type) {
-          case 'delete': {
-            diffOp = TextOperation.Delete(diff.start, value.substring(diff.start, diff.end));
-            break
-          }
-          case 'insert': {
-            diffOp = TextOperation.Insert(diff.start, diff.text);
-            break
-          }
-          default:
-            throw new Error('Unknown diff type')
-        }
-      } else if (isArray(value)) {
-        switch (diff.type) {
-          case 'delete': {
-            diffOp = ArrayOperation.Delete(diff.pos, value[diff.pos]);
-            break
-          }
-          case 'insert': {
-            diffOp = ArrayOperation.Insert(diff.pos, diff.value);
-            break
-          }
-          default:
-            throw new Error('Unknown diff type')
-        }
-      } else if (value._isCoordinate) {
-        switch (diff.type) {
-          case 'shift': {
-            diffOp = CoordinateOperation.Shift(diff.value);
-            break
-          }
-          default:
-            throw new Error('Unknown diff type')
-        }
-      }
-    }
-    if (!diffOp) {
-      throw new Error('Unsupported diff: ' + JSON.stringify(diff))
-    }
-    return diffOp
-  }
-}
-
-class PropertyIndex extends NodeIndex {
-  constructor (property) {
-    super();
-
-    this._property = property || 'id';
-    this.index = new TreeIndex();
-  }
-
+class TreeIndex {
   
   get (path) {
-    return this.index.get(path) || {}
+    if (arguments.length > 1) {
+      path = Array.prototype.slice(arguments, 0);
+    }
+    if (isString(path)) {
+      path = [path];
+    }
+    return get(this, path)
   }
 
-  
   getAll (path) {
-    return this.index.getAll(path)
+    if (arguments.length > 1) {
+      path = Array.prototype.slice(arguments, 0);
+    }
+    if (isString(path)) {
+      path = [path];
+    }
+    if (!isArray(path)) {
+      throw new Error('Illegal argument for TreeIndex.get()')
+    }
+    var node = get(this, path);
+    return this._collectValues(node)
+  }
+
+  set (path, value) {
+    if (isString(path)) {
+      path = [path];
+    }
+    setWith(this, path, value, function (val) {
+      if (!val) return new TreeNode()
+    });
+  }
+
+  delete (path) {
+    if (isString(path)) {
+      delete this[path];
+    } else if (path.length === 1) {
+      delete this[path[0]];
+    } else {
+      var key = path[path.length - 1];
+      path = path.slice(0, -1);
+      var parent = get(this, path);
+      if (parent) {
+        delete parent[key];
+      }
+    }
   }
 
   clear () {
-    this.index.clear();
-  }
-
-  
-  select(node) { 
-    return true
-  }
-
-  
-  create (node) {
-    var values = node[this._property];
-    if (!isArray(values)) {
-      values = [values];
-    }
-    forEach(values, function (value) {
-      this.index.set([value, node.id], node);
-    }.bind(this));
-  }
-
-  
-  delete (node) {
-    var values = node[this._property];
-    if (!isArray(values)) {
-      values = [values];
-    }
-    forEach(values, function (value) {
-      this.index.delete([value, node.id]);
-    }.bind(this));
-  }
-
-  
-  update (node, path, newValue, oldValue) {
-    if (!this.select(node) || path[1] !== this._property) return
-    var values = oldValue;
-    if (!isArray(values)) {
-      values = [values];
-    }
-    forEach(values, function (value) {
-      this.index.delete([value, node.id]);
-    }.bind(this));
-    values = newValue;
-    if (!isArray(values)) {
-      values = [values];
-    }
-    forEach(values, function (value) {
-      this.index.set([value, node.id], node);
-    }.bind(this));
-  }
-
-  set (node, path, newValue, oldValue) {
-    this.update(node, path, newValue, oldValue);
-  }
-
-  _initialize (data) {
-    forEach(data.getNodes(), function (node) {
-      if (this.select(node)) {
-        this.create(node);
+    var root = this;
+    for (var key in root) {
+      if (root.hasOwnProperty(key)) {
+        delete root[key];
       }
-    }.bind(this));
+    }
+  }
+
+  traverse (fn) {
+    this._traverse(this, [], fn);
+  }
+
+  forEach (...args) {
+    this.traverse(...args);
+  }
+
+  _traverse (root, path, fn) {
+    var id;
+    for (id in root) {
+      if (!root.hasOwnProperty(id)) continue
+      var child = root[id];
+      var childPath = path.concat([id]);
+      if (child instanceof TreeNode) {
+        this._traverse(child, childPath, fn);
+      } else {
+        fn(child, childPath);
+      }
+    }
+  }
+
+  _collectValues (root) {
+    
+    
+    var vals = {};
+    this._traverse(root, [], function (val, path) {
+      var key = path[path.length - 1];
+      vals[key] = val;
+    });
+    return vals
   }
 }
+
+class TreeIndexArrays extends TreeIndex {
+  contains (path) {
+    let val = super.get(path);
+    return Boolean(val)
+  }
+
+  get (path) {
+    let val = super.get(path);
+    if (val instanceof TreeNode) {
+      val = val.__values__ || [];
+    }
+    return val
+  }
+
+  set (path, arr) {
+    let val = super.get(path);
+    val.__values__ = arr;
+  }
+
+  add (path, value) {
+    if (isString(path)) {
+      path = [path];
+    }
+    if (!isArray(path)) {
+      throw new Error('Illegal arguments.')
+    }
+    var arr;
+
+    
+    
+    
+    
+    
+    
+    setWith(this, path.concat(['__values__', '__dummy__']), undefined, function (val, key) {
+      if (key === '__values__') {
+        if (!val) val = [];
+        arr = val;
+      } else if (!val) {
+        val = new TreeNode();
+      }
+      return val
+    });
+    delete arr.__dummy__;
+    arr.push(value);
+  }
+
+  remove (path, value) {
+    var arr = get(this, path);
+    if (arr instanceof TreeNode) {
+      if (arguments.length === 1) {
+        delete arr.__values__;
+      } else {
+        deleteFromArray(arr.__values__, value);
+      }
+    }
+  }
+
+  _collectValues (root) {
+    var vals = [];
+    this._traverse(root, [], function (val) {
+      vals.push(val);
+    });
+    vals = Array.prototype.concat.apply([], vals);
+    return vals
+  }
+}
+
+TreeIndex.Arrays = TreeIndexArrays;
 
 class AnnotationIndex extends DocumentIndex {
   constructor () {
@@ -32063,7 +31949,7 @@ class AnnotationIndex extends DocumentIndex {
   }
 
   select (node) {
-    return node.isPropertyAnnotation()
+    return node.isPropertyAnnotation() || node.isInlineNode()
   }
 
   clear () {
@@ -32130,53 +32016,8 @@ AnnotationIndex.filterByRange = function (start, end) {
   }
 };
 
-class ContainerAnnotationIndex extends DocumentIndex {
-  constructor () {
-    super();
-    this.byId = new TreeIndex();
-  }
-
-  select (node) {
-    return node.isContainerAnnotation()
-  }
-
-  clear () {
-    this.byId.clear();
-  }
-
-  get (containerId, type) {
-    var annotations = map(this.byId.get(containerId));
-    if (isString(type)) {
-      annotations = filter(annotations, DocumentIndex.filterByType);
-    }
-    return annotations
-  }
-
-  create (anno) {
-    this.byId.set([anno.containerId, anno.id], anno);
-  }
-
-  delete (anno) {
-    this.byId.delete([anno.containerId, anno.id]);
-  }
-
-  update(node, path, newValue, oldValue) { 
-    
-  }
-}
-
-class DocumentNodeFactory {
-  constructor (doc) {
-    this.doc = doc;
-  }
-
-  create (nodeType, nodeData) {
-    var NodeClass = this.doc.schema.getNodeClass(nodeType);
-    if (!NodeClass) {
-      throw new Error('No node registered by that name: ' + nodeType)
-    }
-    return new NodeClass(this.doc, nodeData)
-  }
+class BlockNode extends DocumentNode {
+  static isBlock () { return true }
 }
 
 function copySelection (doc, selection) {
@@ -32296,177 +32137,6 @@ function _copyNodeSelection (doc, selection) {
   return snippet
 }
 
-function paste (tx, args) {
-  let sel = tx.selection;
-  if (!sel || sel.isNull() || sel.isCustomSelection()) {
-    throw new Error('Can not paste, without selection or a custom selection.')
-  }
-  args = args || {};
-  args.text = args.text || '';
-  let pasteDoc = args.doc;
-  
-  
-  let inContainer = Boolean(sel.containerId);
-
-  
-  
-  
-  if (!pasteDoc && !inContainer) {
-    tx.insertText(args.text);
-    return
-  }
-  if (!pasteDoc) {
-    pasteDoc = _convertPlainTextToDocument(tx, args);
-  }
-  if (pasteDoc && !inContainer) {
-    
-    let nodes = [];
-    let container = pasteDoc.get('snippet');
-    let content = container.getContent();
-    content.forEach(nodeId => {
-      let text = pasteDoc.get(nodeId).getText();
-      nodes.push(text);
-    });
-    tx.insertText(nodes.join('\r\n'));
-    return
-  }
-  if (!sel.isCollapsed()) {
-    tx.deleteSelection();
-  }
-  let snippet = pasteDoc.get(SNIPPET_ID);
-  if (snippet.getLength() > 0) {
-    let first = snippet.getChildAt(0);
-    if (first.isText()) {
-      _pasteAnnotatedText(tx, pasteDoc);
-      
-      
-      
-      snippet.hideAt(0);
-    }
-    
-    if (snippet.getLength() > 0) {
-      _pasteDocument(tx, pasteDoc);
-    }
-  }
-  return args
-}
-
-
-function _convertPlainTextToDocument (tx, args) {
-  let lines = args.text.split(/\s*\n\s*\n/);
-  let pasteDoc = tx.getDocument().newInstance();
-  let defaultTextType = pasteDoc.getSchema().getDefaultTextType();
-  let container = pasteDoc.create({
-    type: '@container',
-    id: SNIPPET_ID,
-    nodes: []
-  });
-  let node;
-  if (lines.length === 1) {
-    node = pasteDoc.create({
-      id: TEXT_SNIPPET_ID,
-      type: defaultTextType,
-      content: lines[0]
-    });
-    container.show(node.id);
-  } else {
-    for (let i = 0; i < lines.length; i++) {
-      node = pasteDoc.create({
-        id: uuid(defaultTextType),
-        type: defaultTextType,
-        content: lines[i]
-      });
-      container.show(node.id);
-    }
-  }
-  return pasteDoc
-}
-
-function _pasteAnnotatedText (tx, copy) {
-  let sel = tx.selection;
-  const nodes = copy.get(SNIPPET_ID).nodes;
-  const firstId = nodes[0];
-  const first = copy.get(firstId);
-  const textPath = first.getPath();
-  const text = copy.get(textPath);
-  const annotations = copy.getIndex('annotations').get(textPath);
-  
-  let path = sel.start.path;
-  let offset = sel.start.offset;
-  tx.insertText(text);
-  
-  forEach(annotations, function (anno) {
-    let data = anno.toJSON();
-    data.start.path = path.slice(0);
-    data.start.offset += offset;
-    data.end.offset += offset;
-    
-    if (tx.get(data.id)) data.id = uuid(data.type);
-    tx.create(data);
-  });
-}
-
-function _pasteDocument (tx, pasteDoc) {
-  let sel = tx.selection;
-  let containerId = sel.containerId;
-  let container = tx.get(containerId);
-  let insertPos;
-  if (sel.isPropertySelection()) {
-    let startPath = sel.start.path;
-    let nodeId = sel.start.getNodeId();
-    let startPos = container.getPosition(nodeId, 'strict');
-    let text = tx.get(startPath);
-    
-    
-    if (text.length === 0) {
-      insertPos = startPos;
-      container.hide(nodeId);
-      deleteNode(tx, tx.get(nodeId));
-    } else if (text.length === sel.start.offset) {
-      insertPos = startPos + 1;
-    } else {
-      tx.break();
-      insertPos = startPos + 1;
-    }
-  } else if (sel.isNodeSelection()) {
-    let nodePos = container.getPosition(sel.getNodeId(), 'strict');
-    if (sel.isBefore()) {
-      insertPos = nodePos;
-    } else if (sel.isAfter()) {
-      insertPos = nodePos + 1;
-    } else {
-      throw new Error('Illegal state: the selection should be collapsed.')
-    }
-  }
-  
-  let nodeIds = pasteDoc.get(SNIPPET_ID).nodes;
-  let insertedNodes = [];
-  let visited = {};
-  for (let i = 0; i < nodeIds.length; i++) {
-    let node = pasteDoc.get(nodeIds[i]);
-    
-    
-    
-    
-    
-    let newId = _transferWithDisambiguatedIds(node.getDocument(), tx, node.id, visited);
-    
-    node = tx.get(newId);
-    container.showAt(insertPos++, newId);
-    insertedNodes.push(node);
-  }
-
-  if (insertedNodes.length > 0) {
-    let lastNode = last$1(insertedNodes);
-    setCursor(tx, lastNode, containerId, 'after');
-  }
-}
-
-
-
-
-
-
 function _transferWithDisambiguatedIds (sourceDoc, targetDoc, id, visited) {
   if (visited[id]) throw new Error('FIXME: dont call me twice')
   const node = sourceDoc.get(id, 'strict');
@@ -32543,6 +32213,241 @@ function _transferArrayOfReferences (sourceDoc, targetDoc, arr, visited) {
   }
 }
 
+function paste (tx, args) {
+  let sel = tx.selection;
+  if (!sel || sel.isNull()) {
+    throw new Error('Can not paste without selection.')
+  }
+  if (sel.isCustomSelection()) {
+    throw new Error('Paste not implemented for custom selection.')
+  }
+  args = args || {};
+  args.text = args.text || '';
+  let pasteDoc = args.doc;
+  
+  let inContainer = Boolean(sel.containerId);
+  
+  if (!sel.isCollapsed()) {
+    tx.deleteSelection();
+  }
+  
+  if (!pasteDoc) {
+    
+    if (!inContainer) {
+      tx.insertText(args.text);
+      return
+    
+    
+    } else {
+      pasteDoc = _convertPlainTextToDocument(tx, args);
+    }
+  }
+  
+  let snippet = pasteDoc.get(SNIPPET_ID);
+  let L = snippet.getLength();
+  if (L === 0) return
+  let first = snippet.getChildAt(0);
+  
+  if (!inContainer) {
+    
+    
+    if (L === 1) {
+      if (first.isText()) {
+        _pasteAnnotatedText(tx, pasteDoc);
+      }
+    } else {
+      pasteDoc = _convertIntoAnnotatedText(tx, pasteDoc);
+      _pasteAnnotatedText(tx, pasteDoc);
+    }
+  } else {
+    if (first.isText()) {
+      _pasteAnnotatedText(tx, pasteDoc);
+      
+      
+      
+      snippet.hideAt(0);
+      L--;
+    }
+    
+    if (L > 0) {
+      _pasteDocument(tx, pasteDoc);
+    }
+  }
+  return args
+}
+
+
+function _convertPlainTextToDocument (tx, args) {
+  let lines = args.text.split(/\s*\n\s*\n/);
+  let pasteDoc = tx.getDocument().newInstance();
+  let defaultTextType = pasteDoc.getSchema().getDefaultTextType();
+  let container = pasteDoc.create({
+    type: '@container',
+    id: SNIPPET_ID,
+    nodes: []
+  });
+  let node;
+  if (lines.length === 1) {
+    node = pasteDoc.create({
+      id: TEXT_SNIPPET_ID,
+      type: defaultTextType,
+      content: lines[0]
+    });
+    container.show(node.id);
+  } else {
+    for (let i = 0; i < lines.length; i++) {
+      node = pasteDoc.create({
+        id: uuid(defaultTextType),
+        type: defaultTextType,
+        content: lines[i]
+      });
+      container.show(node.id);
+    }
+  }
+  return pasteDoc
+}
+
+function _convertIntoAnnotatedText (tx, copy) {
+  let sel = tx.selection;
+  let path = sel.start.path;
+  let snippet = tx.createSnippet();
+  let defaultTextType = snippet.getSchema().getDefaultTextType();
+
+  
+  let container = copy.get('snippet');
+  let nodeIds = container.getContent();
+  
+  let fragments = [];
+  let offset = 0;
+  let annos = [];
+  for (let nodeId of nodeIds) {
+    let node = copy.get(nodeId);
+    if (node.isText()) {
+      let text = node.getText();
+      if (fragments.length > 0) {
+        fragments.push(' ');
+        offset += 1;
+      }
+      
+      let _annos = map(node.getAnnotations(), anno => {
+        let data = anno.toJSON();
+        data.start.path = path.slice(0);
+        data.start.offset += offset;
+        data.end.offset += offset;
+        return data
+      });
+      fragments.push(text);
+      annos = annos.concat(_annos);
+      offset += text.length;
+    }
+  }
+  snippet.create({
+    id: TEXT_SNIPPET_ID,
+    type: defaultTextType,
+    content: fragments.join('')
+  });
+  annos.forEach(anno => snippet.create(anno));
+  snippet.getContainer().show(TEXT_SNIPPET_ID);
+  return snippet
+}
+
+function _pasteAnnotatedText (tx, copy) {
+  let sel = tx.selection;
+  const nodes = copy.get(SNIPPET_ID).nodes;
+  const firstId = nodes[0];
+  const first = copy.get(firstId);
+  const textPath = first.getPath();
+  const text = copy.get(textPath);
+  const annotations = copy.getIndex('annotations').get(textPath);
+  
+  let path = sel.start.path;
+  let offset = sel.start.offset;
+  tx.insertText(text);
+  let targetProp = tx.getProperty(path);
+  if (targetProp.isText()) {
+    
+    let annos = map(annotations);
+    
+    let allowedTypes = targetProp.targetTypes;
+    if (allowedTypes) {
+      annos = annos.filter(anno => allowedTypes.indexOf(anno.type) >= 0);
+    }
+    for (let anno of annos) {
+      let data = anno.toJSON();
+      data.start.path = path.slice(0);
+      data.start.offset += offset;
+      data.end.offset += offset;
+      
+      if (tx.get(data.id)) data.id = uuid(data.type);
+      tx.create(data);
+    }
+  }
+}
+
+function _pasteDocument (tx, pasteDoc) {
+  let sel = tx.selection;
+  let containerId = sel.containerId;
+  let container = tx.get(containerId);
+  let insertPos;
+  if (sel.isPropertySelection()) {
+    let startPath = sel.start.path;
+    let nodeId = sel.start.getNodeId();
+    let startPos = container.getPosition(nodeId, 'strict');
+    let text = tx.get(startPath);
+    
+    
+    if (text.length === 0) {
+      insertPos = startPos;
+      container.hide(nodeId);
+      deleteNode(tx, tx.get(nodeId));
+    } else if (text.length === sel.start.offset) {
+      insertPos = startPos + 1;
+    } else {
+      tx.break();
+      insertPos = startPos + 1;
+    }
+  } else if (sel.isNodeSelection()) {
+    let nodePos = container.getPosition(sel.getNodeId(), 'strict');
+    if (sel.isBefore()) {
+      insertPos = nodePos;
+    } else if (sel.isAfter()) {
+      insertPos = nodePos + 1;
+    } else {
+      throw new Error('Illegal state: the selection should be collapsed.')
+    }
+  }
+  
+  let nodeIds = pasteDoc.get(SNIPPET_ID).nodes;
+  let insertedNodes = [];
+  let visited = {};
+  let nodes = nodeIds.map(id => pasteDoc.get(id));
+
+  
+  let contentProperty = tx.getProperty(container.getContentPath());
+  let targetTypes = contentProperty.targetTypes;
+  
+  if (targetTypes && targetTypes.length > 0) {
+    nodes = nodes.filter(node => targetTypes.indexOf(node.type) >= 0);
+  }
+
+  for (let node of nodes) {
+    
+    
+    
+    
+    let newId = _transferWithDisambiguatedIds(node.getDocument(), tx, node.id, visited);
+    
+    node = tx.get(newId);
+    container.showAt(insertPos++, newId);
+    insertedNodes.push(node);
+  }
+
+  if (insertedNodes.length > 0) {
+    let lastNode = last$1(insertedNodes);
+    setCursor(tx, lastNode, containerId, 'after');
+  }
+}
+
 class Editing {
   
   annotate (tx, annotation) {
@@ -32557,11 +32462,11 @@ class Editing {
     
     
     if (sel.isPropertySelection()) {
-      if (!AnnotationClass.prototype._isAnnotation) {
+      if (!AnnotationClass.isAnnotation()) {
         throw new Error('Annotation can not be created for a selection.')
       }
     } else if (sel.isContainerSelection()) {
-      if (AnnotationClass.prototype._isPropertyAnnotation) {
+      if (AnnotationClass.isPropertyAnnotation()) {
         console.warn('NOT SUPPORTED YET: creating property annotations for a non collapsed container selection.');
       }
     }
@@ -33230,7 +33135,7 @@ class Editing {
       
       } else if (
         (annoStart >= startOffset && annoEnd < endOffset) ||
-        (anno._isInlineNode && annoStart >= startOffset && annoEnd <= endOffset)
+        (anno.isInlineNode() && annoStart >= startOffset && annoEnd <= endOffset)
       ) {
         tx.delete(anno.id);
       
@@ -33246,7 +33151,7 @@ class Editing {
         tx.update([anno.id, 'end'], { type: 'shift', value: startOffset - annoEnd + L });
       
       } else if (annoEnd === startOffset && !anno.constructor.autoExpandRight) ; else if (annoStart < startOffset && annoEnd >= endOffset) {
-        if (anno._isInlineNode) ; else {
+        if (anno.isInlineNode()) ; else {
           tx.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset + L });
         }
       } else {
@@ -33272,7 +33177,7 @@ class Editing {
     } else if (node.isList()) {
       this._breakListNode(tx, node, coor, container);
     } else {
-      throw new Error('Not supported')
+      console.error('FIXME: _breakNode() not supported for type', node.type);
     }
   }
 
@@ -33578,7 +33483,6 @@ class EditingInterface {
   constructor (doc, options = {}) {
     this._document = doc;
     this._selection = null;
-    
     this._impl = options.editing || new Editing();
     this._direction = null;
   }
@@ -33593,6 +33497,10 @@ class EditingInterface {
 
   get (...args) {
     return this._document.get(...args)
+  }
+
+  getProperty (...args) {
+    return this._document.getProperty(...args)
   }
 
   contains (id) {
@@ -33642,7 +33550,7 @@ class EditingInterface {
       sel = Selection.nullSelection;
     } else if (isPlainObject(sel)) {
       sel = this.createSelection(sel);
-    } else {
+    } else if (!sel.isNull()) {
       sel = augmentSelection(sel, this._selection);
     }
     this._selection = sel;
@@ -33784,1577 +33692,6 @@ class EditingInterface {
   }
 }
 
-class JSONConverter {
-  importDocument (doc, json) {
-    if (!json.nodes) {
-      throw new Error('Invalid JSON format.')
-    }
-    var schema = doc.getSchema();
-    if (json.schema && schema.name !== json.schema.name) {
-      throw new Error('Incompatible schema.')
-    }
-    
-    var nodes = json.nodes;
-    
-    
-    
-    doc.import(function (tx) {
-      forEach(nodes, function (node) {
-        
-        if (tx.get(node.id)) {
-          tx.delete(node.id);
-        }
-        tx.create(node);
-      });
-    });
-    return doc
-  }
-
-  exportDocument (doc) {
-    var schema = doc.getSchema();
-    var json = {
-      schema: {
-        name: schema.name
-      },
-      nodes: {}
-    };
-    forEach(doc.getNodes(), function (node) {
-      if (node._isDocumentNode) {
-        json.nodes[node.id] = node.toJSON();
-      }
-    });
-    return json
-  }
-}
-
-class ParentNodeHook {
-  constructor (doc) {
-    this.doc = doc;
-    
-    this.parents = {};
-    doc.data.on('operation:applied', this._onOperationApplied, this);
-  }
-
-  _onOperationApplied (op) {
-    const doc = this.doc;
-    let node = doc.get(op.path[0]);
-    let nodeSchema, hasOwnedProperties;
-    if (node) {
-      nodeSchema = node.getSchema();
-      hasOwnedProperties = nodeSchema.hasOwnedProperties();
-    }
-    
-    
-    switch (op.type) {
-      case 'create': {
-        if (hasOwnedProperties) {
-          nodeSchema.getOwnedProperties().forEach(p => {
-            let refs = node[p.name];
-            if (refs) {
-              this._setParent(node, refs);
-            }
-            this._setRegisteredParent(node);
-          });
-        }
-        break
-      }
-      case 'update': {
-        if (hasOwnedProperties) {
-          let propName = op.path[1];
-          if (nodeSchema.isOwned(propName)) {
-            let update = op.diff;
-            if (update.isDelete()) {
-              this._setParent(null, update.getValue());
-            } else {
-              this._setParent(node, update.getValue());
-            }
-          }
-        }
-        break
-      }
-      case 'set': {
-        if (hasOwnedProperties) {
-          let propName = op.path[1];
-          if (nodeSchema.isOwned(propName)) {
-            let oldValue = op.getOldValue();
-            let newValue = op.getValue();
-            
-            this._setParent(null, oldValue);
-            this._setParent(node, newValue);
-          }
-        }
-        break
-      }
-      default:
-        
-    }
-  }
-
-  _setParent (parent, ids) {
-    if (ids) {
-      if (isArray(ids)) {
-        ids.forEach(id => this.__setParent(parent, id));
-      } else {
-        this.__setParent(parent, ids);
-      }
-    }
-  }
-
-  __setParent (parent, id) {
-    
-    
-    
-    
-    
-    
-    this.parents[id] = parent;
-    let child = this.doc.get(id);
-    if (child) {
-      child.setParent(parent);
-    }
-  }
-
-  _setRegisteredParent (child) {
-    let parent = this.parents[child.id];
-    if (parent) {
-      child.setParent(parent);
-    }
-  }
-}
-
-ParentNodeHook.register = function (doc) {
-  return new ParentNodeHook(doc)
-};
-
-const converter = new JSONConverter();
-
-
-
-class Document extends EventEmitter {
-  
-  constructor (schema, ...args) {
-    super();
-
-    this.schema = schema;
-    
-    if (!schema) {
-      throw new Error('A document needs a schema for reflection.')
-    }
-
-    
-    this._ops = [];
-
-    this._initialize(...args);
-  }
-
-  _initialize () {
-    this.__id__ = uuid();
-    this.nodeFactory = new DocumentNodeFactory(this);
-    this.data = new IncrementalData(this.schema, this.nodeFactory);
-    
-    this.addIndex('type', new PropertyIndex('type'));
-    
-    this.addIndex('annotations', new AnnotationIndex());
-    
-    
-    
-    this.addIndex('container-annotations', new ContainerAnnotationIndex());
-    
-    
-    ParentNodeHook.register(this);
-  }
-
-  dispose () {
-    this.off();
-    this.data.off();
-  }
-
-  get id () {
-    return this.__id__
-  }
-
-  
-  getSchema () {
-    return this.schema
-  }
-
-  
-  contains (id) {
-    return this.data.contains(id)
-  }
-
-  
-  get (path, strict) {
-    return this.data.get(path, strict)
-  }
-
-  
-  getNodes () {
-    return this.data.getNodes()
-  }
-
-  getAnnotations (path) {
-    return this.getIndex('annotations').get(path)
-  }
-
-  
-  import (importer) {
-    try {
-      this.data._stopIndexing();
-      importer(this);
-      this.data._startIndexing();
-    } finally {
-      this.data.queue = [];
-      this.data._startIndexing();
-    }
-  }
-
-  
-  create (nodeData) {
-    if (!nodeData.id) {
-      nodeData.id = uuid(nodeData.type);
-    }
-    if (!nodeData.type) {
-      throw new Error('No node type provided')
-    }
-    const op = this._create(nodeData);
-    if (op) {
-      this._ops.push(op);
-      if (!this._isTransactionDocument) {
-        this._emitChange(op);
-      }
-      return this.get(nodeData.id)
-    }
-  }
-
-  createDefaultTextNode (text, dir) {
-    return this.create({
-      type: this.getSchema().getDefaultTextType(),
-      content: text || '',
-      direction: dir
-    })
-  }
-
-  
-  delete (nodeId) {
-    const node = this.get(nodeId);
-    const op = this._delete(nodeId);
-    if (op) {
-      this._ops.push(op);
-      if (!this._isTransactionDocument) {
-        this._emitChange(op);
-      }
-    }
-    return node
-  }
-
-  
-  set (path, value) {
-    const oldValue = this.get(path);
-    const op = this._set(path, value);
-    if (op) {
-      this._ops.push(op);
-      if (!this._isTransactionDocument) {
-        this._emitChange(op);
-      }
-    }
-    return oldValue
-  }
-
-  
-  update (path, diff) {
-    const op = this._update(path, diff);
-    if (op) {
-      this._ops.push(op);
-      if (!this._isTransactionDocument) {
-        this._emitChange(op);
-      }
-    }
-    return op
-  }
-
-  
-  updateNode (id, newProps) {
-    let node = this.get(id);
-    forEach(newProps, (value, key) => {
-      if (!isEqual(node[key], newProps[key])) {
-        this.set([id, key], value);
-      }
-    });
-  }
-
-  
-  addIndex (name, index) {
-    return this.data.addIndex(name, index)
-  }
-
-  
-  getIndex (name) {
-    return this.data.getIndex(name)
-  }
-
-  
-  createSelection (data) {
-    let sel;
-    if (isNil(data)) return Selection.nullSelection
-    if (arguments.length !== 1 || !isPlainObject(data)) {
-      throw new Error('Illegal argument: call createSelection({ type: ... }')
-    } else {
-      switch (data.type) {
-        case 'property': {
-          if (isNil(data.endOffset)) {
-            data.endOffset = data.startOffset;
-          }
-          if (!data.hasOwnProperty('reverse')) {
-            if (data.startOffset > data.endOffset) {
-              [data.startOffset, data.endOffset] = [data.endOffset, data.startOffset];
-              data.reverse = !data.reverse;
-            }
-          }
-          
-          let text = this.get(data.path, 'strict');
-          if (data.startOffset < 0 || data.startOffset > text.length) {
-            throw new Error('Invalid startOffset: target property has length ' + text.length + ', given startOffset is ' + data.startOffset)
-          }
-          if (data.endOffset < 0 || data.endOffset > text.length) {
-            throw new Error('Invalid startOffset: target property has length ' + text.length + ', given endOffset is ' + data.endOffset)
-          }
-          sel = new PropertySelection(data);
-          break
-        }
-        case 'container': {
-          let container = this.get(data.containerId, 'strict');
-          if (!container) throw new Error('Can not create ContainerSelection: container "' + data.containerId + '" does not exist.')
-          let start = this._normalizeCoor({ path: data.startPath, offset: data.startOffset });
-          let end = this._normalizeCoor({ path: data.endPath, offset: data.endOffset });
-          let startAddress = container.getAddress(start);
-          let endAddress = container.getAddress(end);
-          if (!startAddress) {
-            throw new Error('Invalid arguments for ContainerSelection: ', start.toString())
-          }
-          if (!endAddress) {
-            throw new Error('Invalid arguments for ContainerSelection: ', end.toString())
-          }
-          if (!data.hasOwnProperty('reverse')) {
-            if (endAddress.isBefore(startAddress, 'strict')) {
-              [start, end] = [end, start];
-              data.reverse = true;
-            }
-          }
-          sel = new ContainerSelection(container.id, start.path, start.offset, end.path, end.offset, data.reverse, data.surfaceId);
-          break
-        }
-        case 'node': {
-          sel = createNodeSelection({
-            doc: this,
-            nodeId: data.nodeId,
-            mode: data.mode,
-            containerId: data.containerId,
-            reverse: data.reverse,
-            surfaceId: data.surfaceId
-          });
-          break
-        }
-        case 'custom': {
-          sel = CustomSelection.fromJSON(data);
-          break
-        }
-        default:
-          throw new Error('Illegal selection type', data)
-      }
-    }
-    if (!sel.isNull()) {
-      sel.attach(this);
-    }
-    return sel
-  }
-
-  newInstance () {
-    var DocumentClass = this.constructor;
-    return new DocumentClass(this.schema)
-  }
-
-  
-  createSnippet () {
-    var snippet = this.newInstance();
-    var snippetContainer = snippet.create({
-      type: '@container',
-      id: SNIPPET_ID
-    });
-    snippet.getContainer = function () {
-      return snippetContainer
-    };
-    return snippet
-  }
-
-  createFromDocument (doc) {
-    
-    this.clear();
-
-    
-    
-    
-    
-    
-    
-    
-    let nodes = Object.values(doc.getNodes());
-    let levels = {};
-    let visited = new Set();
-    nodes.forEach(n => {
-      if (!visited.has(n)) this._computeDependencyLevel(n, levels, visited);
-    });
-    
-    nodes.sort((a, b) => {
-      return levels[b.id] - levels[a.id]
-    });
-    nodes.forEach(n => this.create(n));
-    return this
-  }
-
-  _computeDependencyLevel (node, levels, visited) {
-    if (!node) throw new Error('node was nil')
-    if (visited.has(node)) throw new Error('Cyclic node dependency')
-    visited.add(node);
-    
-    
-    
-    let level = 0;
-    if (node.isAnnotation() || node.isInline()) {
-      level = -1;
-    } else {
-      let parent = node.getParent();
-      if (parent) {
-        let parentLevel;
-        if (levels.hasOwnProperty(parent.id)) {
-          parentLevel = levels[parent.id];
-        } else {
-          parentLevel = this._computeDependencyLevel(parent, levels, visited);
-        }
-        level = parentLevel + 1;
-      }
-    }
-    levels[node.id] = level;
-    return level
-  }
-
-  
-  toJSON () {
-    return converter.exportDocument(this)
-  }
-
-  clone () {
-    let copy = this.newInstance();
-    copy.createFromDocument(this);
-    return copy
-  }
-
-  clear () {
-    this.data.clear();
-    this._ops.length = 0;
-  }
-
-  
-  createEditingInterface () {
-    return new EditingInterface(this)
-  }
-
-  invert (change) {
-    return change.invert()
-  }
-
-  _apply (documentChange) {
-    forEach(documentChange.ops, (op) => {
-      this._applyOp(op);
-    });
-    
-    documentChange._extractInformation(this);
-  }
-
-  _applyOp (op) {
-    this.data.apply(op);
-    this.emit('operation:applied', op);
-  }
-
-  _create (nodeData) {
-    return this.data.create(nodeData)
-  }
-
-  _delete (nodeId) {
-    return this.data.delete(nodeId)
-  }
-
-  _set (path, value) {
-    return this.data.set(path, value)
-  }
-
-  _update (path, diff) {
-    return this.data.update(path, diff)
-  }
-
-  _emitChange (op) {
-    const change = new DocumentChange([op], {}, {});
-    change._extractInformation(this);
-    this._notifyChangeListeners(change, { hidden: true });
-  }
-
-  _notifyChangeListeners (change, info) {
-    info = info || {};
-    this.emit('document:changed', change, info, this);
-  }
-
-  
-  _createSelectionFromRange (range) {
-    if (!range) return Selection.nullSelection
-    let inOneNode = isEqual(range.start.path, range.end.path);
-    if (inOneNode) {
-      if (range.start.isNodeCoordinate()) {
-        
-        
-        return new NodeSelection(range.containerId, range.start.getNodeId(), 'full', range.reverse, range.surfaceId)
-      } else {
-        return this.createSelection({
-          type: 'property',
-          path: range.start.path,
-          startOffset: range.start.offset,
-          endOffset: range.end.offset,
-          reverse: range.reverse,
-          containerId: range.containerId,
-          surfaceId: range.surfaceId
-        })
-      }
-    } else {
-      return this.createSelection({
-        type: 'container',
-        startPath: range.start.path,
-        startOffset: range.start.offset,
-        endPath: range.end.path,
-        endOffset: range.end.offset,
-        reverse: range.reverse,
-        containerId: range.containerId,
-        surfaceId: range.surfaceId
-      })
-    }
-  }
-
-  _normalizeCoor ({ path, offset }) {
-    
-    if (path.length === 1) {
-      let node = this.get(path[0]).getContainerRoot();
-      if (node.isText()) {
-        
-        return new Coordinate(node.getPath(), offset === 0 ? 0 : node.getLength())
-      } else if (node.isList()) {
-        
-        if (offset === 0) {
-          let item = node.getItemAt(0);
-          return new Coordinate(item.getPath(), 0)
-        } else {
-          let item = this.get(last$1(node.items));
-          return new Coordinate(item.getPath(), item.getLength())
-        }
-      }
-    }
-    return new Coordinate(path, offset)
-  }
-}
-
-Document.prototype._isDocument = true;
-
-class XMLParentNodeHook {
-  constructor (doc) {
-    this.doc = doc;
-    
-    this.parents = {};
-    doc.data.on('operation:applied', this._onOperationApplied, this);
-  }
-
-  _onOperationApplied (op) {
-    const doc = this.doc;
-    const parents = this.parents;
-    let node = doc.get(op.path[0]);
-    switch (op.type) {
-      case 'create': {
-        if (node._childNodes) {
-          _setParent(node, node._childNodes);
-        }
-        _setRegisteredParent(node);
-        break
-      }
-      case 'update': {
-        
-        
-        let update = op.diff;
-        if (op.path[1] === '_childNodes') {
-          if (update.isInsert()) {
-            _setParent(node, update.getValue());
-          } else if (update.isDelete()) {
-            _setParent(null, update.getValue());
-          }
-        }
-        break
-      }
-      case 'set': {
-        if (op.path[1] === '_childNodes') {
-          _setParent(null, op.getOldValue());
-          _setParent(node, op.getValue());
-        }
-        break
-      }
-      default:
-        
-    }
-
-    function _setParent (parent, ids) {
-      if (ids) {
-        if (isArray(ids)) {
-          ids.forEach(_set);
-        } else {
-          _set(ids);
-        }
-      }
-      function _set (id) {
-        
-        
-        
-        parents[id] = parent;
-        let child = doc.get(id);
-        if (child) {
-          child.parentNode = parent;
-        }
-      }
-    }
-    function _setRegisteredParent (child) {
-      let parent = parents[child.id];
-      if (parent) {
-        child.parentNode = parent;
-      }
-    }
-  }
-
-  static register (doc) {
-    return new XMLParentNodeHook(doc)
-  }
-}
-
-class XMLEditingInterface extends EditingInterface {
-  find (cssSelector) {
-    return this.getDocument().find(cssSelector)
-  }
-
-  findAll (cssSelector) {
-    return this.getDocument().findAll(cssSelector)
-  }
-
-  createElement (...args) {
-    return this.getDocument().createElement(...args)
-  }
-}
-
-class XMLDocument extends Document {
-  _initialize () {
-    this.nodeFactory = new DocumentNodeFactory(this);
-    this.data = new IncrementalData(this.schema, this.nodeFactory);
-    
-    this.addIndex('type', new PropertyIndex('type'));
-    
-    this.addIndex('annotations', new AnnotationIndex());
-    XMLParentNodeHook.register(this);
-  }
-
-  toXML () {
-    let dom = DefaultDOMElement.createDocument('xml');
-    dom.setDoctype(...this.getDocTypeParams());
-    let xml = dom.createProcessingInstruction('xml', 'version="1.0" encoding="UTF-8"');
-    dom.insertAt(0, xml);
-    let rootElement = this.getRootNode().toXML();
-    dom.append(rootElement);
-    return dom
-  }
-
-  getDocTypeParams () {
-    
-    throw new Error('This method is abstract')
-  }
-
-  getXMLSchema () {
-    
-    throw new Error('This method is abstract')
-  }
-
-  getRootNode () {
-    
-    throw new Error('This method is abstract')
-  }
-
-  
-  getDocTypeAsString () {
-    return new Error('This method is abstract')
-  }
-
-  createEditingInterface () {
-    return new XMLEditingInterface(this)
-  }
-
-  find (cssSelector) {
-    return this.getRootNode().find(cssSelector)
-  }
-
-  findAll (cssSelector) {
-    return this.getRootNode().findAll(cssSelector)
-  }
-
-  createElement (tagName, data) {
-    let node = this.create(Object.assign({
-      id: uuid(tagName),
-      type: tagName
-    }, data));
-    return node
-  }
-
-  getElementSchema (type) {
-    return this.getXMLSchema().getElementSchema(type)
-  }
-
-  _validateChange (change) {
-    let changed = {};
-    let deleted = [];
-    change.ops.forEach((op) => {
-      switch (op.type) {
-        case 'delete': {
-          deleted.push(op.val.id);
-          break
-        }
-        case 'create': {
-          changed[op.val.id] = true;
-          break
-        }
-        default: {
-          if (op.path) {
-            changed[op.path[0]] = true;
-          }
-        }
-      }
-    });
-    
-    deleted.forEach(id => delete changed[id]);
-
-    const xmlSchema = this.getXMLSchema();
-    let errors = [];
-    Object.keys(changed).forEach((id) => {
-      let node = this.get(id);
-      let res = xmlSchema.validateElement(node);
-      if (!res.ok) {
-        errors = errors.concat(res.errors);
-      }
-    });
-    return {
-      ok: errors.length === 0,
-      errors
-    }
-  }
-
-  
-  _apply (documentChange) {
-    
-    if (!documentChange.ops) return
-
-    let created = {};
-    let deleted = {};
-    let updated = {};
-
-    const doc = this;
-
-    function _recordUpdate (id, op) {
-      let record = updated[id];
-      if (!record) {
-        record = updated[id] = { ops: [] };
-      }
-      if (op) record.ops.push(op);
-      return record
-    }
-
-    
-    function _checkAnnotation (op) {
-      
-      switch (op.type) {
-        case 'create':
-        case 'delete': {
-          const annoData = op.val;
-          if (annoData.hasOwnProperty('start')) {
-            updated[annoData.start.path] = true;
-            let node = doc.get(annoData.start.path[0]);
-            if (node) {
-              _recordUpdate(node.id, op);
-            }
-          }
-          if (annoData.hasOwnProperty('end')) {
-            updated[annoData.end.path] = true;
-            let node = doc.get(annoData.start.path[0]);
-            if (node) {
-              _recordUpdate(node.id, op);
-            }
-          }
-          break
-        }
-        case 'update':
-        case 'set': {
-          let anno = doc.get(op.path[0]);
-          if (anno) {
-            if (anno.isPropertyAnnotation()) {
-              updated[anno.start.path] = true;
-              let node = doc.get(anno.start.path[0]);
-              if (node) {
-                _recordUpdate(node.id, op);
-              }
-            } else if (anno.isContainerAnnotation()) ;
-          }
-          break
-        }
-        default:
-          
-      }
-    }
-
-    documentChange.ops.forEach((op) => {
-      
-      
-      
-      switch (op.type) {
-        case 'create': {
-          created[op.path[0]] = op.val;
-          break
-        }
-        case 'delete': {
-          let node = this.get(op.path[0]);
-          deleted[node.id] = node;
-          break
-        }
-        case 'update':
-        case 'set': {
-          updated[op.path] = true;
-          let node = this.get(op.path[0]);
-          _recordUpdate(node.id, op);
-          break
-        }
-        default:
-          
-      }
-      
-      _checkAnnotation(op);
-
-      this._applyOp(op);
-    });
-    
-    Object.keys(deleted).forEach((id) => {
-      delete updated[id];
-    });
-    documentChange.created = created;
-    documentChange.updated = updated;
-    documentChange.deleted = deleted;
-    documentChange._extracted = true;
-  }
-}
-
-XMLDocument.prototype._isXMLDocument = true;
-
-class ManifestDocument extends XMLDocument {
-
-  getRootNode() {
-    if (!this.root) {
-      let nodes = this.getNodes();
-      let ids = Object.keys(nodes);
-      for (var i = 0; i < ids.length; i++) {
-        let node = nodes[ids[i]];
-        if (node.type === 'dar') {
-          this.root = node;
-        }
-      }
-    }
-    return this.root
-  }
-
-  getDocTypeParams() {
-    return ManifestSchema.getDocTypeParams()
-  }
-
-  getXMLSchema() {
-    return ManifestSchema
-  }
-
-  getDocumentNodes() {
-    return this.findAll('documents > document')
-  }
-
-  getAssetNodes() {
-    return this.findAll('assets > asset')
-  }
-
-  getDocumentEntries() {
-    let documents = this.findAll('documents > document');
-    return documents.map(_getEntryFromDocumentNode)
-  }
-
-  getDocumentEntry(id) {
-    let entryNode = this.get(id);
-    if (entryNode && entryNode.type === 'document') {
-      return _getEntryFromDocumentNode(entryNode)
-    }
-  }
-
-}
-
-function _getEntryFromDocumentNode(documentNode) {
-  return Object.assign({ id: documentNode.id }, documentNode.getAttributes())
-}
-
-function loadManifest(xmlStr) {
-  let configurator = new Configurator();
-  registerSchema(configurator, ManifestSchema, ManifestDocument, {
-    ImporterClass: XMLDocumentImporter
-  });
-  let importer = configurator.createImporter(ManifestSchema.getName());
-  let manifest = importer.importDocument(xmlStr);
-  let editorSession = new EditorSession(manifest, { configurator });
-  return editorSession
-}
-
-const path = {
-  join(p1, p2) { return p1+'/'+p2 }
-};
-
-class VfsLoader {
-
-  constructor(vfs, loaders) {
-    this.vfs = vfs;
-    this.loaders = loaders;
-  }
-
-  load(rdcUri) {
-    const vfs = this.vfs;
-    return new Promise((resolve, reject) => {
-      let manifestPath = path.join(rdcUri, 'manifest.xml');
-      let manifestXml;
-      try {
-        manifestXml = vfs.readFileSync(manifestPath);
-      } catch (err) {
-        return reject(err)
-      }
-      let manifest, manifestEditorSession;
-      try {
-        let {editorSession} = loadManifest(manifestXml);
-        manifest = editorSession.getDocument();
-        manifestEditorSession = editorSession;
-      } catch (err) {
-        return reject(err)
-      }
-      let sessions = {};
-      sessions['manifest'] = manifestEditorSession;
-      manifest.findAll('container > documents > document').forEach((el) => {
-        let session;
-        session = this._loadDocument(rdcUri, el);
-        sessions[el.id] = session;
-      });
-      let dc = new DocumentArchive(sessions);
-      resolve(dc);
-    })
-  }
-
-  _loadDocument(rdcUri, el) {
-    const vfs = this.vfs;
-    const type = el.attr('type');
-    const relPath = el.attr('path');
-    let uri = path.join(rdcUri, relPath);
-    let content = vfs.readFileSync(uri);
-    let loader = this.loaders[type];
-    return loader.load(content)
-  }
-
-}
-
-var ManifestLoader = {
-  load(manifestXml) {
-    return loadManifest(manifestXml)
-  }
-}
-
-class PersistedDocumentArchive extends EventEmitter {
-
-  constructor(storage, buffer) {
-    super();
-    this.storage = storage;
-    this.buffer = buffer;
-
-    this._archiveId = null;
-    this._upstreamArchive = null;
-    this._sessions = null;
-    this._pendingFiles = {};
-  }
-
-  hasPendingChanges() {
-    return this.buffer.hasPendingChanges()
-  }
-
-  createFile(file) {
-    let assetId = uuid();
-    let fileExtension = last$1(file.name.split('.'));
-    let filePath = `${assetId}.${fileExtension}`;
-    this._sessions.manifest.transaction(tx => {
-      let assets = tx.find('assets');
-      let asset = tx.createElement('asset', { id: assetId }).attr({
-        path: filePath,
-        type: file.type
-      });
-      assets.appendChild(asset);
-    });
-    this.buffer.addBlob(assetId, {
-      id: assetId,
-      path: filePath,
-      blob: file
-    });
-    this._pendingFiles[filePath] = URL.createObjectURL(file);
-    return filePath
-  }
-
-  
-  _addDocumentRecord(documentId, type, name, path) {
-    this._sessions.manifest.transaction(tx => {
-      let documents = tx.find('documents');
-      let docEntry = tx.createElement('document', { id: documentId }).attr({
-        name: name,
-        path: path,
-        type: type
-      });
-      documents.appendChild(docEntry);
-    });
-  }
-
-  addDocument(type, name, xml) {
-    let documentId = uuid();
-    let sessions = this._sessions;
-    let session = this._loadDocument(type, { data: xml }, sessions);
-    sessions[documentId] = session;
-
-    this._registerForSessionChanges(session, documentId);
-
-    this._addDocumentRecord(documentId, type, name, documentId+'.xml');
-
-    return documentId
-  }
-
-  removeDocument(documentId) {
-    let session = this._sessions[documentId];
-    this._unregisterFromSession(session);
-    this._sessions.manifest.transaction(tx => {
-      let documents = tx.find('documents');
-      let docEntry = tx.find(`#${documentId}`);
-      documents.removeChild(docEntry);
-    });
-  }
-
-  renameDocument(documentId, name) {
-    this._sessions.manifest.transaction(tx => {
-      let docEntry = tx.find(`#${documentId}`);
-      docEntry.attr({name});
-    });
-  }
-
-  getDocumentEntries() {
-    return this.getEditorSession('manifest').getDocument().getDocumentEntries()
-  }
-
-  resolveUrl(path) {
-    let blobUrl = this._pendingFiles[path];
-    if (blobUrl) {
-      return blobUrl
-    } else {
-      let fileRecord = this._upstreamArchive.resources[path];
-      if (fileRecord && fileRecord.encoding === 'url') {
-        return fileRecord.data
-      }
-    }
-  }
-
-  load(archiveId) {
-    const storage = this.storage;
-    const buffer = this.buffer;
-
-    let upstreamArchive;
-    return Promise.resolve()
-    .then(() => {
-      return storage.read(archiveId)
-    })
-    .then((res) => {
-      upstreamArchive = res;
-      return buffer.load()
-    })
-    .then(() => {
-      
-      
-      
-      
-      if (!buffer.hasPendingChanges()) {
-        let localVersion = buffer.getVersion();
-        let upstreamVersion = upstreamArchive.version;
-        if (localVersion && upstreamVersion && localVersion !== upstreamVersion) {
-          
-          
-          console.error('Upstream document has changed. Discarding local changes');
-          this.buffer.reset(upstreamVersion);
-        } else {
-          buffer.reset(upstreamVersion);
-        }
-      }
-    })
-    .then(() => {
-      
-      let sessions = this._ingest(upstreamArchive);
-      
-      if (!sessions['manifest']) {
-        throw new Error('There must be a manifest session.')
-      }
-      
-      if (!buffer.hasPendingChanges()) ; else {
-        buffer.reset(upstreamArchive.version);
-      }
-      
-      this._registerForAllChanges(sessions);
-
-      this._archiveId = archiveId;
-      this._upstreamArchive = upstreamArchive;
-      this._sessions = sessions;
-
-      
-      this._repair();
-      return this
-    })
-  }
-
-  _repair() {
-    
-  }
-
-  save() {
-    if (!this.buffer.hasPendingChanges()) {
-      console.info('Save: no pending changes.');
-      return Promise.resolve()
-    }
-    return this._save(this._archiveId)
-  }
-
-  
-  saveAs(newArchiveId) {
-    return this.storage.clone(this._archiveId, newArchiveId).then(() => {
-      return this._save(newArchiveId)
-    })
-  }
-
-  getEditorSession(docId) {
-    return this._sessions[docId]
-  }
-
-  _loadManifest(record) {
-    if (!record) {
-      throw new Error('manifest.xml is missing')
-    }
-    return ManifestLoader.load(record.data)
-  }
-
-  _registerForAllChanges(sessions) {
-    forEach(sessions, (session, docId) => {
-      this._registerForSessionChanges(session, docId);
-    });
-  }
-
-  _registerForSessionChanges(session, docId) {
-    session.onUpdate('document', (change) => {
-      this.buffer.addChange(docId, change);
-      
-      this.emit('archive:changed');
-    }, this);
-  }
-
-  _unregisterFromSession(session) {
-    session.off(this);
-  }
-
-  
-  _save(archiveId) {
-    const buffer = this.buffer;
-    const storage = this.storage;
-    const sessions = this._sessions;
-
-    let rawArchive = this._exportChanges(sessions, buffer);
-
-    
-    
-    
-    
-    
-    
-    return storage.write(archiveId, rawArchive).then(res => {
-      
-      
-      res = JSON.parse(res);
-      
-      buffer.reset(res.version);
-
-      
-      this._archiveId = archiveId;
-    }).catch(err => {
-      console.error('Saving failed.', err);
-    })
-  }
-
-  _exportAssets(sessions, buffer, rawArchive) {
-    let manifest = sessions.manifest.getDocument();
-    let assetNodes = manifest.getAssetNodes();
-    assetNodes.forEach(node => {
-      let id = node.attr('id');
-      if (!buffer.hasBlob(id)) return
-      let path = node.attr('path') || id;
-      let blobRecord = buffer.getBlob(id);
-      rawArchive.resources[path] = {
-        id,
-        data: blobRecord.blob,
-        encoding: 'blob',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-    });
-  }
-
-  
-  _exportChanges(sessions, buffer) {
-    let rawArchive = {
-      version: buffer.getVersion(),
-      diff: buffer.getChanges(),
-      resources: {}
-    };
-    this._exportManifest(sessions, buffer, rawArchive);
-    this._exportDocuments(sessions, buffer, rawArchive);
-    this._exportAssets(sessions, buffer, rawArchive);
-    return rawArchive
-  }
-
-}
-
-function sendRequest (params, cb) {
-  return new Promise(function (resolve, reject) {
-    var method = (params.method || 'GET').toUpperCase();
-    var url = params.url;
-    if (['GET', 'POST', 'PUT', 'DELETE'].indexOf(method) < 0) {
-      throw new Error("Parameter 'method' must be 'GET', 'POST', 'PUT', or 'DELETE'.")
-    }
-    if (!url) {
-      throw new Error("Parameter 'url' is required.")
-    }
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.onreadystatechange = function () {
-      
-      
-      if (xmlhttp.readyState === 4) return _done()
-    };
-    xmlhttp.open(method, url, true);
-    if (params.header) {
-      forEach(params.header, function (val, key) {
-        xmlhttp.setRequestHeader(key, val);
-      });
-    }
-    if (params.data instanceof FormData) { 
-      xmlhttp.send(params.data);
-    } else if (params.data) {
-      xmlhttp.send(JSON.stringify(params.data));
-    } else {
-      xmlhttp.send();
-    }
-
-    function _done () {
-      if (xmlhttp.status === 200) {
-        var response = xmlhttp.responseText;
-        if (cb) cb(null, response);
-        resolve(response);
-      } else {
-        console.error(xmlhttp.statusText);
-        let err = new Error(xmlhttp.statusText);
-        if (cb) cb(err);
-        reject(err);
-      }
-    }
-  })
-}
-
-class HttpStorageClient {
-
-  constructor(apiUrl) {
-    this.apiUrl = apiUrl;
-  }
-
-  
-  read(archiveId) {
-    let url = this.apiUrl;
-    if (archiveId) {
-      url = url + '/' + archiveId;
-    }
-    return sendRequest({
-      method: 'GET',
-      url
-    }).then(response => {
-      return JSON.parse(response)
-    })
-  }
-
-  write(archiveId, data) {
-    let form = new FormData();
-    forEach(data.resources, (record, filePath) => {
-      if (record.encoding === 'blob') {
-        
-        form.append(record.id, record.data, filePath);
-        delete record.data;
-      }
-    });
-    form.append('_archive', JSON.stringify(data));
-    let url = this.apiUrl;
-    if (archiveId) {
-      url = url + '/' + archiveId;
-    }
-    return sendRequest({
-      method: 'PUT',
-      url,
-      data: form
-    })
-  }
-
-}
-
-class InMemoryDarBuffer {
-
-  constructor() {
-    this._version = null;
-    this._changes = [];
-    this._isDirty = {};
-    this._blobs = {};
-  }
-
-  getVersion() {
-    return this._version
-  }
-
-  load(archiveId) { 
-    return Promise.resolve()
-  }
-
-  addChange(docId, change) {
-    
-    if (change.ops.length === 0) return
-    
-    this._isDirty[docId] = true;
-    this._changes.push({
-      docId, change
-    });
-  }
-
-  hasPendingChanges() {
-    return this._changes.length > 0
-  }
-
-  getChanges() {
-    return this._changes.slice()
-  }
-
-  hasResourceChanged(docId) {
-    return this._isDirty[docId]
-  }
-
-  hasBlob(id) {
-    return this._blobs[id]
-  }
-
-  addBlob(id, blob) {
-    this._blobs[id] = blob;
-  }
-
-  getBlob(id) {
-    return this._blobs[id]
-  }
-
-  reset(version) {
-    this._version = version;
-    this._changes = [];
-    this._blobs = {};
-    this._isDirty = {};
-  }
-}
-
-class VfsStorageClient {
-
-  constructor(vfs, baseUrl) {
-    this.vfs = vfs;
-
-    
-    this.baseUrl = baseUrl;
-  }
-
-  read(archiveId) {
-    let rawArchive = _readRawArchive(this.vfs, archiveId, this.baseUrl);
-    return Promise.resolve(rawArchive)
-  }
-
-  write(archiveId, data) { 
-    console.error('Can not write on virtual file system');
-    console.info('This would have been written:', data);
-    return Promise.resolve(false)
-  }
-}
-
-function _readRawArchive(fs, archiveId, baseUrl = '') {
-  let manifestXML = fs.readFileSync(`${archiveId}/manifest.xml`);
-  let manifestSession = ManifestLoader.load(manifestXML);
-  let manifest = manifestSession.getDocument();
-  let docs = manifest.findAll('documents > document');
-  let assets = manifest.findAll('assets > asset');
-  let rawArchive = {
-    version: "0",
-    resources: {
-      'manifest.xml': {
-        encoding: 'utf8',
-        data: manifestXML
-      }
-    }
-  };
-
-  docs.forEach(entry => {
-    let path = entry.attr('path');
-    if (fs.existsSync(`${archiveId}/${entry.path}`)) {
-      let content = fs.readFileSync(`${archiveId}/${entry.path}`);
-      rawArchive.resources[path] = {
-        encoding: 'utf8',
-        data: content
-      };
-    } else {
-      console.warn(`${archiveId}/${entry.path} not found in vfs`);
-    }
-  });
-  assets.forEach(asset => {
-    let path = asset.attr('path');
-    
-    rawArchive.resources[path] = {
-      encoding: 'url',
-      data: baseUrl+archiveId+'/'+path
-    };
-  });
-  return rawArchive
-}
-
-function findParentDOMElement (nativeEl) {
-  while (nativeEl) {
-    let el = DefaultDOMElement.unwrap(nativeEl);
-    if (el) return el
-    nativeEl = nativeEl.parentNode;
-  }
-}
-
-function findParent (el, selector) {
-  while (el) {
-    if (el.is(selector)) return el
-    el = el.getParent();
-  }
-}
-
-function stop (event) {
-  event.stopPropagation();
-}
-
-function stopAndPrevent (event) {
-  event.stopPropagation();
-  event.preventDefault();
-}
-
-function walk (el, cb) {
-  _walk(el, cb, 0);
-}
-
-function _walk (el, cb, level) {
-  cb(el, level);
-  if (el.getChildCount() > 0) {
-    let it = el.getChildNodeIterator();
-    while (it.hasNext()) {
-      _walk(it.next(), cb, level + 1);
-    }
-  }
-}
-
-function isRightButton (event) {
-  let isRightButton = false;
-  if ('which' in event) {
-    isRightButton = (event.which === 3);
-  } else if ('button' in event) {
-    isRightButton = (event.button === 2);
-  }
-  return isRightButton
-}
-
-function getBoundingRect (el) {
-  let _rect = el.getNativeElement().getBoundingClientRect();
-  return {
-    top: _rect.top,
-    left: _rect.left,
-    height: _rect.height,
-    width: _rect.width
-  }
-}
-
-function getBoundingRectForRects (...rects) {
-  let top, left, bottom, right;
-  if (rects.length > 0) {
-    let first = rects[0];
-    top = first.top;
-    left = first.left;
-    bottom = top + first.height;
-    right = left + first.width;
-    for (let i = 1; i < rects.length; i++) {
-      let r = rects[i];
-      top = Math.min(top, r.top);
-      left = Math.min(left, r.left);
-      bottom = Math.max(bottom, r.top + r.height);
-      right = Math.max(right, r.left + r.width);
-    }
-  }
-  return {
-    top,
-    left,
-    right,
-    bottom,
-    height: bottom - top,
-    width: right - left
-  }
-}
-
-function isXInside (x, rect) {
-  return x >= rect.left && x <= rect.left + rect.width
-}
-
-function isYInside (y, rect) {
-  return y >= rect.top && y <= rect.top + rect.height
-}
-
-var domHelpers = /*#__PURE__*/Object.freeze({
-  findParentDOMElement: findParentDOMElement,
-  findParent: findParent,
-  stop: stop,
-  stopAndPrevent: stopAndPrevent,
-  walk: walk,
-  isRightButton: isRightButton,
-  getBoundingRect: getBoundingRect,
-  getBoundingRectForRects: getBoundingRectForRects,
-  isXInside: isXInside,
-  isYInside: isYInside
-});
-
-class BlockNode extends DocumentNode {}
-
-BlockNode.isBlock = true;
-
 class ChangeRecorder extends EditingInterface {
   constructor (doc) {
     super(doc.clone());
@@ -35385,7 +33722,7 @@ class DOMExporter {
       throw new Error('config.converters is mandatory')
     }
     if (!config.converters._isRegistry) {
-      this.converters = new Registry();
+      this.converters = new DeprecatedRegistry();
       config.converters.forEach(function (Converter) {
         let converter = isFunction$1(Converter) ? new Converter() : Converter;
         if (!converter.type) {
@@ -35509,7 +33846,14 @@ class DOMExporter {
 
     var annotator = new Fragmenter();
     annotator.onText = function (context, text) {
-      context.children.push(encodeXMLEntities(text));
+      if (text) {
+        
+        
+        if (self.config.ENCODE_ENTITIES_IN_TEXT) {
+          text = encodeXMLEntities(text);
+        }
+        context.children.push(text);
+      }
     };
     annotator.onEnter = function (fragment) {
       var anno = fragment.node;
@@ -35531,9 +33875,29 @@ class DOMExporter {
         el = this.$$('span');
       }
       el.attr(this.config.idAttribute, anno.id);
-      el.append(context.children);
-      if (converter.export) {
-        el = converter.export(anno, el, self) || el;
+      
+      
+      
+      
+      if (anno.isInlineNode()) {
+        if (converter.export) {
+          el = converter.export(anno, el, self) || el;
+        } else {
+          el = this.convertNode(anno) || el;
+        }
+      } else if (anno.isAnnotation()) {
+        
+        
+        if (converter.export) {
+          el = converter.export(anno, el, self) || el;
+          if (el.children.length) {
+            throw new Error('A converter for an annotation type must not convert children. The content of an annotation is owned by their TextNode.')
+          }
+        }
+        el.append(context.children);
+      } else {
+        
+        throw new Error('Illegal element type: only inline nodes and annotations are allowed within a TextNode')
       }
       parentContext.children.push(el);
     }.bind(this);
@@ -35614,6 +33978,49 @@ const defaultBlockConverter = {
   }
 };
 
+class JSONConverter {
+  importDocument (doc, json) {
+    if (!json.nodes) {
+      throw new Error('Invalid JSON format.')
+    }
+    var schema = doc.getSchema();
+    if (json.schema && schema.name !== json.schema.name) {
+      throw new Error('Incompatible schema.')
+    }
+    
+    var nodes = json.nodes;
+    
+    
+    
+    doc.import(function (tx) {
+      forEach(nodes, function (node) {
+        
+        if (tx.get(node.id)) {
+          tx.delete(node.id);
+        }
+        tx.create(node);
+      });
+    });
+    return doc
+  }
+
+  exportDocument (doc) {
+    var schema = doc.getSchema();
+    var json = {
+      schema: {
+        name: schema.name
+      },
+      nodes: {}
+    };
+    forEach(doc.getNodes(), function (node) {
+      if (node._isDocumentNode) {
+        json.nodes[node.id] = node.toJSON();
+      }
+    });
+    return json
+  }
+}
+
 class ClipboardExporter extends HTMLExporter {
   
   exportDocument (doc) {
@@ -35643,6 +34050,621 @@ class ClipboardExporter extends HTMLExporter {
     return this.convertContainer(content)
   }
 }
+
+function createCountingIdGenerator () {
+  var counters = {};
+  return function uuid (prefix) {
+    if (!counters.hasOwnProperty(prefix)) {
+      counters[prefix] = 1;
+    }
+    var result = [prefix, '-', counters[prefix]++].join('');
+    return result
+  }
+}
+
+const WS_LEFT = /^\s+/g;
+
+
+const WS_RIGHT = /\s+$/g;
+const WS_ALL = /\s+/g;
+
+
+const SPACE = ' ';
+const TABS_OR_NL = /[\t\n\r]+/g;
+
+const INVISIBLE_CHARACTER = '\u200B';
+
+
+class DOMImporter {
+  constructor (config, context) {
+    this.context = context || {};
+
+    if (!config.schema) {
+      throw new Error('"config.schema" is mandatory')
+    }
+    if (!config.converters) {
+      throw new Error('"config.converters" is mandatory')
+    }
+
+    this.config = Object.assign({ idAttribute: 'id' }, config);
+    this.schema = config.schema;
+    this.converters = config.converters;
+    this.state = null;
+
+    this._defaultBlockConverter = null;
+    this._allConverters = [];
+    this._blockConverters = [];
+    this._propertyAnnotationConverters = [];
+
+    this.state = new DOMImporter.State();
+
+    this._initialize();
+  }
+
+  
+  _initialize () {
+    const schema = this.schema;
+    const defaultTextType = schema.getDefaultTextType();
+    const converters = this.converters;
+    for (let i = 0; i < converters.length; i++) {
+      let converter;
+      if (typeof converters[i] === 'function') {
+        const Converter = converters[i];
+        converter = new Converter();
+      } else {
+        converter = converters[i];
+      }
+      if (!converter.type) {
+        throw new Error('Converter must provide the type of the associated node.')
+      }
+      if (!converter.matchElement && !converter.tagName) {
+        throw new Error('Converter must provide a matchElement function or a tagName property.')
+      }
+      if (!converter.matchElement) {
+        converter.matchElement = this._defaultElementMatcher.bind(converter);
+      }
+      const NodeClass = schema.getNodeClass(converter.type);
+      if (!NodeClass) {
+        throw new Error('No node type defined for converter')
+      }
+      if (!this._defaultBlockConverter && defaultTextType === converter.type) {
+        this._defaultBlockConverter = converter;
+      }
+      this._allConverters.push(converter);
+      
+      
+      
+      if (NodeClass.isPropertyAnnotation() || NodeClass.isInlineNode()) {
+        this._propertyAnnotationConverters.push(converter);
+      } else {
+        this._blockConverters.push(converter);
+      }
+    }
+  }
+
+  dispose () {
+    if (this.state.doc) {
+      this.state.doc.dispose();
+    }
+  }
+
+  
+  reset () {
+    if (this.state.doc) {
+      this.state.doc.dispose();
+    }
+    this.state.reset();
+    this.state.doc = this._createDocument();
+  }
+
+  getDocument () {
+    return this.state.doc
+  }
+
+  
+  convertContainer (elements, containerId) {
+    if (!this.state.doc) this.reset();
+    const state = this.state;
+    const iterator = new ArrayIterator(elements);
+    const nodeIds = [];
+    while (iterator.hasNext()) {
+      const el = iterator.next();
+      let node;
+      const blockTypeConverter = this._getConverterForElement(el, 'block');
+      if (blockTypeConverter) {
+        state.pushContext(el.tagName, blockTypeConverter);
+        let nodeData = this._createNodeData(el, blockTypeConverter.type);
+        nodeData = blockTypeConverter.import(el, nodeData, this) || nodeData;
+        node = this._createNode(nodeData);
+        let context = state.popContext();
+        context.annos.forEach((a) => {
+          this._createNode(a);
+        });
+      } else if (el.isCommentNode()) {
+        continue
+      } else {
+        
+        if (el.isTextNode() && /^\s*$/.exec(el.textContent)) continue
+        
+        
+        iterator.back();
+        node = this._wrapInlineElementsIntoBlockElement(iterator);
+      }
+      if (node) {
+        nodeIds.push(node.id);
+      }
+    }
+    return this._createNode({
+      type: '@container',
+      id: containerId,
+      nodes: nodeIds
+    })
+  }
+
+  
+  convertElement (el) {
+    if (!this.state.doc) this.reset();
+    let isTopLevel = !this.state.isConverting;
+    if (isTopLevel) {
+      this.state.isConverting = true;
+    }
+
+    let nodeData, annos;
+    const converter = this._getConverterForElement(el);
+    if (converter) {
+      const NodeClass = this.schema.getNodeClass(converter.type);
+      nodeData = this._createNodeData(el, converter.type);
+      this.state.pushContext(el.tagName, converter);
+      
+      
+      
+      
+      
+      if (NodeClass.isInlineNode()) {
+        nodeData = this._convertInlineNode(el, nodeData, converter);
+      } else if (NodeClass.isPropertyAnnotation()) {
+        nodeData = this._convertPropertyAnnotation(el, nodeData);
+      } else {
+        nodeData = converter.import(el, nodeData, this) || nodeData;
+      }
+      let context = this.state.popContext();
+      annos = context.annos;
+    } else {
+      throw new Error('No converter found for ' + el.tagName)
+    }
+    
+    const node = this._createNode(nodeData);
+    
+    annos.forEach((a) => {
+      this._createNode(a);
+    });
+
+    
+    
+    if (this.config['stand-alone'] && isTopLevel) {
+      this.state.isConverting = false;
+      this.reset();
+    }
+    return node
+  }
+
+  
+  annotatedText (el, path, options = {}) {
+    if (!path) {
+      throw new Error('path is mandatory')
+    }
+    const state = this.state;
+    const context = last$1(state.contexts);
+    
+    
+    if (!context) {
+      throw new Error('This should be called from within an element converter.')
+    }
+    
+    const oldPreserveWhitespace = state.preserveWhitespace;
+    if (options.preserveWhitespace) {
+      state.preserveWhitespace = true;
+    }
+    state.stack.push({ path: path, offset: 0, text: '', annos: [] });
+    
+    
+    
+    this.state.lastChar = '';
+    const iterator = this.getChildNodeIterator(el);
+    const text = this._annotatedText(iterator);
+    
+    
+    const top = state.stack.pop();
+    context.annos = context.annos.concat(top.annos);
+
+    
+    state.preserveWhitespace = oldPreserveWhitespace;
+
+    return text
+  }
+
+  
+  plainText (el) {
+    var state = this.state;
+    var text = el.textContent;
+    if (state.stack.length > 0) {
+      var context = last$1(state.stack);
+      context.offset += text.length;
+      context.text += context.text.concat(text);
+    }
+    return text
+  }
+
+  
+  _customText (text) {
+    var state = this.state;
+    if (state.stack.length > 0) {
+      var context = last$1(state.stack);
+      context.offset += text.length;
+      context.text += context.text.concat(text);
+    }
+    return text
+  }
+
+  
+  nextId (prefix) {
+    
+    
+    
+    
+    return this.state.uuid(prefix)
+  }
+
+  _getNextId (dom, type) {
+    let id = this.nextId(type);
+    while (this.state.ids[id] || dom.find('#' + id)) {
+      id = this.nextId(type);
+    }
+    return id
+  }
+
+  _getIdForElement (el, type) {
+    let id = el.getAttribute(this.config.idAttribute);
+    if (id && !this.state.ids[id]) return id
+    return this._getNextId(el.getOwnerDocument(), type)
+  }
+
+  
+  
+  _createDocument () {
+    
+    const schema = this.config.schema;
+    const DocumentClass = schema.getDocumentClass();
+    return new DocumentClass(schema)
+  }
+
+  _convertPropertyAnnotation (el, nodeData) {
+    const path = [nodeData.id, '_content'];
+    
+    
+    
+    nodeData._content = this.annotatedText(el, path);
+    nodeData.start = { path, offset: 0 };
+    nodeData.end = { offset: nodeData._content.length };
+    return nodeData
+  }
+
+  _convertInlineNode (el, nodeData, converter) {
+    const path = [nodeData.id, '_content'];
+    if (converter.import) {
+      nodeData = converter.import(el, nodeData, this) || nodeData;
+    }
+    nodeData._content = '$';
+    nodeData.start = { path, offset: 0 };
+    nodeData.end = { offset: 1 };
+    return nodeData
+  }
+
+  _createNodeData (el, type) {
+    if (!type) {
+      throw new Error('type is mandatory.')
+    }
+    let nodeData = {
+      type,
+      id: this._getIdForElement(el, type)
+    };
+    this.state.ids[nodeData.id] = true;
+    return nodeData
+  }
+
+  _createNode (nodeData) {
+    let doc = this.state.doc;
+    
+    
+    
+    let node = doc.get(nodeData.id);
+    if (node) {
+      
+      doc.delete(node.id);
+    }
+    return doc.create(nodeData)
+  }
+
+  getChildNodeIterator (el) {
+    return el.getChildNodeIterator()
+  }
+
+  _defaultElementMatcher (el) {
+    return el.is(this.tagName)
+  }
+
+  
+  _annotatedText (iterator) {
+    const state = this.state;
+    const context = last$1(state.stack);
+    
+    if (!context) {
+      throw new Error('Illegal state: context is null.')
+    }
+    while (iterator.hasNext()) {
+      var el = iterator.next();
+      var text = '';
+      
+      
+      if (el.isTextNode()) {
+        text = this._prepareText(el.textContent);
+        if (text.length) {
+          
+          
+          context.text = context.text.concat(text);
+          context.offset += text.length;
+        }
+      } else if (el.isCommentNode()) {
+        
+        continue
+      } else if (el.isElementNode()) {
+        const annoConverter = this._getConverterForElement(el, 'inline');
+        
+        if (!annoConverter) {
+          
+          if (!this.IGNORE_DEFAULT_WARNINGS) {
+            console.warn('Unsupported inline element. We will not create an annotation for it, but process its children to extract annotated text.', el.outerHTML);
+          }
+          
+          
+          const iterator = this.getChildNodeIterator(el);
+          this._annotatedText(iterator);
+          continue
+        }
+        
+        
+        
+        var startOffset = context.offset;
+        const annoType = annoConverter.type;
+        const AnnoClass = this.schema.getNodeClass(annoType);
+        if (!AnnoClass) {
+          throw new Error(`No Node class registered for type ${annoType}.`)
+        }
+        let annoData = this._createNodeData(el, annoType);
+        
+        let stackFrame = {
+          path: context.path,
+          offset: startOffset,
+          text: '',
+          annos: []
+        };
+        state.stack.push(stackFrame);
+        
+        if (annoConverter.import) {
+          state.pushContext(el.tagName, annoConverter);
+          annoData = annoConverter.import(el, annoData, this) || annoData;
+          state.popContext();
+        }
+        
+        
+        
+        
+        if (AnnoClass.isInlineNode()) {
+          this._customText(INVISIBLE_CHARACTER);
+          
+          
+          
+          state.lastChar = '';
+        } else {
+          
+          
+          
+          const iterator = this.getChildNodeIterator(el);
+          this._annotatedText(iterator);
+        }
+        
+        state.stack.pop();
+        context.offset = stackFrame.offset;
+        context.text = context.text.concat(stackFrame.text);
+        
+        const endOffset = context.offset;
+        annoData.start = {
+          path: context.path.slice(0),
+          offset: startOffset
+        };
+        annoData.end = {
+          offset: endOffset
+        };
+        
+        let parentFrame = last$1(state.stack);
+        parentFrame.annos = parentFrame.annos.concat(stackFrame.annos, annoData);
+      } else {
+        console.warn('Unknown element type. Taking plain text.', el.outerHTML);
+        text = this._prepareText(el.textContent);
+        context.text = context.text.concat(text);
+        context.offset += text.length;
+      }
+    }
+    
+    return context.text
+  }
+
+  _getConverterForElement (el, mode) {
+    var converters;
+    if (mode === 'block') {
+      if (!el.tagName) return null
+      converters = this._blockConverters;
+    } else if (mode === 'inline') {
+      converters = this._propertyAnnotationConverters;
+    } else {
+      converters = this._allConverters;
+    }
+    var converter = null;
+    for (var i = 0; i < converters.length; i++) {
+      if (this._converterCanBeApplied(converters[i], el)) {
+        converter = converters[i];
+        break
+      }
+    }
+    return converter
+  }
+
+  _converterCanBeApplied (converter, el) {
+    return converter.matchElement(el, this)
+  }
+
+  
+  _wrapInlineElementsIntoBlockElement (childIterator) {
+    if (!childIterator.hasNext()) return
+
+    const converter = this._defaultBlockConverter;
+    if (!converter) {
+      throw new Error('Wrapping inline elements automatically is not supported in this schema.')
+    }
+
+    let dom = childIterator.peek().getOwnerDocument();
+    let wrapper = dom.createElement('wrapper');
+    while (childIterator.hasNext()) {
+      const el = childIterator.next();
+      
+      const blockTypeConverter = this._getConverterForElement(el, 'block');
+      if (blockTypeConverter) {
+        childIterator.back();
+        break
+      }
+      wrapper.append(el.clone());
+    }
+    const type = this.schema.getDefaultTextType();
+    const id = this._getNextId(dom, type);
+    let nodeData = { type, id };
+    this.state.pushContext('wrapper', converter);
+    nodeData = converter.import(wrapper, nodeData, this) || nodeData;
+    let context = this.state.popContext();
+    let annos = context.annos;
+    
+    const node = this._createNode(nodeData);
+    
+    annos.forEach((a) => {
+      this._createNode(a);
+    });
+    return node
+  }
+
+  
+  
+  
+  
+  _prepareText (text) {
+    const state = this.state;
+    if (state.preserveWhitespace) {
+      return text
+    }
+    var repl = SPACE;
+    
+    text = text.replace(TABS_OR_NL, '');
+    
+    
+    
+    
+    
+    if (state.lastChar === SPACE) {
+      
+      text = text.replace(WS_LEFT, '');
+    } else {
+      text = text.replace(WS_LEFT, repl);
+    }
+    text = text.replace(WS_RIGHT, repl);
+    
+    
+    
+    if (this.config.REMOVE_INNER_WS || state.removeInnerWhitespace) {
+      text = text.replace(WS_ALL, SPACE);
+    }
+    state.lastChar = text[text.length - 1] || state.lastChar;
+    return text
+  }
+
+  
+  _trimTextContent (el) {
+    var nodes = el.getChildNodes();
+    var firstNode = nodes[0];
+    var lastNode = last$1(nodes);
+    var text, trimmed;
+    
+    if (firstNode && firstNode.isTextNode()) {
+      text = firstNode.textContent;
+      trimmed = this._trimLeft(text);
+      firstNode.textContent = trimmed;
+    }
+    if (lastNode && lastNode.isTextNode()) {
+      text = lastNode.textContent;
+      trimmed = this._trimRight(text);
+      lastNode.textContent = trimmed;
+    }
+    return el
+  }
+
+  _trimLeft (text) {
+    return text.replace(WS_LEFT, '')
+  }
+
+  _trimRight (text) {
+    return text.replace(WS_RIGHT, '')
+  }
+}
+
+class DOMImporterState {
+  constructor () {
+    this.reset();
+  }
+
+  reset () {
+    this.preserveWhitespace = false;
+    this.nodes = [];
+    this.annotations = [];
+    this.containerId = null;
+    this.container = [];
+    this.ids = {};
+    
+    this.contexts = [];
+    
+    this.stack = [];
+    this.lastChar = '';
+    this.skipTypes = {};
+    this.ignoreAnnotations = false;
+    this.isConverting = false;
+
+    
+    
+    this.uuid = createCountingIdGenerator();
+  }
+
+  pushContext (tagName, converter) {
+    this.contexts.push({ tagName: tagName, converter: converter, annos: [] });
+  }
+
+  popContext () {
+    return this.contexts.pop()
+  }
+
+  getCurrentContext () {
+    return last$1(this.contexts)
+  }
+}
+
+DOMImporter.State = DOMImporterState;
+
+DOMImporter.INVISIBLE_CHARACTER = INVISIBLE_CHARACTER;
 
 class HTMLImporter extends DOMImporter {
   constructor (config) {
@@ -35917,10 +34939,47 @@ class ContainerAdapter extends Container {
   get nodes () {
     return this.document.get(this.path)
   }
+
+  
+  get _isDocumentNode () { return false }
+
+  get _isContainer () { return false }
 }
 
-ContainerAdapter.prototype._isDocumentNode = false;
-ContainerAdapter.prototype._isContainer = false;
+class ContainerAnnotationIndex extends DocumentIndex {
+  constructor () {
+    super();
+    this.byId = new TreeIndex();
+  }
+
+  select (node) {
+    return node.isContainerAnnotation()
+  }
+
+  clear () {
+    this.byId.clear();
+  }
+
+  get (containerId, type) {
+    var annotations = map(this.byId.get(containerId));
+    if (isString(type)) {
+      annotations = filter(annotations, DocumentIndex.filterByType);
+    }
+    return annotations
+  }
+
+  create (anno) {
+    this.byId.set([anno.containerId, anno.id], anno);
+  }
+
+  delete (anno) {
+    this.byId.delete([anno.containerId, anno.id]);
+  }
+
+  update(node, path, newValue, oldValue) { 
+    
+  }
+}
 
 class CoordinateAdapter extends Coordinate {
   constructor (owner, pathProperty, offsetProperty) {
@@ -35985,6 +35044,348 @@ function createDocumentFactory (ArticleClass, create) {
       return [change.toJSON()]
     }
   }
+}
+
+class Data extends EventEmitter {
+  
+  constructor (schema, nodeFactory) {
+    super();
+
+    
+    if (!schema) {
+      throw new Error('schema is mandatory')
+    }
+    if (!nodeFactory) {
+      throw new Error('nodeFactory is mandatory')
+    }
+    
+
+    this.schema = schema;
+    this.nodeFactory = nodeFactory;
+    this.nodes = {};
+    this.indexes = {};
+
+    
+    
+    this.__QUEUE_INDEXING__ = false;
+    this.queue = [];
+  }
+
+  
+  contains (id) {
+    return Boolean(this.nodes[id])
+  }
+
+  
+  get (path, strict) {
+    let result = this._get(path);
+    if (strict && result === undefined) {
+      if (isString(path)) {
+        throw new Error("Could not find node with id '" + path + "'.")
+      } else if (!this.contains(path[0])) {
+        throw new Error("Could not find node with id '" + path[0] + "'.")
+      } else {
+        throw new Error("Property for path '" + path + "' us undefined.")
+      }
+    }
+    return result
+  }
+
+  _get (path) {
+    if (!path) return undefined
+    let result;
+    if (isString(path)) {
+      result = this.nodes[path];
+    } else if (path.length === 1) {
+      result = this.nodes[path[0]];
+    } else if (path.length > 1) {
+      let context = this.nodes[path[0]];
+      for (let i = 1; i < path.length - 1; i++) {
+        if (!context) return undefined
+        context = context[path[i]];
+      }
+      if (!context) return undefined
+      result = context[path[path.length - 1]];
+    }
+    return result
+  }
+
+  
+  getNodes () {
+    return this.nodes
+  }
+
+  
+  create (nodeData) {
+    var node = this.nodeFactory.create(nodeData.type, nodeData);
+    if (!node) {
+      throw new Error('Illegal argument: could not create node for data:', nodeData)
+    }
+    if (this.contains(node.id)) {
+      throw new Error('Node already exists: ' + node.id)
+    }
+    if (!node.id || !node.type) {
+      throw new Error('Node id and type are mandatory.')
+    }
+    this.nodes[node.id] = node;
+
+    var change = {
+      type: 'create',
+      node: node
+    };
+
+    if (this.__QUEUE_INDEXING__) {
+      this.queue.push(change);
+    } else {
+      this._updateIndexes(change);
+    }
+
+    return node
+  }
+
+  
+  delete (nodeId) {
+    var node = this.nodes[nodeId];
+    if (!node) return
+    node.dispose();
+    delete this.nodes[nodeId];
+
+    var change = {
+      type: 'delete',
+      node: node
+    };
+
+    if (this.__QUEUE_INDEXING__) {
+      this.queue.push(change);
+    } else {
+      this._updateIndexes(change);
+    }
+
+    return node
+  }
+
+  
+  set (path, newValue) {
+    let node = this.get(path[0]);
+    let oldValue = this._set(path, newValue);
+    var change = {
+      type: 'set',
+      node: node,
+      path: path,
+      newValue: newValue,
+      oldValue: oldValue
+    };
+    if (this.__QUEUE_INDEXING__) {
+      this.queue.push(change);
+    } else {
+      this._updateIndexes(change);
+    }
+    return oldValue
+  }
+
+  _set (path, newValue) {
+    let oldValue = _setValue(this.nodes, path, newValue);
+    return oldValue
+  }
+
+  
+  update (path, diff) {
+    var realPath = this.getRealPath(path);
+    if (!realPath) {
+      console.error('Could not resolve path', path);
+      return
+    }
+    let node = this.get(realPath[0]);
+    let oldValue = this._get(realPath);
+    let newValue;
+    if (diff.isOperation) {
+      newValue = diff.apply(oldValue);
+    } else {
+      diff = this._normalizeDiff(oldValue, diff);
+      if (isString(oldValue)) {
+        switch (diff.type) {
+          case 'delete': {
+            newValue = oldValue.split('').splice(diff.start, diff.end - diff.start).join('');
+            break
+          }
+          case 'insert': {
+            newValue = [oldValue.substring(0, diff.start), diff.text, oldValue.substring(diff.start)].join('');
+            break
+          }
+          default:
+            throw new Error('Unknown diff type')
+        }
+      } else if (isArray(oldValue)) {
+        newValue = oldValue.slice(0);
+        switch (diff.type) {
+          case 'delete': {
+            newValue.splice(diff.pos, 1);
+            break
+          }
+          case 'insert': {
+            newValue.splice(diff.pos, 0, diff.value);
+            break
+          }
+          default:
+            throw new Error('Unknown diff type')
+        }
+      } else if (oldValue._isCoordinate) {
+        switch (diff.type) {
+          case 'shift': {
+            
+            oldValue = { path: oldValue.path, offset: oldValue.offset };
+            newValue = oldValue;
+            newValue.offset += diff.value;
+            break
+          }
+          default:
+            throw new Error('Unknown diff type')
+        }
+      } else {
+        throw new Error('Diff is not supported:', JSON.stringify(diff))
+      }
+    }
+    this._set(realPath, newValue);
+
+    var change = {
+      type: 'update',
+      node: node,
+      path: realPath,
+      newValue: newValue,
+      oldValue: oldValue
+    };
+
+    if (this.__QUEUE_INDEXING__) {
+      this.queue.push(change);
+    } else {
+      this._updateIndexes(change);
+    }
+
+    return oldValue
+  }
+
+  
+  _normalizeDiff (value, diff) {
+    if (isString(value)) {
+      
+      if (diff['delete']) {
+        console.warn('DEPRECATED: use doc.update(path, {type:"delete", start:s, end: e}) instead');
+        diff = {
+          type: 'delete',
+          start: diff['delete'].start,
+          end: diff['delete'].end
+        };
+      } else if (diff['insert']) {
+        console.warn('DEPRECATED: use doc.update(path, {type:"insert", start:s, text: t}) instead');
+        diff = {
+          type: 'insert',
+          start: diff['insert'].offset,
+          text: diff['insert'].value
+        };
+      }
+    } else if (isArray(value)) {
+      
+      if (diff['delete']) {
+        console.warn('DEPRECATED: use doc.update(path, {type:"delete", pos:1}) instead');
+        diff = {
+          type: 'delete',
+          pos: diff['delete'].offset
+        };
+      } else if (diff['insert']) {
+        console.warn('DEPRECATED: use doc.update(path, {type:"insert", pos:1, value: "foo"}) instead');
+        diff = {
+          type: 'insert',
+          pos: diff['insert'].offset,
+          value: diff['insert'].value
+        };
+      }
+    } else if (value._isCoordinate) {
+      if (diff.hasOwnProperty('shift')) {
+        console.warn('DEPRECATED: use doc.update(path, {type:"shift", value:2}) instead');
+        diff = {
+          type: 'shift',
+          value: diff['shift']
+        };
+      }
+    }
+    return diff
+  }
+
+  
+  toJSON () {
+    let nodes = {};
+    forEach(this.nodes, (node) => {
+      nodes[node.id] = node.toJSON();
+    });
+    return {
+      schema: [this.schema.id, this.schema.version],
+      nodes: nodes
+    }
+  }
+
+  reset () {
+    this.clear();
+  }
+
+  
+  clear () {
+    this.nodes = {};
+    forEach(this.indexes, index => index.clear());
+  }
+
+  
+  addIndex (name, index) {
+    if (this.indexes[name]) {
+      console.error('Index with name %s already exists.', name);
+    }
+    index.reset(this);
+    this.indexes[name] = index;
+    return index
+  }
+
+  
+  getIndex (name) {
+    return this.indexes[name]
+  }
+
+  
+  _updateIndexes (change) {
+    if (!change || this.__QUEUE_INDEXING__) return
+    forEach(this.indexes, function (index) {
+      if (index.select(change.node)) {
+        if (!index[change.type]) {
+          console.error('Contract: every NodeIndex must implement ' + change.type);
+        }
+        index[change.type](change.node, change.path, change.newValue, change.oldValue);
+      }
+    });
+  }
+
+  
+  _stopIndexing () {
+    this.__QUEUE_INDEXING__ = true;
+  }
+
+  
+  _startIndexing () {
+    this.__QUEUE_INDEXING__ = false;
+    while (this.queue.length > 0) {
+      var change = this.queue.shift();
+      this._updateIndexes(change);
+    }
+  }
+}
+
+function _setValue (root, path, newValue) {
+  let ctx = root;
+  let L = path.length;
+  for (let i = 0; i < L - 1; i++) {
+    ctx = ctx[path[i]];
+    if (!ctx) throw new Error('Can not set value.')
+  }
+  let oldValue = ctx[path[L - 1]];
+  ctx[path[L - 1]] = newValue;
+  return oldValue
 }
 
 class DefaultChangeCompressor {
@@ -36121,6 +35522,780 @@ class DefaultFileProxy extends FileProxy {
   }
 }
 
+class PropertyIndex extends NodeIndex {
+  constructor (property) {
+    super();
+
+    this._property = property || 'id';
+    this.index = new TreeIndex();
+  }
+
+  
+  get (path) {
+    return this.index.get(path) || {}
+  }
+
+  
+  getAll (path) {
+    return this.index.getAll(path)
+  }
+
+  clear () {
+    this.index.clear();
+  }
+
+  
+  select(node) { 
+    return true
+  }
+
+  
+  create (node) {
+    var values = node[this._property];
+    if (!isArray(values)) {
+      values = [values];
+    }
+    forEach(values, function (value) {
+      this.index.set([value, node.id], node);
+    }.bind(this));
+  }
+
+  
+  delete (node) {
+    var values = node[this._property];
+    if (!isArray(values)) {
+      values = [values];
+    }
+    forEach(values, function (value) {
+      this.index.delete([value, node.id]);
+    }.bind(this));
+  }
+
+  
+  update (node, path, newValue, oldValue) {
+    if (!this.select(node) || path[1] !== this._property) return
+    var values = oldValue;
+    if (!isArray(values)) {
+      values = [values];
+    }
+    forEach(values, function (value) {
+      this.index.delete([value, node.id]);
+    }.bind(this));
+    values = newValue;
+    if (!isArray(values)) {
+      values = [values];
+    }
+    forEach(values, function (value) {
+      this.index.set([value, node.id], node);
+    }.bind(this));
+  }
+
+  set (node, path, newValue, oldValue) {
+    this.update(node, path, newValue, oldValue);
+  }
+
+  _initialize (data) {
+    forEach(data.getNodes(), function (node) {
+      if (this.select(node)) {
+        this.create(node);
+      }
+    }.bind(this));
+  }
+}
+
+class IncrementalData extends Data {
+  
+  create (nodeData) {
+    if (nodeData._isNode) {
+      nodeData = nodeData.toJSON();
+    }
+    let op = ObjectOperation.Create([nodeData.id], nodeData);
+    this.apply(op);
+    return op
+  }
+
+  
+  delete (nodeId) {
+    var op = null;
+    var node = this.get(nodeId);
+    if (node) {
+      var nodeData = node.toJSON();
+      op = ObjectOperation.Delete([nodeId], nodeData);
+      this.apply(op);
+    }
+    return op
+  }
+
+  
+  update (path, diff) {
+    var diffOp = this._getDiffOp(path, diff);
+    var op = ObjectOperation.Update(path, diffOp);
+    this.apply(op);
+    return op
+  }
+
+  
+  set (path, newValue) {
+    var oldValue = this.get(path);
+    var op = ObjectOperation.Set(path, oldValue, newValue);
+    this.apply(op);
+    return op
+  }
+
+  
+  apply (op) {
+    if (op.type === ObjectOperation.NOP) return
+    else if (op.type === ObjectOperation.CREATE) {
+      
+      super.create(cloneDeep(op.val));
+    } else if (op.type === ObjectOperation.DELETE) {
+      super.delete(op.val.id);
+    } else if (op.type === ObjectOperation.UPDATE) {
+      var oldVal = this.get(op.path);
+      var diff = op.diff;
+      if (op.propertyType === 'array') {
+        if (!(diff._isArrayOperation)) {
+          diff = ArrayOperation.fromJSON(diff);
+        }
+        
+        diff.apply(oldVal);
+      } else if (op.propertyType === 'string') {
+        if (!(diff._isTextOperation)) {
+          diff = TextOperation.fromJSON(diff);
+        }
+        var newVal = diff.apply(oldVal);
+        super.set(op.path, newVal);
+      } else if (op.propertyType === 'coordinate') {
+        if (!(diff._isCoordinateOperation)) {
+          diff = CoordinateOperation.fromJSON(diff);
+        }
+        diff.apply(oldVal);
+      } else {
+        throw new Error('Unsupported type for operational update.')
+      }
+    } else if (op.type === ObjectOperation.SET) {
+      super.set(op.path, op.val);
+    } else {
+      throw new Error('Illegal state.')
+    }
+    this.emit('operation:applied', op, this);
+  }
+
+  
+  _getDiffOp (path, diff) {
+    var diffOp = null;
+    if (diff.isOperation) {
+      diffOp = diff;
+    } else {
+      var value = this.get(path);
+      diff = this._normalizeDiff(value, diff);
+      if (value === null || value === undefined) {
+        throw new Error('Property has not been initialized: ' + JSON.stringify(path))
+      } else if (isString(value)) {
+        switch (diff.type) {
+          case 'delete': {
+            diffOp = TextOperation.Delete(diff.start, value.substring(diff.start, diff.end));
+            break
+          }
+          case 'insert': {
+            diffOp = TextOperation.Insert(diff.start, diff.text);
+            break
+          }
+          default:
+            throw new Error('Unknown diff type')
+        }
+      } else if (isArray(value)) {
+        switch (diff.type) {
+          case 'delete': {
+            diffOp = ArrayOperation.Delete(diff.pos, value[diff.pos]);
+            break
+          }
+          case 'insert': {
+            diffOp = ArrayOperation.Insert(diff.pos, diff.value);
+            break
+          }
+          default:
+            throw new Error('Unknown diff type')
+        }
+      } else if (value._isCoordinate) {
+        switch (diff.type) {
+          case 'shift': {
+            diffOp = CoordinateOperation.Shift(diff.value);
+            break
+          }
+          default:
+            throw new Error('Unknown diff type')
+        }
+      }
+    }
+    if (!diffOp) {
+      throw new Error('Unsupported diff: ' + JSON.stringify(diff))
+    }
+    return diffOp
+  }
+}
+
+class DocumentNodeFactory {
+  constructor (doc) {
+    this.doc = doc;
+  }
+
+  create (nodeType, nodeData) {
+    var NodeClass = this.doc.schema.getNodeClass(nodeType);
+    if (!NodeClass) {
+      throw new Error('No node registered by that name: ' + nodeType)
+    }
+    return new NodeClass(this.doc, nodeData)
+  }
+}
+
+class ParentNodeHook {
+  constructor (doc) {
+    this.doc = doc;
+    
+    this.parents = {};
+    doc.data.on('operation:applied', this._onOperationApplied, this);
+  }
+
+  _onOperationApplied (op) {
+    const doc = this.doc;
+    let node = doc.get(op.path[0]);
+    let nodeSchema, hasOwnedProperties;
+    if (node) {
+      nodeSchema = node.getSchema();
+      hasOwnedProperties = nodeSchema.hasOwnedProperties();
+    }
+    
+    
+    switch (op.type) {
+      case 'create': {
+        if (hasOwnedProperties) {
+          nodeSchema.getOwnedProperties().forEach(p => {
+            let refs = node[p.name];
+            if (refs) {
+              this._setParent(node, refs);
+            }
+            this._setRegisteredParent(node);
+          });
+        }
+        break
+      }
+      case 'update': {
+        if (hasOwnedProperties) {
+          let propName = op.path[1];
+          if (nodeSchema.isOwned(propName)) {
+            let update = op.diff;
+            if (update.isDelete()) {
+              this._setParent(null, update.getValue());
+            } else {
+              this._setParent(node, update.getValue());
+            }
+          }
+        }
+        break
+      }
+      case 'set': {
+        if (hasOwnedProperties) {
+          let propName = op.path[1];
+          if (nodeSchema.isOwned(propName)) {
+            let oldValue = op.getOldValue();
+            let newValue = op.getValue();
+            
+            this._setParent(null, oldValue);
+            this._setParent(node, newValue);
+          }
+        }
+        break
+      }
+      default:
+        
+    }
+  }
+
+  _setParent (parent, ids) {
+    if (ids) {
+      if (isArray(ids)) {
+        ids.forEach(id => this.__setParent(parent, id));
+      } else {
+        this.__setParent(parent, ids);
+      }
+    }
+  }
+
+  __setParent (parent, id) {
+    
+    
+    
+    
+    
+    
+    this.parents[id] = parent;
+    let child = this.doc.get(id);
+    if (child) {
+      child.setParent(parent);
+    }
+  }
+
+  _setRegisteredParent (child) {
+    let parent = this.parents[child.id];
+    if (parent) {
+      child.setParent(parent);
+    }
+  }
+}
+
+ParentNodeHook.register = function (doc) {
+  return new ParentNodeHook(doc)
+};
+
+const converter = new JSONConverter();
+
+
+
+class Document extends EventEmitter {
+  
+  constructor (schema, ...args) {
+    super();
+
+    this.schema = schema;
+    
+    if (!schema) {
+      throw new Error('A document needs a schema for reflection.')
+    }
+
+    
+    this._ops = [];
+
+    this._initialize(...args);
+  }
+
+  _initialize () {
+    this.__id__ = uuid();
+    this.nodeFactory = new DocumentNodeFactory(this);
+    this.data = new IncrementalData(this.schema, this.nodeFactory);
+    
+    this.addIndex('type', new PropertyIndex('type'));
+    
+    this.addIndex('annotations', new AnnotationIndex());
+    
+    
+    
+    this.addIndex('container-annotations', new ContainerAnnotationIndex());
+    
+    
+    ParentNodeHook.register(this);
+  }
+
+  dispose () {
+    this.off();
+    this.data.off();
+  }
+
+  get id () {
+    return this.__id__
+  }
+
+  
+  getSchema () {
+    return this.schema
+  }
+
+  
+  contains (id) {
+    return this.data.contains(id)
+  }
+
+  
+  get (path, strict) {
+    return this.data.get(path, strict)
+  }
+
+  
+  getNodes () {
+    return this.data.getNodes()
+  }
+
+  getAnnotations (path) {
+    return this.getIndex('annotations').get(path)
+  }
+  
+  getProperty (path) {
+    if (path.length !== 2) {
+      throw new Error('path must have length=2')
+    }
+    let [nodeId, propName] = path;
+    let node = this.get(nodeId);
+    if (node) {
+      return node.getSchema().getProperty(propName)
+    } else {
+      throw new Error('Invalid path.')
+    }
+  }
+
+  
+  import (importer) {
+    try {
+      this.data._stopIndexing();
+      importer(this);
+      this.data._startIndexing();
+    } finally {
+      this.data.queue = [];
+      this.data._startIndexing();
+    }
+  }
+
+  
+  create (nodeData) {
+    if (!nodeData.id) {
+      nodeData.id = uuid(nodeData.type);
+    }
+    if (!nodeData.type) {
+      throw new Error('No node type provided')
+    }
+    const op = this._create(nodeData);
+    if (op) {
+      this._ops.push(op);
+      if (!this._isTransactionDocument) {
+        this._emitChange(op);
+      }
+      return this.get(nodeData.id)
+    }
+  }
+
+  createDefaultTextNode (text, dir) {
+    return this.create({
+      type: this.getSchema().getDefaultTextType(),
+      content: text || '',
+      direction: dir
+    })
+  }
+
+  
+  delete (nodeId) {
+    const node = this.get(nodeId);
+    const op = this._delete(nodeId);
+    if (op) {
+      this._ops.push(op);
+      if (!this._isTransactionDocument) {
+        this._emitChange(op);
+      }
+    }
+    return node
+  }
+
+  
+  set (path, value) {
+    const oldValue = this.get(path);
+    const op = this._set(path, value);
+    if (op) {
+      this._ops.push(op);
+      if (!this._isTransactionDocument) {
+        this._emitChange(op);
+      }
+    }
+    return oldValue
+  }
+
+  
+  update (path, diff) {
+    const op = this._update(path, diff);
+    if (op) {
+      this._ops.push(op);
+      if (!this._isTransactionDocument) {
+        this._emitChange(op);
+      }
+    }
+    return op
+  }
+
+  
+  updateNode (id, newProps) {
+    let node = this.get(id);
+    forEach(newProps, (value, key) => {
+      if (!isEqual(node[key], newProps[key])) {
+        this.set([id, key], value);
+      }
+    });
+  }
+
+  
+  addIndex (name, index) {
+    return this.data.addIndex(name, index)
+  }
+
+  
+  getIndex (name) {
+    return this.data.getIndex(name)
+  }
+
+  
+  createSelection (data) {
+    let sel;
+    if (isNil(data)) return Selection.nullSelection
+    if (arguments.length !== 1 || !isPlainObject(data)) {
+      throw new Error('Illegal argument: call createSelection({ type: ... }')
+    } else {
+      switch (data.type) {
+        case 'property': {
+          if (isNil(data.endOffset)) {
+            data.endOffset = data.startOffset;
+          }
+          if (!data.hasOwnProperty('reverse')) {
+            if (data.startOffset > data.endOffset) {
+              [data.startOffset, data.endOffset] = [data.endOffset, data.startOffset];
+              data.reverse = !data.reverse;
+            }
+          }
+          
+          let text = this.get(data.path, 'strict');
+          if (data.startOffset < 0 || data.startOffset > text.length) {
+            throw new Error('Invalid startOffset: target property has length ' + text.length + ', given startOffset is ' + data.startOffset)
+          }
+          if (data.endOffset < 0 || data.endOffset > text.length) {
+            throw new Error('Invalid startOffset: target property has length ' + text.length + ', given endOffset is ' + data.endOffset)
+          }
+          sel = new PropertySelection(data);
+          break
+        }
+        case 'container': {
+          let container = this.get(data.containerId, 'strict');
+          if (!container) throw new Error('Can not create ContainerSelection: container "' + data.containerId + '" does not exist.')
+          let start = this._normalizeCoor({ path: data.startPath, offset: data.startOffset });
+          let end = this._normalizeCoor({ path: data.endPath, offset: data.endOffset });
+          let startAddress = container.getAddress(start);
+          let endAddress = container.getAddress(end);
+          if (!startAddress) {
+            throw new Error('Invalid arguments for ContainerSelection: ', start.toString())
+          }
+          if (!endAddress) {
+            throw new Error('Invalid arguments for ContainerSelection: ', end.toString())
+          }
+          if (!data.hasOwnProperty('reverse')) {
+            if (endAddress.isBefore(startAddress, 'strict')) {
+              [start, end] = [end, start];
+              data.reverse = true;
+            }
+          }
+          sel = new ContainerSelection(container.id, start.path, start.offset, end.path, end.offset, data.reverse, data.surfaceId);
+          break
+        }
+        case 'node': {
+          sel = createNodeSelection({
+            doc: this,
+            nodeId: data.nodeId,
+            mode: data.mode,
+            containerId: data.containerId,
+            reverse: data.reverse,
+            surfaceId: data.surfaceId
+          });
+          break
+        }
+        case 'custom': {
+          sel = CustomSelection.fromJSON(data);
+          break
+        }
+        default:
+          throw new Error('Illegal selection type', data)
+      }
+    }
+    if (!sel.isNull()) {
+      sel.attach(this);
+    }
+    return sel
+  }
+
+  newInstance () {
+    var DocumentClass = this.constructor;
+    return new DocumentClass(this.schema)
+  }
+
+  
+  createSnippet () {
+    var snippet = this.newInstance();
+    var snippetContainer = snippet.create({
+      type: '@container',
+      id: SNIPPET_ID
+    });
+    snippet.getContainer = function () {
+      return snippetContainer
+    };
+    return snippet
+  }
+
+  createFromDocument (doc) {
+    
+    this.clear();
+
+    
+    
+    
+    
+    
+    
+    
+    let nodes = Object.values(doc.getNodes());
+    let levels = {};
+    let visited = new Set();
+    nodes.forEach(n => {
+      if (!visited.has(n)) this._computeDependencyLevel(n, levels, visited);
+    });
+    
+    nodes.sort((a, b) => {
+      return levels[b.id] - levels[a.id]
+    });
+    nodes.forEach(n => this.create(n));
+    return this
+  }
+
+  _computeDependencyLevel (node, levels, visited) {
+    if (!node) throw new Error('node was nil')
+    if (visited.has(node)) throw new Error('Cyclic node dependency')
+    visited.add(node);
+    
+    
+    
+    let level = 0;
+    if (node.isAnnotation() || node.isInlineNode()) {
+      level = -1;
+    } else {
+      let parent = node.getParent();
+      if (parent) {
+        let parentLevel;
+        if (levels.hasOwnProperty(parent.id)) {
+          parentLevel = levels[parent.id];
+        } else {
+          parentLevel = this._computeDependencyLevel(parent, levels, visited);
+        }
+        level = parentLevel + 1;
+      }
+    }
+    levels[node.id] = level;
+    return level
+  }
+
+  
+  toJSON () {
+    return converter.exportDocument(this)
+  }
+
+  clone () {
+    let copy = this.newInstance();
+    copy.createFromDocument(this);
+    return copy
+  }
+
+  clear () {
+    this.data.clear();
+    this._ops.length = 0;
+  }
+
+  
+  createEditingInterface () {
+    return new EditingInterface(this)
+  }
+
+  invert (change) {
+    return change.invert()
+  }
+
+  _apply (documentChange) {
+    forEach(documentChange.ops, (op) => {
+      this._applyOp(op);
+    });
+    
+    documentChange._extractInformation(this);
+  }
+
+  _applyOp (op) {
+    this.data.apply(op);
+    this.emit('operation:applied', op);
+  }
+
+  _create (nodeData) {
+    return this.data.create(nodeData)
+  }
+
+  _delete (nodeId) {
+    return this.data.delete(nodeId)
+  }
+
+  _set (path, value) {
+    return this.data.set(path, value)
+  }
+
+  _update (path, diff) {
+    return this.data.update(path, diff)
+  }
+
+  _emitChange (op) {
+    const change = new DocumentChange([op], {}, {});
+    change._extractInformation(this);
+    this._notifyChangeListeners(change, { hidden: true });
+  }
+
+  _notifyChangeListeners (change, info) {
+    info = info || {};
+    this.emit('document:changed', change, info, this);
+  }
+
+  
+  _createSelectionFromRange (range) {
+    if (!range) return Selection.nullSelection
+    let inOneNode = isEqual(range.start.path, range.end.path);
+    if (inOneNode) {
+      if (range.start.isNodeCoordinate()) {
+        
+        
+        return new NodeSelection(range.containerId, range.start.getNodeId(), 'full', range.reverse, range.surfaceId)
+      } else {
+        return this.createSelection({
+          type: 'property',
+          path: range.start.path,
+          startOffset: range.start.offset,
+          endOffset: range.end.offset,
+          reverse: range.reverse,
+          containerId: range.containerId,
+          surfaceId: range.surfaceId
+        })
+      }
+    } else {
+      return this.createSelection({
+        type: 'container',
+        startPath: range.start.path,
+        startOffset: range.start.offset,
+        endPath: range.end.path,
+        endOffset: range.end.offset,
+        reverse: range.reverse,
+        containerId: range.containerId,
+        surfaceId: range.surfaceId
+      })
+    }
+  }
+
+  _normalizeCoor ({ path, offset }) {
+    
+    if (path.length === 1) {
+      let node = this.get(path[0]).getContainerRoot();
+      if (node.isText()) {
+        
+        return new Coordinate(node.getPath(), offset === 0 ? 0 : node.getLength())
+      } else if (node.isList()) {
+        
+        if (offset === 0) {
+          let item = node.getItemAt(0);
+          return new Coordinate(item.getPath(), 0)
+        } else {
+          let item = this.get(last$1(node.items));
+          return new Coordinate(item.getPath(), item.getLength())
+        }
+      }
+    }
+    return new Coordinate(path, offset)
+  }
+
+  get _isDocument () { return true }
+}
+
 class FileNode extends DocumentNode {
   getUrl () {
     if (this.proxy) {
@@ -36135,39 +36310,40 @@ class FileNode extends DocumentNode {
   setProxy (proxy) {
     this.proxy = proxy;
   }
+
+  
+  get _isFileNode () { return true }
+
+  static get _isFileNode () { return true }
 }
 
-FileNode.type = 'file';
-
 FileNode.schema = {
+  type: 'file',
   url: { type: 'string', optional: true },
   fileType: { type: 'string', optional: true },
   mimeType: { type: 'string', optional: true },
   sourceFile: { type: 'object', optional: true }
 };
 
-FileNode.prototype._isFileNode = true;
-FileNode._isFileNode = true;
-
 function getChangeFromDocument (doc) {
   let recorder = new ChangeRecorder(doc);
   return recorder.generateChange()
 }
 
-class InlineNode extends PropertyAnnotation {}
+function importNodeIntoDocument (targetDoc, node) {
+  let sourceDoc = node.getDocument();
+  let newId = _transferWithDisambiguatedIds(sourceDoc, targetDoc, node.id, {});
+  return targetDoc.get(newId)
+}
 
-InlineNode.prototype._isInlineNode = true;
-
-InlineNode.isInline = true;
+class InlineNode extends AnnotationMixin(DocumentNode) {
+  static isInlineNode () { return true }
+}
 
 const ERR_ABSTRACT = 'This method is abstract!';
 
 function ListMixin (DocumentNode) {
   class AbstractList extends DocumentNode {
-    isList () {
-      return true
-    }
-
     createListItem (text) {
       throw new Error(ERR_ABSTRACT)
     }
@@ -36262,66 +36438,41 @@ function ListMixin (DocumentNode) {
         this.setListTypeString(listTypeString);
       }
     }
+
+    static isList () {
+      return true
+    }
   }
 
   return AbstractList
 }
 
-class Range {
-  constructor (start, end, reverse, containerId, surfaceId) {
-    
-    if (arguments[0] === 'SKIP') return
-    if (arguments.length === 1 && isPlainObject(arguments[0])) {
-      let data = arguments[0];
-      this.start = data.start;
-      this.end = data.end;
-      this.reverse = Boolean(data.reverse);
-      this.containerId = data.containerId;
-      this.surfaceId = data.surfaceId;
-    } else {
-      this.start = start;
-      this.end = end;
-      this.reverse = Boolean(reverse);
-      this.containerId = containerId;
-      this.surfaceId = surfaceId;
+function TextNodeMixin (SuperClass) {
+  class TextNodeMixin extends SuperClass {
+    getTextPath () {
+      
+      console.warn('DEPRECATED: use node.getPath()');
+      return this.getPath()
     }
-  }
 
-  isCollapsed () {
-    return this.start.equals(this.end)
-  }
+    getText () {
+      return this.content
+    }
 
-  equals (other) {
-    if (this === other) return true
-    else {
-      return (
-        this.containerId === other.containerId &&
-        this.start.equals(other.start) &&
-        this.end.equals(other.end)
-      )
+    isEmpty () {
+      return !this.getText()
     }
-  }
 
-  isReverse () {
-    return this.reverse
-  }
+    getLength () {
+      return this.getText().length
+    }
 
-  toString () {
-    let str = [this.start.toString(), '->', this.end.toString()];
-    if (this.isReverse()) {
-      str.push('[reverse]');
+    getAnnotations () {
+      return this.getDocument().getIndex('annotations').get(this.getPath())
     }
-    if (this.containerId) {
-      str.push('[container=' + this.containerId + ']');
-    }
-    if (this.surfaceId) {
-      str.push('[surface=' + this.surfaceId + ']');
-    }
-    return str.join('')
   }
+  return TextNodeMixin
 }
-
-Range.prototype._isRange = true;
 
 class TextNode extends TextNodeMixin(DocumentNode) {
   getPath () {
@@ -36331,9 +36482,9 @@ class TextNode extends TextNodeMixin(DocumentNode) {
   getText () {
     return this.content
   }
-}
 
-TextNode.isText = true;
+  static isText () { return true }
+}
 
 TextNode.schema = {
   type: 'text',
@@ -36342,9 +36493,9 @@ TextNode.schema = {
   textAlign: { type: 'string', default: 'left' }
 };
 
-class TextBlock extends TextNode {}
-
-TextBlock.isBlock = true;
+class TextBlock extends TextNode {
+  static isBlock () { return true }
+}
 
 class XMLExporter extends DOMExporter {
   constructor (config, context) {
@@ -36365,7 +36516,11 @@ function _defaultConfig$1 (config) {
     idAttribute: 'id'
   }, config);
   if (!config.elementFactory) {
-    config.elementFactory = DefaultDOMElement.createDocument('xml');
+    let xmlParams = {
+      version: config.xmlVersion || '1.0',
+      encoding: config.xmlEncoding || 'UTF-8'
+    };
+    config.elementFactory = DefaultDOMElement.createDocument('xml', xmlParams);
   }
   return config
 }
@@ -36426,7 +36581,7 @@ class XMLImporter extends DOMImporter {
 class AbstractClipboard {
   constructor (configurator) {
     let schema = configurator.getSchema();
-    let converterRegistry = configurator.converterRegistry;
+    let converterRegistry = configurator.getConverterRegistry();
     let htmlConverters = [];
     if (converterRegistry && converterRegistry.contains('html')) {
       htmlConverters = converterRegistry.get('html').values() || [];
@@ -36534,167 +36689,300 @@ class AbstractClipboard {
   }
 }
 
-class ResourceManager {
-  constructor (editorSession, context) {
-    this.editorSession = editorSession;
-    this.context = context;
-    this.editorSession.onRender('document', this._onDocumentChange, this);
-  }
-
-  dispose () {
-    this.editorSession.off(this);
+class Command {
+  
+  constructor (config) {
+    this.config = config || {};
+    this.name = this.config.name;
+    if (!this.name) {
+      throw new Error("'name' is required")
+    }
   }
 
   
-  triggerFetch (resource) {
-    resource.fetchPayload(this.context, (err, props) => {
-      if (err) {
-        this._updateNode(resource.id, {
-          errorMessage: err.toString()
-        });
-      } else {
-        this._updateNode(resource.id, props);
-      }
-    });
-  }
-
-  _onDocumentChange (change) {
-    let doc = this.editorSession.getDocument();
-    forEach(change.created, (_, id) => {
-      let node = doc.get(id);
-      if (node.constructor.isResource) {
-        setTimeout(() => {
-          this.triggerFetch(node);
-        });
-      }
-    });
+  get isAsync () {
+    return false
   }
 
   
-  _updateNode (nodeId, props) {
-    let editorSession = this.editorSession;
-    editorSession.transaction((tx) => {
-      forEach(props, (val, key) => {
-        tx.set([nodeId, key], val);
-      });
+  getName () {
+    return this.name
+  }
+
+  
+  getCommandState(params, context) { 
+    throw new Error('Command.getCommandState() is abstract.')
+  }
+
+  
+  execute(params, context) { 
+    throw new Error('Command.execute() is abstract.')
+  }
+
+  
+  isAnnotationCommand () {
+    return false
+  }
+
+  
+  isInsertCommand () {
+    return false
+  }
+
+  
+  isSwitchTypeCommand () {
+    return false
+  }
+
+  getParams (context) {
+    return new HandlerParams(context)
+  }
+
+  get _isCommand () { return true }
+}
+
+Command.DISABLED = Object.freeze({ disabled: true, active: false });
+
+class AnnotationCommand extends Command {
+  constructor (config) {
+    super(config);
+
+    if (!this.config.nodeType) {
+      throw new Error("'nodeType' is required")
+    }
+  }
+
+  
+  getAnnotationType () {
+    return this.config.nodeType
+  }
+
+  getType () {
+    return this.getAnnotationType()
+  }
+
+  
+  getAnnotationData () {
+    return {}
+  }
+
+  
+  isDisabled (sel, params) {
+    let selectionState = params.selectionState;
+    let isBlurred = params.editorSession.isBlurred();
+    
+    
+    if (isBlurred || !sel || sel.isNull() || !sel.isAttached() || sel.isCustomSelection() ||
+        sel.isNodeSelection() || sel.isContainerSelection() || selectionState.isInlineNodeSelection) {
+      return true
+    }
+    return false
+  }
+
+  
+  showInContext (sel) {
+    return !sel.isCollapsed()
+  }
+
+  
+  
+  canCreate (annos, sel) {
+    
+    if (sel.isCollapsed()) return false
+    
+    if (annos.length === 0) return true
+    
+    for (let anno of annos) {
+      if (sel.overlaps(anno.getSelection(), 'strict')) return false
+    }
+    return true
+  }
+
+  
+  canFuse (annos, sel) {
+    
+    return (annos.length >= 2 && !sel.isCollapsed())
+  }
+
+  
+  canDelete (annos, sel) {
+    
+    if (annos.length !== 1) return false
+    let annoSel = annos[0].getSelection();
+    return sel.isInsideOf(annoSel)
+  }
+
+  
+  canExpand (annos, sel) {
+    
+    if (annos.length !== 1) return false
+    let annoSel = annos[0].getSelection();
+    return sel.overlaps(annoSel, 'strict') && !sel.isInsideOf(annoSel)
+  }
+
+  
+  canTruncate (annos, sel) {
+    if (annos.length !== 1) return false
+    let annoSel = annos[0].getSelection();
+
+    return (sel.isLeftAlignedWith(annoSel) || sel.isRightAlignedWith(annoSel)) &&
+           !sel.contains(annoSel) &&
+           !sel.isCollapsed()
+  }
+
+  
+  getCommandState (params, context) { 
+    const sel = params.selection;
+    
+    
+    
+    if (this.isDisabled(sel, params, context)) {
+      return {
+        disabled: true
+      }
+    }
+    let annos = this._getAnnotationsForSelection(params);
+    let newState = {
+      disabled: false,
+      active: false,
+      mode: null
+    };
+    if (this.canCreate(annos, sel)) {
+      newState.mode = 'create';
+    } else if (this.canFuse(annos, sel)) {
+      newState.mode = 'fuse';
+    } else if (this.canTruncate(annos, sel)) {
+      newState.active = true;
+      newState.mode = 'truncate';
+    } else if (this.canExpand(annos, sel)) {
+      newState.mode = 'expand';
+    } else if (this.canDelete(annos, sel)) {
+      newState.active = true;
+      newState.mode = 'delete';
+    } else {
+      newState.disabled = true;
+    }
+    newState.showInContext = this.showInContext(sel, params, context);
+
+    return newState
+  }
+
+  
+  
+  execute (params, context) { 
+    let commandState = params.commandState;
+
+    if (commandState.disabled) return false
+    switch (commandState.mode) {
+      case 'create':
+        return this.executeCreate(params, context)
+      case 'fuse':
+        return this.executeFuse(params, context)
+      case 'truncate':
+        return this.executeTruncate(params, context)
+      case 'expand':
+        return this.executeExpand(params, context)
+      case 'delete':
+        return this.executeDelete(params, context)
+      default:
+        console.warn('Command.execute(): unknown mode', commandState.mode);
+        return false
+    }
+  }
+
+  executeCreate (params, context) {
+    const editorSession = params.editorSession;
+    const annos = this._getAnnotationsForSelection(params, context);
+    this._checkPrecondition(params, annos, this.canCreate);
+    let annoData = this.getAnnotationData();
+    annoData.type = this.getAnnotationType();
+    let anno;
+    editorSession.transaction(tx => {
+      anno = tx.annotate(annoData);
     });
-  }
-}
-
-function levenshtein (a, b) {
-  let m = [];
-  for (let i = 0; i <= b.length; i++) {
-    m[i] = [i];
-    if (i === 0) continue
-    let ib = i - 1;
-    for (let j = 0; j <= a.length; j++) {
-      m[0][j] = j;
-      if (j === 0) continue
-      let jb = j - 1;
-      m[i][j] = b.charAt(ib) === a.charAt(jb) ? m[ib][jb] : Math.min(
-        m[ib][jb] + 1,
-        m[i][jb] + 1,
-        m[ib][j] + 1
-      );
-    }
-  }
-  return m
-}
-
-function diff (a, b, offset) {
-  if (!isString(a) || !isString(b)) {
-    throw new Error('Illegal arguments.')
-  }
-  offset = offset || 0;
-  let changes = [];
-  if (a || b) {
-    if (!a && b) {
-      changes.push({ type: 'insert', start: offset, text: b });
-    } else if (a && !b) {
-      changes.push({ type: 'delete', start: offset, end: offset + a.length });
-    } else {
-      let m = levenshtein(a, b);
-      changes = _diff(a, b, m, offset);
-    }
-  }
-  return changes
-}
-
-function _diff (a, b, m, offset) {
-  let i = b.length;
-  let j = a.length;
-  let changes = [];
-  let current;
-  while (i > 0 && j > 0) {
-    _next();
-  }
-  _commit();
-  return changes
-
-  function _next () {
-    let d = m[i][j];
-    let ib = i - 1;
-    let jb = j - 1;
-    
-    if (m[ib][jb] < d) {
-      if (current && current.type === 'replace') {
-        current.start--;
-        current.text.unshift(b.charAt(ib));
-      } else {
-        _commit();
-        current = { type: 'replace', start: jb, end: j, text: [b.charAt(ib)] };
-      }
-      i--;
-      j--;
-    
-    } else if (m[ib][j] < d) {
-      if (current && current.type === 'insert') {
-        current.start--;
-        current.text.unshift(b.charAt(ib));
-      } else {
-        _commit();
-        current = { type: 'insert', start: jb, text: [b.charAt(ib)] };
-      }
-      i--;
-    
-    } else if (m[i][jb] < d) {
-      if (current && current.type === 'delete') {
-        current.start--;
-      } else {
-        _commit();
-        current = { type: 'delete', start: jb, end: j };
-      }
-      j--;
-    
-    } else {
-      _commit();
-      i--;
-      j--;
+    return {
+      mode: 'create',
+      anno: anno
     }
   }
 
-  function _commit () {
-    if (current) {
-      switch (current.type) {
-        case 'insert':
-          current.start += offset;
-          current.text = current.text.join('');
-          break
-        case 'delete':
-          current.start += offset;
-          current.end += offset;
-          break
-        case 'replace':
-          current.start += offset;
-          current.end += offset;
-          current.text = current.text.join('');
-          break
-        default:
-          throw new Error('Invalid state')
-      }
-      changes.push(current);
-      current = null;
+  executeFuse (params) {
+    let annos = this._getAnnotationsForSelection(params);
+    this._checkPrecondition(params, annos, this.canFuse);
+    this._applyTransform(params, tx => {
+      annotationHelpers.fuseAnnotation(tx, annos);
+    });
+    return {
+      mode: 'fuse',
+      anno: annos[0]
     }
+  }
+
+  executeTruncate (params) {
+    let annos = this._getAnnotationsForSelection(params);
+    let anno = annos[0];
+    this._checkPrecondition(params, annos, this.canTruncate);
+    this._applyTransform(params, tx => {
+      annotationHelpers.truncateAnnotation(tx, anno, params.selection);
+    });
+    return {
+      mode: 'truncate',
+      anno: anno
+    }
+  }
+
+  executeExpand (params) {
+    let annos = this._getAnnotationsForSelection(params);
+    let anno = annos[0];
+    this._checkPrecondition(params, annos, this.canExpand);
+    this._applyTransform(params, tx => {
+      annotationHelpers.expandAnnotation(tx, anno, params.selection);
+    });
+    return {
+      mode: 'expand',
+      anno: anno
+    }
+  }
+
+  executeDelete (params) {
+    let annos = this._getAnnotationsForSelection(params);
+    let anno = annos[0];
+    this._checkPrecondition(params, annos, this.canDelete);
+    this._applyTransform(params, tx => {
+      return tx.delete(anno.id)
+    });
+    return {
+      mode: 'delete',
+      annoId: anno.id
+    }
+  }
+
+  isAnnotationCommand () { return true }
+
+  _checkPrecondition (params, annos, checker) {
+    let sel = params.selection;
+    if (!checker.call(this, annos, sel)) {
+      throw new Error("AnnotationCommand: can't execute command for selection " + sel.toString())
+    }
+  }
+
+  _getAnnotationsForSelection (params) {
+    const selectionState = params.selectionState;
+    return selectionState.annosByType[this.getAnnotationType()] || []
+  }
+
+  
+  _applyTransform (params, transformFn) {
+    const editorSession = params.editorSession;
+    const sel = params.selection;
+    if (sel.isNull()) return
+    let result; 
+    editorSession.setSelection(sel);
+    editorSession.transaction(function (tx) {
+      let out = transformFn(tx, params);
+      if (out) result = out.result;
+    });
+    return result
   }
 }
 
@@ -36739,1928 +37027,6 @@ class AnnotationComponent extends Component {
   }
 }
 
-class AbstractIsolatedNodeComponent extends Component {
-  constructor (...args) {
-    super(...args);
-
-    this.name = this.props.node.id;
-    this._state = { selectionFragment: null };
-
-    this.handleAction('escape', this.escape);
-    this.ContentClass = this._getContentClass(this.props.node);
-
-    
-    let useBlocker = platform.isFF || !this.ContentClass.noBlocker;
-    this.blockingMode = useBlocker ? 'closed' : 'open';
-  }
-
-  getInitialState () {
-    let selState = this.context.editorSession.getSelectionState();
-    return this._deriveStateFromSelectionState(selState)
-  }
-
-  getChildContext () {
-    return {
-      parentSurfaceId: this.getId(),
-      isolatedNodeComponent: this,
-      
-      
-      surface: undefined
-    }
-  }
-
-  didMount () {
-    super.didMount();
-
-    let editorSession = this.context.editorSession;
-    editorSession.onRender('selection', this._onSelectionChanged, this);
-  }
-
-  dispose () {
-    super.dispose.call(this);
-
-    let editorSession = this.context.editorSession;
-    editorSession.off(this);
-  }
-
-  renderContent ($$, node, options = {}) {
-    let ComponentClass = this.ContentClass;
-    if (!ComponentClass) {
-      console.error('Could not resolve a component for type: ' + node.type);
-      return $$(this.__elementTag)
-    } else {
-      let props = Object.assign({
-        disabled: this.props.disabled,
-        node: node,
-        isolatedNodeState: this.state.mode,
-        focused: (this.state.mode === 'focused')
-      }, options);
-      return $$(ComponentClass, props)
-    }
-  }
-
-  getId () {
-    
-    
-    if (!this._id) {
-      this._id = this.context.parentSurfaceId + '/' + this.name;
-    }
-    return this._id
-  }
-
-  get id () { return this.getId() }
-
-  getMode () {
-    return this.state.mode
-  }
-
-  isOpen () {
-    return this.blockingMode === 'open'
-  }
-
-  isClosed () {
-    return this.blockingMode === 'closed'
-  }
-
-  isNotSelected () {
-    return !this.state.mode
-  }
-
-  isSelected () {
-    return this.state.mode === 'selected'
-  }
-
-  isCoSelected () {
-    return this.state.mode === 'co-selected'
-  }
-
-  isFocused () {
-    return this.state.mode === 'focused'
-  }
-
-  isCoFocused () {
-    return this.state.mode === 'co-focused'
-  }
-
-  getParentSurface () {
-    return this.context.surface
-  }
-
-  escape () {
-    
-    this.selectNode();
-  }
-
-  _onSelectionChanged () {
-    let editorSession = this.context.editorSession;
-    let newState = this._deriveStateFromSelectionState(editorSession.getSelectionState());
-    if (!newState && this.state.mode) {
-      this.extendState({ mode: null });
-    } else if (newState && newState.mode !== this.state.mode) {
-      this.extendState(newState);
-    }
-  }
-
-  onKeydown (event) {
-    
-    
-    
-    
-    if (event.keyCode === keys$1.ESCAPE && this.state.mode === 'focused') {
-      event.stopPropagation();
-      event.preventDefault();
-      this.escape();
-    }
-  }
-
-  _getContentClass (node) {
-    let ComponentClass;
-    
-    ComponentClass = this.getComponent(node.type, true);
-    
-    if (!ComponentClass) {
-      ComponentClass = Component;
-    }
-    return ComponentClass
-  }
-
-  _getSurface (selState) {
-    let surface = selState.get('surface');
-    if (surface === undefined) {
-      let sel = selState.getSelection();
-      if (sel && sel.surfaceId) {
-        let surfaceManager = this.context.surfaceManager;
-        surface = surfaceManager.getSurface(sel.surfaceId);
-      } else {
-        surface = null;
-      }
-      selState.set('surface', surface);
-    }
-    return surface
-  }
-
-  
-  
-  _getIsolatedNodes (selState) {
-    let isolatedNodes = selState.get('isolatedNodes');
-    if (!isolatedNodes) {
-      let sel = selState.getSelection();
-      isolatedNodes = [];
-      if (sel && sel.surfaceId) {
-        let surfaceManager = this.context.surfaceManager;
-        let surface = surfaceManager.getSurface(sel.surfaceId);
-        if (surface) {
-          isolatedNodes = surface.getComponentPath().filter(comp => comp._isAbstractIsolatedNodeComponent);
-        }
-      }
-      selState.set('isolatedNodes', isolatedNodes);
-    }
-    return isolatedNodes
-  }
-
-  _shouldConsumeEvent (event) {
-    let comp = Component.unwrap(event.target);
-    let isolatedNodeComponent = this._getIsolatedNode(comp);
-    return (isolatedNodeComponent === this)
-  }
-
-  _getIsolatedNode (comp) {
-    if (comp._isAbstractIsolatedNodeComponent) {
-      return this
-    } else if (comp.context.isolatedNodeComponent) {
-      return comp.context.isolatedNodeComponent
-    } else if (comp.context.surface) {
-      return comp.context.surface.context.isolatedNodeComponent
-    }
-  }
-}
-
-AbstractIsolatedNodeComponent.prototype._isAbstractIsolatedNodeComponent = true;
-
-class InlineNodeComponent extends AbstractIsolatedNodeComponent {
-  render ($$) {
-    const node = this.props.node;
-    const ContentClass = this.ContentClass;
-    const state = this.state;
-
-    let el = $$('span');
-    el.addClass(this.getClassNames())
-      .addClass('sc-inline-node')
-      .addClass('sm-' + this.props.node.type)
-      .attr('data-id', node.id)
-      .attr('data-inline', '1');
-
-    let disabled = this.isDisabled();
-
-    if (state.mode) {
-      el.addClass('sm-' + state.mode);
-    } else {
-      el.addClass('sm-not-selected');
-    }
-
-    if (!ContentClass.noStyle) {
-      el.addClass('sm-default-style');
-    }
-
-    
-    
-    
-    el.on('keydown', this.onKeydown);
-
-    el.append(
-      this.renderContent($$, node)
-        .ref('content')
-        .addClass('se-content')
-    );
-
-    if (disabled) {
-      el.addClass('sm-disabled')
-        .attr('contenteditable', false)
-        .on('click', this.onClick);
-    }
-
-    
-    
-    
-    
-    
-    
-    
-    el.attr('draggable', true);
-
-    return el
-  }
-
-  isDisabled () {
-    return !this.state.mode || ['co-selected', 'cursor'].indexOf(this.state.mode) > -1
-  }
-
-  getClassNames () {
-    return ''
-  }
-
-  onClick (event) {
-    if (!this._shouldConsumeEvent(event)) {
-      return
-    }
-    this.selectNode();
-  }
-
-  selectNode () {
-    
-    let editorSession = this.context.editorSession;
-    let surface = this.context.surface;
-    let node = this.props.node;
-    editorSession.setSelection({
-      type: 'property',
-      path: node.start.path,
-      startOffset: node.start.offset,
-      endOffset: node.end.offset,
-      containerId: surface.getContainerId(),
-      surfaceId: surface.id
-    });
-  }
-
-  _getContentClass (node) {
-    let ComponentClass;
-    
-    ComponentClass = this.getComponent(node.type, true);
-    
-    
-    if (!ComponentClass) {
-      ComponentClass = this.getComponent('unsupported-inline-node', true);
-    }
-    if (!ComponentClass) {
-      console.error(`No component registered for inline node '${node.type}'.`);
-      ComponentClass = StubInlineNodeComponent;
-    }
-    return ComponentClass
-  }
-
-  
-  
-  _deriveStateFromSelectionState (selState) {
-    let surface = this._getSurface(selState);
-    if (!surface) return null
-    
-    if (surface === this.context.surface) {
-      let sel = selState.getSelection();
-      let node = this.props.node;
-      if (sel.isPropertySelection() && !sel.isCollapsed() && isEqual(sel.start.path, node.start.path)) {
-        let nodeSel = node.getSelection();
-        if (nodeSel.equals(sel)) {
-          return { mode: 'selected' }
-        }
-        if (sel.contains(nodeSel)) {
-          return { mode: 'co-selected' }
-        }
-      }
-    }
-    let isolatedNodeComponent = surface.context.isolatedNodeComponent;
-    if (!isolatedNodeComponent) return null
-    if (isolatedNodeComponent === this) {
-      return { mode: 'focused' }
-    }
-    let isolatedNodes = this._getIsolatedNodes(selState);
-    if (isolatedNodes.indexOf(this) > -1) {
-      return { mode: 'co-focused' }
-    }
-    return null
-  }
-}
-
-InlineNodeComponent.prototype._isInlineNodeComponent = true;
-
-class StubInlineNodeComponent extends Component {
-  render ($$) {
-    const node = this.props.node;
-    return $$('span').text('???').attr('data-id', node.id).attr('data-type', node.type)
-  }
-}
-
-class AnnotatedTextComponent extends Component {
-  render ($$) {
-    let el = this._renderContent($$)
-      .addClass('sc-annotated-text')
-      .css({ whiteSpace: 'pre-wrap' });
-    return el
-  }
-
-  getPath () {
-    return this.props.path
-  }
-
-  getText () {
-    return this.getDocument().get(this.props.path) || ''
-  }
-
-  isEmpty () {
-    return !(this.getText())
-  }
-
-  getAnnotations () {
-    return this.getDocument().getIndex('annotations').get(this.props.path)
-  }
-
-  getDocument () {
-    return this.props.doc || this.context.doc
-  }
-
-  _getTagName () {
-    return this.props.tagName
-  }
-
-  _onDocumentChange (update) {
-    if (update.change && update.change.updated[this.getPath()]) {
-      this.rerender();
-    }
-  }
-
-  _renderContent ($$) {
-    let text = this.getText();
-    let annotations = this.getAnnotations();
-    let el = $$(this._getTagName() || 'span');
-    if (annotations && annotations.length > 0) {
-      let fragmenter = new Fragmenter({
-        onText: this._renderTextNode.bind(this),
-        onEnter: this._renderFragment.bind(this, $$),
-        onExit: this._finishFragment.bind(this)
-      });
-      fragmenter.start(el, text, annotations);
-    } else {
-      el.append(text);
-    }
-    return el
-  }
-
-  _renderTextNode (context, text) {
-    if (text && text.length > 0) {
-      context.append(text);
-    }
-  }
-
-  _renderFragment ($$, fragment) {
-    let doc = this.getDocument();
-    let componentRegistry = this.getComponentRegistry();
-    let node = fragment.node;
-    
-    if (node.type === 'container-annotation-fragment') ; else if (node.type === 'container-annotation-anchor') ; else {
-      let ComponentClass = componentRegistry.get(node.type) || AnnotationComponent;
-      if (node.constructor.isInline &&
-          
-          !ComponentClass.prototype._isInlineNodeComponent &&
-          
-          !ComponentClass.isCustom) {
-        ComponentClass = InlineNodeComponent;
-      }
-      let el = $$(ComponentClass, { doc: doc, node: node });
-      return el
-    }
-  }
-
-  _finishFragment (fragment, context, parentContext) {
-    parentContext.append(context);
-  }
-}
-
-class CursorComponent extends Component {
-  render ($$) {
-    
-    let el = $$('span').addClass('se-cursor');
-    
-    
-    
-    el.append('\uFEFF');
-    el.append($$('div').addClass('se-cursor-inner'));
-
-    if (this.props.collaborator) {
-      let collaboratorIndex = this.props.collaborator.colorIndex;
-      el.addClass('sm-collaborator-' + collaboratorIndex);
-    } else {
-      el.addClass('sm-local-user');
-    }
-
-    return el
-  }
-}
-
-class SelectionFragmentComponent extends Component {
-  render ($$) {
-    
-    let el = $$('span').addClass('se-selection-fragment');
-    if (this.props.collaborator) {
-      let collaboratorIndex = this.props.collaborator.colorIndex;
-      el.addClass('sm-collaborator-' + collaboratorIndex);
-    } else {
-      el.addClass('sm-local-user');
-    }
-    el.append(this.props.children);
-    return el
-  }
-}
-
-class TextPropertyComponent extends AnnotatedTextComponent {
-  getInitialState () {
-    const markersManager = this.context.markersManager;
-    let path = this.getPath();
-    let markers;
-    if (markersManager) {
-      
-      markersManager.register(this);
-      markers = markersManager.getMarkers(path, {
-        surfaceId: this.getSurfaceId(),
-        containerId: this.getContainerId()
-      });
-    } else {
-      const doc = this.getDocument();
-      markers = doc.getAnnotations(path);
-    }
-    return {
-      markers: markers
-    }
-  }
-
-  didMount () {
-    
-    
-    
-    
-    
-  }
-
-  dispose () {
-    if (this.context.markersManager) {
-      this.context.markersManager.deregister(this);
-    }
-    if (this.domObserver) {
-      this.domObserver.disconnect();
-    }
-  }
-
-  render ($$) {
-    let path = this.getPath();
-
-    let el = this._renderContent($$)
-      .addClass('sc-text-property')
-      .attr({
-        'data-path': path.join('.')
-      })
-      .css({
-        'white-space': 'pre-wrap'
-      });
-
-    if (this.isEmpty()) {
-      el.addClass('sm-empty');
-      if (this.props.placeholder) {
-        el.append(
-          $$('span').addClass('se-placeholder').append(
-            this.props.placeholder
-          )
-        );
-      }
-    }
-
-    if (!this.props.withoutBreak) {
-      el.append($$('br'));
-    }
-
-    return el
-  }
-
-  getAnnotations () {
-    if (this.props.markers) {
-      return this.state.markers.concat(this.props.markers)
-    } else {
-      return this.state.markers
-    }
-  }
-
-  _renderFragment ($$, fragment) {
-    let node = fragment.node;
-    let id = node.id;
-    let el;
-    if (node.type === 'cursor') {
-      el = $$(CursorComponent, { collaborator: node.collaborator });
-    } else if (node.type === 'selection-fragment') {
-      el = $$(SelectionFragmentComponent, { collaborator: node.collaborator });
-    } else {
-      el = super._renderFragment.apply(this, arguments);
-      if (id) {
-        el.ref(id + '@' + fragment.counter);
-      }
-    }
-    el.attr('data-offset', fragment.pos);
-    return el
-  }
-
-  _onDomMutations (mutations) {
-    
-    
-    if (mutations.length === 2 && mutations[0].target === mutations[1].target) {
-      let textEl = DefaultDOMElement.unwrap(mutations[0].target);
-      if (textEl) {
-        this._applyTextMutation(textEl, mutations[0].oldValue);
-        return
-      }
-    }
-    
-    this.rerender();
-  }
-
-  _applyTextMutation (textEl, oldText) {
-    
-    let offset = _getCharPos(textEl, 0);
-    let newText = textEl.textContent;
-    let changes = diff(oldText, newText, offset);
-
-    let editorSession = this.context.editorSession;
-    let path = this.getPath();
-    editorSession.transaction(function (tx) {
-      changes.forEach(function (change) {
-        
-        if (change.type === 'replace') {
-          tx.update(path, { type: 'delete', start: change.start, end: change.end });
-          tx.update(path, { type: 'insert', start: change.start, text: change.text });
-        } else {
-          tx.update(path, change);
-        }
-      });
-    });
-  }
-
-  getSurface () {
-    return this.props.surface || this.context.surface
-  }
-
-  getSurfaceId () {
-    let surface = this.getSurface();
-    return surface ? surface.id : null
-  }
-
-  getContainerId () {
-    let surface = this.getSurface();
-    return surface ? surface.getContainerId() : null
-  }
-
-  isEditable () {
-    const surface = this.getSurface();
-    return surface ? surface.isEditable() : false
-  }
-
-  isReadonly () {
-    const surface = this.getSurface();
-    return surface ? surface.isReadonly() : true
-  }
-
-  getDOMCoordinate (charPos) {
-    return this._getDOMCoordinate(this.el, charPos)
-  }
-
-  _finishFragment (fragment, context, parentContext) {
-    context.attr('data-length', fragment.length);
-    parentContext.append(context);
-  }
-
-  _getDOMCoordinate (el, charPos) {
-    let l;
-    let idx = 0;
-    if (charPos === 0) {
-      return {
-        container: el.getNativeElement(),
-        offset: 0
-      }
-    }
-    for (let child = el.getFirstChild(); child; child = child.getNextSibling(), idx++) {
-      if (child.isTextNode()) {
-        l = child.textContent.length;
-        if (l >= charPos) {
-          return {
-            container: child.getNativeElement(),
-            offset: charPos
-          }
-        } else {
-          charPos -= l;
-        }
-      } else if (child.isElementNode()) {
-        let length = child.getAttribute('data-length');
-        if (length) {
-          l = parseInt(length, 10);
-          if (l >= charPos) {
-            
-            if (child.attr('data-inline')) {
-              let nextSibling = child.getNextSibling();
-              if (nextSibling && nextSibling.isTextNode()) {
-                return {
-                  container: nextSibling.getNativeElement(),
-                  offset: 0
-                }
-              } else {
-                return {
-                  container: el.getNativeElement(),
-                  offset: el.getChildIndex(child) + 1
-                }
-              }
-            }
-            return this._getDOMCoordinate(child, charPos, idx)
-          } else {
-            charPos -= l;
-          }
-        } else {
-          console.error('FIXME: Can not map to DOM coordinates.');
-          return null
-        }
-      }
-    }
-  }
-}
-
-TextPropertyComponent.prototype._isTextPropertyComponent = true;
-
-
-
-
-TextPropertyComponent.getCoordinate = function (root, el, offset) {
-  let context = _getPropertyContext(root, el, offset);
-  if (!context) {
-    return null
-  }
-  
-  
-  let charPos;
-  if (el.parentNode && el.parentNode.is('.se-placeholder')) {
-    charPos = 0;
-  } else {
-    
-    
-    
-    charPos = _getCharPos(context.node, context.offset);
-  }
-  if (isNumber(charPos)) {
-    let coor = new Coordinate(context.path, charPos);
-    coor._comp = context.comp;
-    return coor
-  } else {
-    return null
-  }
-};
-
-function _getPropertyContext (root, node, offset) {
-  let result = {
-    comp: null,
-    el: null,
-    path: null,
-    node: node,
-    offset: offset
-  };
-  while (node && node !== root) {
-    if (node.isElementNode()) {
-      let comp = Component.unwrap(node);
-      if (comp && comp._isTextPropertyComponent) {
-        result.comp = comp;
-        result.el = node;
-        result.path = comp.getPath();
-        return result
-      }
-      
-      
-      
-      if (node.getAttribute('data-inline')) {
-        result.node = node;
-        if (offset > 0) {
-          result.offset = 1;
-        }
-      }
-    }
-    node = node.getParent();
-  }
-  return null
-}
-
-function _getCharPos (node, offset) {
-  let charPos = offset;
-  let parent, childIdx;
-
-  
-
-  parent = node.getParent();
-  if (node.isTextNode()) {
-    
-    if (node === parent.firstChild) {
-      
-      let parentPath = parent.getAttribute('data-path');
-      let parentOffset = parent.getAttribute('data-offset');
-      if (parentPath) {
-        charPos = offset;
-      
-      } else if (parentOffset) {
-        charPos = parseInt(parentOffset, 10) + offset;
-      
-      } else {
-        charPos = _getCharPos(parent, 0) + offset;
-      }
-    } else {
-      
-      childIdx = parent.getChildIndex(node);
-      charPos = _getCharPos(parent, childIdx) + offset;
-    }
-  } else if (node.isElementNode()) {
-    let pathStr = node.getAttribute('data-path');
-    let offsetStr = node.getAttribute('data-offset');
-    
-    
-    if (pathStr) {
-      charPos = _countCharacters(node, offset);
-    
-    
-    } else if (offsetStr) {
-      childIdx = parent.getChildIndex(node);
-      charPos = parseInt(offsetStr, 10) + _countCharacters(node, offset);
-    
-    
-    } else {
-      childIdx = parent.getChildIndex(node);
-      charPos = _getCharPos(parent, childIdx) + _countCharacters(node, offset);
-    }
-  } else {
-    
-    return null
-  }
-  return charPos
-}
-
-function _countCharacters (el, maxIdx) {
-  let charPos = 0;
-  
-  if (el.getAttribute('data-inline')) {
-    return maxIdx === 0 ? 0 : 1
-  }
-  let l = el.getChildCount();
-  if (arguments.length === 1) {
-    maxIdx = l;
-  }
-  maxIdx = Math.min(l, maxIdx);
-  for (let i = 0, child = el.getFirstChild(); i < maxIdx; child = child.getNextSibling(), i++) {
-    if (child.isTextNode()) {
-      charPos += child.getTextContent().length;
-    } else if (child.isElementNode()) {
-      let length = child.getAttribute('data-length');
-      if (child.getAttribute('data-inline')) {
-        charPos += 1;
-      } else if (length) {
-        charPos += parseInt(length, 10);
-      } else {
-        charPos += _countCharacters(child);
-      }
-    }
-  }
-  return charPos
-}
-
-const BRACKET = 'X';
-const SLASH = '/'.charCodeAt(0);
-
-
-class IsolatedNodeComponent extends AbstractIsolatedNodeComponent {
-  render ($$) {
-    let node = this.props.node;
-    let ContentClass = this.ContentClass;
-    let disabled = this.props.disabled;
-
-    
-    let el = $$('div');
-    el.addClass(this.getClassNames())
-      .addClass('sc-isolated-node')
-      .addClass('sm-' + this.props.node.type)
-      .attr('data-id', node.id);
-    if (disabled) {
-      el.addClass('sm-disabled');
-    }
-    if (this.state.mode) {
-      el.addClass('sm-' + this.state.mode);
-    }
-    if (!ContentClass.noStyle) {
-      el.addClass('sm-default-style');
-    }
-    
-    el.on('keydown', this.onKeydown);
-
-    
-    let shouldRenderBlocker = (
-      this.blockingMode === 'closed' &&
-      !this.state.unblocked
-    );
-
-    
-    
-    el.append(
-      $$('div').addClass('se-bracket sm-left').ref('left')
-        .append(BRACKET)
-    );
-
-    let content = this.renderContent($$, node, {
-      disabled: this.props.disabled || shouldRenderBlocker
-    }).ref('content');
-    content.attr('contenteditable', false);
-
-    el.append(content);
-    el.append($$(Blocker).ref('blocker'));
-    el.append(
-      $$('div').addClass('se-bracket sm-right').ref('right')
-        .append(BRACKET)
-    );
-
-    if (!shouldRenderBlocker) {
-      el.addClass('sm-no-blocker');
-      el.on('click', this.onClick)
-        .on('dblclick', this.onDblClick);
-    }
-    el.on('mousedown', this._reserveMousedown, this);
-
-    return el
-  }
-
-  getClassNames () {
-    return ''
-  }
-
-  getContent () {
-    return this.refs.content
-  }
-
-  selectNode () {
-    
-    let editorSession = this.context.editorSession;
-    let surface = this.context.surface;
-    let nodeId = this.props.node.id;
-    editorSession.setSelection({
-      type: 'node',
-      nodeId: nodeId,
-      containerId: surface.getContainerId(),
-      surfaceId: surface.id
-    });
-  }
-
-  
-  
-  onClick (event) {
-    
-    event.stopPropagation();
-  }
-
-  onDblClick (event) {
-    
-    event.stopPropagation();
-  }
-
-  grabFocus (event) {
-    let content = this.refs.content;
-    if (content.grabFocus) {
-      content.grabFocus(event);
-      return true
-    }
-  }
-
-  
-  
-  _reserveMousedown (event) {
-    if (event.__reserved__) ; else {
-      
-      event.__reserved__ = this;
-    }
-  }
-
-  _deriveStateFromSelectionState (selState) {
-    let surface = this._getSurface(selState);
-    let newState = { mode: null, unblocked: null };
-    if (!surface) return newState
-    
-    if (surface === this.context.surface) {
-      let sel = selState.getSelection();
-      let nodeId = this.props.node.id;
-      if (sel.isNodeSelection() && sel.getNodeId() === nodeId) {
-        if (sel.isFull()) {
-          newState.mode = 'selected';
-          newState.unblocked = true;
-        } else if (sel.isBefore()) {
-          newState.mode = 'cursor';
-          newState.position = 'before';
-        } else if (sel.isAfter()) {
-          newState.mode = 'cursor';
-          newState.position = 'after';
-        }
-      }
-      if (sel.isContainerSelection() && sel.containsNode(nodeId)) {
-        newState.mode = 'co-selected';
-      }
-    } else {
-      let sel = selState.getSelection();
-      let surfaceId = sel.surfaceId;
-      let id = this.getId();
-      if (id.length < surfaceId.length && surfaceId.startsWith(id) && surfaceId.charCodeAt(id.length) === SLASH) {
-        let tail = surfaceId.slice(id.length + 1);
-        if (tail.indexOf('/') > 0) {
-          newState.mode = 'co-focused';
-          newState.unblocked = true;
-        } else {
-          newState.mode = 'focused';
-          newState.unblocked = true;
-        }
-      }
-    }
-    return newState
-  }
-}
-
-IsolatedNodeComponent.prototype._isIsolatedNodeComponent = true;
-
-IsolatedNodeComponent.prototype._isDisabled = IsolatedNodeComponent.prototype.isDisabled;
-
-IsolatedNodeComponent.getDOMCoordinate = function (comp, coor) {
-  let { start, end } = IsolatedNodeComponent.getDOMCoordinates(comp);
-  if (coor.offset === 0) return start
-  else return end
-};
-
-IsolatedNodeComponent.getDOMCoordinates = function (comp) {
-  const left = comp.refs.left;
-  const right = comp.refs.right;
-  return {
-    start: {
-      container: left.getNativeElement(),
-      offset: 0
-    },
-    end: {
-      container: right.getNativeElement(),
-      offset: right.getChildCount()
-    }
-  }
-};
-
-IsolatedNodeComponent.getCoordinate = function (nodeEl, options) {
-  let comp = Component.unwrap(nodeEl, 'strict').context.isolatedNodeComponent;
-  let offset = null;
-  if (options.direction === 'left' || nodeEl === comp.refs.left.el) {
-    offset = 0;
-  } else if (options.direction === 'right' || nodeEl === comp.refs.right.el) {
-    offset = 1;
-  }
-  let coor;
-  if (offset !== null) {
-    coor = new Coordinate([comp.props.node.id], offset);
-    coor._comp = comp;
-  }
-  return coor
-};
-
-class Blocker extends Component {
-  render ($$) {
-    return $$('div').addClass('sc-isolated-node-blocker')
-      .attr('draggable', true)
-      .attr('contenteditable', false)
-      .on('click', this.onClick)
-      .on('dblclick', this.onDblClick)
-  }
-
-  onClick (event) {
-    if (event.target !== this.getNativeElement()) return
-    
-    event.stopPropagation();
-    const comp = this._getIsolatedNodeComponent();
-    comp.extendState({ mode: 'selected', unblocked: true });
-    comp.selectNode();
-  }
-
-  onDblClick (event) {
-    
-    event.stopPropagation();
-  }
-
-  _getIsolatedNodeComponent () {
-    return this.context.isolatedNodeComponent
-  }
-}
-
-const DEBUG$1 = false;
-
-
-class DOMSelection {
-  constructor (editor) {
-    this.editor = editor;
-    if (platform.inBrowser) {
-      this.wRange = window.document.createRange();
-    }
-    
-    
-    this.state = { dom: null, model: null };
-  }
-
-  
-  getSelection (options) {
-    
-    if (!platform.inBrowser) return
-    let range = this.mapDOMSelection(options);
-    let doc = this.editor.getDocument();
-    
-    return doc._createSelectionFromRange(range)
-  }
-
-  getSelectionForDOMRange (wrange) {
-    let range = this.mapDOMRange(wrange);
-    let doc = this.editor.getDocument();
-    return doc._createSelectionFromRange(range)
-  }
-
-  
-  mapDOMSelection (options) {
-    let wSel = window.getSelection();
-    let state = this.state;
-    let range;
-    
-    
-    if (DEBUG$1) console.info('DOM->Model: ', wSel.anchorNode, wSel.anchorOffset, wSel.focusNode, wSel.focusOffset);
-    if (wSel.rangeCount === 0) return _null()
-    let anchorNode = DefaultDOMElement.wrapNativeElement(wSel.anchorNode);
-    if (wSel.isCollapsed) {
-      let coor = this._getCoordinate(anchorNode, wSel.anchorOffset, options);
-      if (!coor) return _null()
-      range = _createRange({
-        start: coor,
-        end: coor
-      });
-    } else {
-      let focusNode = DefaultDOMElement.wrapNativeElement(wSel.focusNode);
-      range = this._getRange(anchorNode, wSel.anchorOffset, focusNode, wSel.focusOffset, options);
-    }
-    if (DEBUG$1) console.info('DOM->Model: range ', range ? range.toString() : null);
-    state.model = range;
-    return range
-
-    function _null () {
-      state.dom = null;
-      state.model = null;
-      return null
-    }
-  }
-
-  
-  setSelection (sel) {
-    
-    if (!platform.inBrowser) return
-    let state = this.state;
-    let wSel = window.getSelection();
-    let wRange = this.wRange;
-    if (!sel || sel.isNull()) return this.clear()
-    
-    let {start, end} = this.mapModelToDOMCoordinates(sel);
-    if (!start) return this.clear()
-    if (sel.isReverse()) {
-      [start, end] = [end, start];
-    }
-    state.dom = {
-      anchorNode: start.container,
-      anchorOffset: start.offset,
-      focusNode: end.container,
-      focusOffset: end.offset
-    };
-    _set(state.dom);
-
-    function _set ({anchorNode, anchorOffset, focusNode, focusOffset}) {
-      wSel.removeAllRanges();
-      wRange.setStart(anchorNode, anchorOffset);
-      wRange.setEnd(anchorNode, anchorOffset);
-      wSel.addRange(wRange);
-      if (focusNode !== anchorOffset || focusOffset !== anchorOffset) {
-        wSel.extend(focusNode, focusOffset);
-      }
-    }
-  }
-
-  mapModelToDOMCoordinates (sel) {
-    if (DEBUG$1) console.info('Model->DOM: sel =', sel.toString());
-    let rootEl;
-    let surface = this.editor.getSurfaceManager().getSurface(sel.surfaceId);
-    if (!surface) {
-      console.warn('No surface:', sel.surfaceId);
-      rootEl = this.editor.getElement();
-    } else {
-      rootEl = surface.el;
-    }
-    if (sel.isNull() || sel.isCustomSelection()) {
-      return {}
-    }
-
-    let start, end;
-    if (sel.isPropertySelection() || sel.isContainerSelection()) {
-      start = this._getDOMCoordinate(rootEl, sel.start);
-      if (!start) {
-        console.warn('FIXME: selection seems to be invalid.');
-        return {}
-      }
-      if (sel.isCollapsed()) {
-        end = start;
-      } else {
-        end = this._getDOMCoordinate(rootEl, sel.end);
-        if (!end) {
-          console.warn('FIXME: selection seems to be invalid.');
-          return {}
-        }
-      }
-    } else if (sel.isNodeSelection()) {
-      let comp = Component.unwrap(rootEl.find('*[data-id="' + sel.getNodeId() + '"]'));
-      if (!comp) {
-        console.error('Could not find component with id', sel.getNodeId());
-        return {}
-      }
-      if (comp._isIsolatedNodeComponent) {
-        let coors = IsolatedNodeComponent.getDOMCoordinates(comp, sel);
-        start = coors.start;
-        end = coors.end;
-        
-        
-        
-      } else {
-        let _nodeEl = comp.el;
-        start = {
-          container: _nodeEl.getNativeElement(),
-          offset: 0
-        };
-        end = {
-          container: _nodeEl.getNativeElement(),
-          offset: _nodeEl.getChildCount()
-        };
-      }
-    }
-    if (DEBUG$1) console.info('Model->DOM:', start.container, start.offset, end.container, end.offset, 'isReverse?', sel.isReverse());
-    return {start, end}
-  }
-
-  _getDOMCoordinate (rootEl, coor) {
-    let domCoor = null;
-    let comp;
-    if (coor.isNodeCoordinate()) {
-      comp = Component.unwrap(rootEl.find('*[data-id="' + coor.getNodeId() + '"]'));
-      if (comp) {
-        if (comp._isIsolatedNodeComponent) {
-          domCoor = IsolatedNodeComponent.getDOMCoordinate(comp, coor);
-        } else {
-          let domOffset = 0;
-          if (coor.offset > 0) {
-            domOffset = comp.getChildCount();
-          }
-          domCoor = {
-            container: comp.getNativeElement(),
-            offset: domOffset
-          };
-        }
-      }
-    } else {
-      comp = Component.unwrap(rootEl.find('.sc-text-property[data-path="' + coor.path.join('.') + '"]'));
-      if (comp) {
-        domCoor = comp.getDOMCoordinate(coor.offset);
-      }
-    }
-    return domCoor
-  }
-
-  
-  mapDOMRange (wRange, options) {
-    return this._getRange(
-      DefaultDOMElement.wrapNativeElement(wRange.startContainer),
-      wRange.startOffset,
-      DefaultDOMElement.wrapNativeElement(wRange.endContainer),
-      wRange.endOffset, options)
-  }
-
-  
-  clear () {
-    window.getSelection().removeAllRanges();
-    this.state.dom = null;
-    this.state.model = null;
-  }
-
-  collapse (dir) {
-    let wSel = window.getSelection();
-    let wRange;
-    if (wSel.rangeCount > 0) {
-      wRange = wSel.getRangeAt(0);
-      wRange.collapse(dir === 'left');
-      wSel.removeAllRanges();
-      wSel.addRange(wRange);
-    }
-  }
-
-  select (el) {
-    let wSel = window.getSelection();
-    let wRange = window.document.createRange();
-    wRange.selectNode(el.getNativeElement());
-    wSel.removeAllRanges();
-    wSel.addRange(wRange);
-  }
-
-  extend (el, offset) {
-    let wSel = window.getSelection();
-    wSel.extend(el.getNativeElement(), offset);
-  }
-
-  setCursor (el, offset) {
-    let wSel = window.getSelection();
-    let wRange = window.document.createRange();
-    wRange.setStart(el.getNativeElement(), offset);
-    wSel.removeAllRanges();
-    wSel.addRange(wRange);
-  }
-
-  
-  _getRange (anchorNode, anchorOffset, focusNode, focusOffset, options = {}) {
-    let isReverse = DefaultDOMElement.isReverse(anchorNode, anchorOffset, focusNode, focusOffset);
-    let isCollapsed = (anchorNode === focusNode && anchorOffset === focusOffset);
-    let start, end;
-    if (isCollapsed) {
-      start = end = this._getCoordinate(anchorNode, anchorOffset, options);
-    } else {
-      start = this._getCoordinate(anchorNode, anchorOffset, { direction: isReverse ? 'right' : 'left' });
-      end = this._getCoordinate(focusNode, focusOffset, options);
-    }
-    if (start && end) {
-      return _createRange({ start, end, isReverse })
-    } else {
-      return null
-    }
-  }
-
-  
-  _getCoordinate (nodeEl, offset, options = {}) {
-    let coor = null;
-    
-    if (!coor) {
-      coor = TextPropertyComponent.getCoordinate(this.editor.getElement(), nodeEl, offset);
-    }
-    let comp = Component.unwrap(nodeEl);
-    if (!coor && comp) {
-      
-      if (comp.context.isolatedNodeComponent) {
-        coor = IsolatedNodeComponent.getCoordinate(nodeEl, options);
-      }
-    }
-    
-    
-    if (!coor) {
-      
-      if (comp && comp._isContainerEditor) {
-        let childIdx = (offset === 0) ? 0 : offset - 1;
-        let isBefore = (offset === 0);
-        let container = comp.getContainer();
-        let childNode = container.getNodeAt(childIdx);
-        let childComp = comp.getChildAt(childIdx);
-        coor = new Coordinate([childNode.id], isBefore ? 0 : 1);
-        coor._comp = childComp;
-      
-      } else if (nodeEl.isElementNode() && nodeEl.getChildCount() > 0) {
-        let child = (offset > 0) ? nodeEl.getChildAt(offset - 1) : nodeEl.firstChild;
-        let prop;
-        let childComp = Component.unwrap(child);
-        if (childComp && childComp._isTextPropertyComponent) {
-          prop = child;
-        }
-        
-        if (prop) {
-          coor = TextPropertyComponent.getCoordinate(nodeEl, prop, (offset > 0) ? prop.getChildCount() : 0);
-        }
-      }
-    }
-    return coor
-  }
-}
-
-
-function _createRange ({start, end, isReverse}) {
-  if (isReverse) {
-    [start, end] = [end, start];
-  }
-  if (!start._comp || !end._comp) {
-    console.error('FIXME: getCoordinate() should provide a component instance');
-    return null
-  }
-  let surface = start._comp.context.surface;
-  if (!surface) {
-    console.error('FIXME: Editable components should have their surface in the context');
-    return null
-  }
-  if (surface !== end._comp.context.surface) {
-    console.error('Coordinates are within two different surfaces. Can not create a selection.');
-    return null
-  }
-  return new Range(start, end, isReverse, surface.getContainerId(), surface.id)
-}
-
-class AbstractEditor extends Component {
-  constructor (...args) {
-    super(...args);
-
-    this._initialize(this.props);
-  }
-
-  didMount () {
-    
-    this.getEditorSession().attachEditor(this);
-  }
-
-  dispose () {
-    this._dispose();
-  }
-
-  _initialize (props) {
-    const editorSession = props.editorSession;
-    if (!editorSession) {
-      throw new Error('EditorSession instance required')
-    }
-    this.editorSession = editorSession;
-    this.doc = editorSession.getDocument();
-
-    let configurator = editorSession.getConfigurator();
-    this.componentRegistry = configurator.getComponentRegistry();
-    this.commandGroups = configurator.getCommandGroups();
-    this.keyboardShortcuts = configurator.getKeyboardShortcutsByCommand();
-    this.tools = configurator.getTools();
-    this.labelProvider = configurator.getLabelProvider();
-    this.iconProvider = configurator.getIconProvider();
-
-    
-    this.surfaceManager = editorSession.surfaceManager;
-    this.commandManager = editorSession.commandManager;
-    this.dragManager = editorSession.dragManager;
-    this.macroManager = editorSession.macroManager;
-    this.converterRegistry = editorSession.converterRegistry;
-    this.globalEventHandler = editorSession.globalEventHandler;
-    this.editingBehavior = editorSession.editingBehavior;
-    this.markersManager = editorSession.markersManager;
-
-    this.resourceManager = new ResourceManager(editorSession, this.getChildContext());
-    this.domSelection = new DOMSelection(this);
-
-    
-    this.labelProvider.setLanguage(editorSession.getLanguage());
-    
-    
-    editorSession.onUpdate('lang', (lang) => {
-      this.labelProvider.setLanguage(lang);
-    }, this);
-    editorSession.onRender('lang', this.rerender, this);
-  }
-
-  willReceiveProps (nextProps) {
-    let newSession = nextProps.editorSession;
-    let shouldDispose = newSession && newSession !== this.editorSession;
-    if (shouldDispose) {
-      this._dispose();
-      this._initialize(nextProps);
-    }
-  }
-
-  _dispose () {
-    const editorSession = this.getEditorSession();
-    editorSession.off(this);
-    editorSession.detachEditor(this);
-    
-    
-    this.empty();
-    
-    
-    this.resourceManager.dispose();
-  }
-
-  getChildContext () {
-    return {
-      editor: this,
-      editorSession: this.editorSession,
-      doc: this.doc, 
-      document: this.doc,
-      componentRegistry: this.componentRegistry,
-      surfaceManager: this.surfaceManager,
-      domSelection: this.domSelection,
-      commandManager: this.commandManager,
-      markersManager: this.markersManager,
-      converterRegistry: this.converterRegistry,
-      dragManager: this.dragManager,
-      editingBehavior: this.editingBehavior,
-      globalEventHandler: this.globalEventHandler,
-      iconProvider: this.iconProvider,
-      labelProvider: this.labelProvider,
-      resourceManager: this.resourceManager,
-      commandGroups: this.commandGroups,
-      tools: this.tools,
-      keyboardShortcuts: this.keyboardShortcuts
-    }
-  }
-
-  
-  onKeyDown (event) {
-    
-    if (event.key === 'Dead') return
-    
-    let custom = this.editorSession.keyboardManager.onKeydown(event);
-    return custom
-  }
-
-  getDocument () {
-    return this.editorSession.getDocument()
-  }
-
-  getConfigurator () {
-    return this.editorSession.getConfigurator()
-  }
-
-  getEditorSession () {
-    return this.editorSession
-  }
-
-  getComponentRegistry () {
-    return this.componentRegistry
-  }
-
-  getSurfaceManager () {
-    return this.surfaceManager
-  }
-
-  getLabelProvider () {
-    return this.labelProvider
-  }
-}
-
-function getRelativeMouseBounds (mouseEvent, containerEl) {
-  let containerElRect = containerEl.getBoundingClientRect();
-  let left = mouseEvent.clientX - containerElRect.left;
-  let top = mouseEvent.clientY - containerElRect.top;
-  let res = {
-    left: left,
-    right: containerElRect.width - left,
-    top: top,
-    bottom: containerElRect.height - top
-  };
-  return res
-}
-
-class AbstractScrollPane extends Component {
-  
-  getChildContext () {
-    return {
-      scrollPane: this
-    }
-  }
-
-  didMount () {
-    if (platform.inBrowser) {
-      this.windowEl = DefaultDOMElement.wrapNativeElement(window);
-      this.windowEl.on('resize', this.onSelectionPositioned, this);
-    }
-  }
-
-  dispose () {
-    if (this.windowEl) {
-      this.windowEl.off(this);
-    }
-  }
-
-  getName () {
-    return this.props.name
-  }
-
-  
-  onSelectionPositioned () {
-    let contentRect = this._getContentRect();
-    let selectionRect = this._getSelectionRect();
-    if (!selectionRect) return
-    let hints = {
-      contentRect,
-      selectionRect
-    };
-    this._emitSelectionPositioned(hints);
-    this._scrollSelectionIntoView(selectionRect);
-  }
-
-  _emitSelectionPositioned (hints) {
-    
-    
-    this.emit('selection:positioned', hints);
-    
-    this.emit('dom-selection:rendered', hints);
-  }
-
-  
-  _onContextMenu (e) {
-    e.preventDefault();
-    let mouseBounds = this._getMouseBounds(e);
-    this.emit('context-menu:opened', {
-      mouseBounds: mouseBounds
-    });
-  }
-
-  _scrollSelectionIntoView (selectionRect) {
-    let upperBound = this.getScrollPosition();
-    let lowerBound = upperBound + this.getHeight();
-    let selTop = selectionRect.top;
-    let selBottom = selectionRect.top + selectionRect.height;
-    if ((selTop < upperBound && selBottom < upperBound) ||
-        (selTop > lowerBound && selBottom > lowerBound)) {
-      this.setScrollPosition(selTop);
-    }
-  }
-
-  
-  getHeight () {
-    throw new Error('Abstract method')
-  }
-
-  
-  getContentHeight () {
-    throw new Error('Abstract method')
-  }
-
-  getContentElement () {
-    
-    throw new Error('Abstract method')
-  }
-
-  
-  getScrollableElement () {
-    throw new Error('Abstract method')
-  }
-
-  
-  getScrollPosition () {
-    throw new Error('Abstract method')
-  }
-
-  setScrollPosition () {
-    throw new Error('Abstract method')
-  }
-
-  
-  getPanelOffsetForElement(el) { 
-    throw new Error('Abstract method')
-  }
-
-  
-  scrollTo(componentId, onlyIfNotVisible) { 
-    throw new Error('Abstract method')
-  }
-
-  _getContentRect () {
-    return this.getContentElement().getNativeElement().getBoundingClientRect()
-  }
-
-  
-  _getSelectionRect () {
-    return getSelectionRect(this._getContentRect())
-  }
-
-  _getMouseBounds (e) {
-    return getRelativeMouseBounds(e, this.getContentElement().getNativeElement())
-  }
-}
-
-class Command {
-  
-  constructor (config) {
-    this.config = config || {};
-    this.name = this.config.name;
-    if (!this.name) {
-      throw new Error("'name' is required")
-    }
-  }
-
-  get isAsync () {
-    return false
-  }
-
-  
-  getName () {
-    return this.name
-  }
-
-  
-  getCommandState(params, context) { 
-    throw new Error('Command.getCommandState() is abstract.')
-  }
-
-  
-  execute(params, context) { 
-    throw new Error('Command.execute() is abstract.')
-  }
-
-  
-  isAnnotationCommand () {
-    return false
-  }
-
-  
-  isInsertCommand () {
-    return false
-  }
-
-  
-  isSwitchTypeCommand () {
-    return false
-  }
-
-  _getEditorSession (params, context) {
-    let editorSession = params.editorSession || context.editorSession;
-    if (!editorSession) {
-      throw new Error("'editorSession' is required.")
-    }
-    return editorSession
-  }
-
-  _getSelection (params) {
-    let sel = params.selection || params.selectionState.getSelection();
-    if (!sel) {
-      throw new Error("'selection' is required.")
-    }
-    return sel
-  }
-}
-
-Command.prototype._isCommand = true;
-
-class AnnotationCommand extends Command {
-  constructor (...args) {
-    super(...args);
-
-    if (!this.config.nodeType) {
-      throw new Error("'nodeType' is required")
-    }
-  }
-
-  
-  getAnnotationType () {
-    return this.config.nodeType
-  }
-
-  getType () {
-    return this.getAnnotationType()
-  }
-
-  
-  getAnnotationData () {
-    return {}
-  }
-
-  
-  isDisabled (sel, params) {
-    let selectionState = params.selectionState;
-    let isBlurred = params.editorSession.isBlurred();
-    
-    
-    if (isBlurred || !sel || sel.isNull() || !sel.isAttached() || sel.isCustomSelection() ||
-        sel.isNodeSelection() || sel.isContainerSelection() || selectionState.isInlineNodeSelection()) {
-      return true
-    }
-    return false
-  }
-
-  
-  showInContext (sel) {
-    return !sel.isCollapsed()
-  }
-
-  
-  
-  canCreate (annos, sel) {
-    return (annos.length === 0 && !sel.isCollapsed())
-  }
-
-  
-  canFuse (annos, sel) {
-    
-    return (annos.length >= 2 && !sel.isCollapsed())
-  }
-
-  
-  canDelete (annos, sel) {
-    
-    if (annos.length !== 1) return false
-    let annoSel = annos[0].getSelection();
-    return sel.isInsideOf(annoSel)
-  }
-
-  
-  canExpand (annos, sel) {
-    
-    if (annos.length !== 1) return false
-    let annoSel = annos[0].getSelection();
-    return sel.overlaps(annoSel) && !sel.isInsideOf(annoSel)
-  }
-
-  
-  canTruncate (annos, sel) {
-    if (annos.length !== 1) return false
-    let annoSel = annos[0].getSelection();
-
-    return (sel.isLeftAlignedWith(annoSel) || sel.isRightAlignedWith(annoSel)) &&
-           !sel.contains(annoSel) &&
-           !sel.isCollapsed()
-  }
-
-  
-  getCommandState(params) { 
-    let sel = this._getSelection(params);
-    
-    
-    
-    if (this.isDisabled(sel, params)) {
-      return {
-        disabled: true
-      }
-    }
-    let annos = this._getAnnotationsForSelection(params);
-    let newState = {
-      disabled: false,
-      active: false,
-      mode: null
-    };
-    if (this.canCreate(annos, sel)) {
-      newState.mode = 'create';
-    } else if (this.canFuse(annos, sel)) {
-      newState.mode = 'fuse';
-    } else if (this.canTruncate(annos, sel)) {
-      newState.active = true;
-      newState.mode = 'truncate';
-    } else if (this.canExpand(annos, sel)) {
-      newState.mode = 'expand';
-    } else if (this.canDelete(annos, sel)) {
-      newState.active = true;
-      newState.mode = 'delete';
-    } else {
-      newState.disabled = true;
-    }
-    newState.showInContext = this.showInContext(sel, params);
-    return newState
-  }
-
-  
-  
-  execute (params) {
-    
-    
-    
-    let commandState = params.commandState;
-
-    if (commandState.disabled) return false
-    switch (commandState.mode) {
-      case 'create':
-        return this.executeCreate(params)
-      case 'fuse':
-        return this.executeFuse(params)
-      case 'truncate':
-        return this.executeTruncate(params)
-      case 'expand':
-        return this.executeExpand(params)
-      case 'delete':
-        return this.executeDelete(params)
-      default:
-        console.warn('Command.execute(): unknown mode', commandState.mode);
-        return false
-    }
-  }
-
-  executeCreate (params) {
-    let annos = this._getAnnotationsForSelection(params);
-    this._checkPrecondition(params, annos, this.canCreate);
-    let editorSession = this._getEditorSession(params);
-    let annoData = this.getAnnotationData();
-    annoData.type = this.getAnnotationType();
-    let anno;
-    editorSession.transaction((tx) => {
-      anno = tx.annotate(annoData);
-    });
-    return {
-      mode: 'create',
-      anno: anno
-    }
-  }
-
-  executeFuse (params) {
-    let annos = this._getAnnotationsForSelection(params);
-    this._checkPrecondition(params, annos, this.canFuse);
-    this._applyTransform(params, function (tx) {
-      annotationHelpers.fuseAnnotation(tx, annos);
-    });
-    return {
-      mode: 'fuse',
-      anno: annos[0]
-    }
-  }
-
-  executeTruncate (params) {
-    let annos = this._getAnnotationsForSelection(params);
-    let anno = annos[0];
-    this._checkPrecondition(params, annos, this.canTruncate);
-    this._applyTransform(params, function (tx) {
-      annotationHelpers.truncateAnnotation(tx, anno, params.selection);
-    });
-    return {
-      mode: 'truncate',
-      anno: anno
-    }
-  }
-
-  executeExpand (params) {
-    let annos = this._getAnnotationsForSelection(params);
-    let anno = annos[0];
-    this._checkPrecondition(params, annos, this.canExpand);
-    this._applyTransform(params, function (tx) {
-      annotationHelpers.expandAnnotation(tx, anno, params.selection);
-    });
-    return {
-      mode: 'expand',
-      anno: anno
-    }
-  }
-
-  executeDelete (params) {
-    let annos = this._getAnnotationsForSelection(params);
-    let anno = annos[0];
-    this._checkPrecondition(params, annos, this.canDelete);
-    this._applyTransform(params, function (tx) {
-      return tx.delete(anno.id)
-    });
-    return {
-      mode: 'delete',
-      annoId: anno.id
-    }
-  }
-
-  isAnnotationCommand () {
-    return true
-  }
-
-  _checkPrecondition (params, annos, checker) {
-    let sel = this._getSelection(params);
-    if (!checker.call(this, annos, sel)) {
-      throw new Error("AnnotationCommand: can't execute command for selection " + sel.toString())
-    }
-  }
-
-  _getAnnotationsForSelection (params) {
-    return params.selectionState.getAnnotationsForType(this.getAnnotationType())
-  }
-
-  
-  _applyTransform (params, transformFn) {
-    let sel = this._getSelection(params);
-    if (sel.isNull()) return
-
-    let editorSession = this._getEditorSession(params);
-    let result; 
-    editorSession.setSelection(sel);
-    editorSession.transaction(function (tx) {
-      let out = transformFn(tx, params);
-      if (out) result = out.result;
-    });
-    return result
-  }
-}
-
 class NodeComponent extends Component {
   didMount () {
     this.context.editorSession.onRender('document', this.rerender, this, { path: [this.props.node.id] });
@@ -38689,17 +37055,76 @@ class NodeComponent extends Component {
   rerender (...args) {
     
     if (this.props.node.isDisposed()) return
+
     super.rerender(...args);
   }
 }
 
-class BlockNodeComponent extends NodeComponent {
-  
+class BlockNodeComponent extends NodeComponent {}
+
+class Button extends Component {
+  render ($$) {
+    let el = $$('button')
+      .addClass('sc-button');
+
+    if (this.props.icon) {
+      el.append(this.renderIcon($$));
+    }
+    if (this.props.label) {
+      el.append(this.renderLabel($$));
+    }
+
+    if (this.props.dropdown) {
+      el.append(this.renderDropdownIcon($$));
+    }
+
+    if (this.props.active) {
+      el.addClass('sm-active');
+    }
+    if (this.props.theme) {
+      el.addClass('sm-theme-' + this.props.theme);
+    }
+
+    if (this.props.disabled) {
+      
+      el.attr('tabindex', -1)
+        .attr('disabled', true);
+    } else {
+      
+      el.attr('tabindex', 1);
+    }
+
+    
+    el.append(this.props.children);
+    return el
+  }
+
+  renderIcon ($$) {
+    let iconEl = this.context.iconProvider.renderIcon($$, this.props.icon);
+    return iconEl
+  }
+
+  renderDropdownIcon ($$) {
+    let iconEl = this.context.iconProvider.renderIcon($$, 'dropdown');
+    iconEl.addClass('se-dropdown');
+    return iconEl
+  }
+
+  renderLabel ($$) {
+    return $$('span').addClass('se-label').append(
+      this.getLabel(this.props.label)
+    )
+  }
+
+  getLabel (name) {
+    let labelProvider = this.context.labelProvider;
+    return labelProvider.getLabel(name, this.props.commandState)
+  }
 }
 
 class Clipboard extends AbstractClipboard {
-  constructor (editorSession) {
-    super(editorSession.getConfigurator());
+  constructor (configurator, editorSession) {
+    super(configurator);
 
     this.editorSession = editorSession;
   }
@@ -38727,7 +37152,7 @@ class Clipboard extends AbstractClipboard {
 
   _cut () {
     let editorSession = this.getEditorSession();
-    editorSession.transaction((tx) => {
+    editorSession.transaction(tx => {
       tx.deleteSelection();
     });
   }
@@ -38735,7 +37160,7 @@ class Clipboard extends AbstractClipboard {
   
   _pastePlainText (plainText) {
     let editorSession = this.getEditorSession();
-    editorSession.transaction(function (tx) {
+    editorSession.transaction(tx => {
       tx.paste(plainText);
     }, { action: 'paste' });
   }
@@ -38746,7 +37171,7 @@ class Clipboard extends AbstractClipboard {
     let content = htmlImporter.importDocument(html) || text;
     if (content) {
       let editorSession = this.getEditorSession();
-      editorSession.transaction((tx) => {
+      editorSession.transaction(tx => {
         tx.paste(content);
       }, { action: 'paste' });
     }
@@ -38798,32 +37223,32 @@ class Surface extends Component {
   }
 
   _initialize () {
-    
-    
-    this.editorSession = this.props.editorSession || this.context.editorSession;
-    if (!this.editorSession) {
-      throw new Error('No EditorSession provided')
-    }
+    const editorSession = this.getEditorSession();
+    if (!editorSession) throw new Error('editorSession is mandatory')
     this.name = this.props.name;
-    if (!this.name) {
-      throw new Error('Surface must have a name.')
-    }
+    if (!this.name) throw new Error('Surface must have a name.')
     if (this.name.indexOf('/') > -1) {
       
       throw new Error("Surface.name must not contain '/'")
     }
     
-    
     this._surfaceId = Surface.createSurfaceId(this);
 
-    this.clipboard = new Clipboard(this.editorSession);
-
-    this.domSelection = this.context.domSelection || new DOMSelection(this);
+    this.clipboard = this.context.clipboard || this._initializeClipboard();
+    this.domSelection = this.context.domSelection || this._initializeDOMSelection();
 
     this._state = {
       
       skipNextFocusEvent: false
     };
+  }
+
+  _initializeClipboard () {
+    return new Clipboard(this.getConfigurator(), this.getEditorSession())
+  }
+
+  _initializeDOMSelection () {
+    return new DOMSelection(this)
   }
 
   getChildContext () {
@@ -38839,26 +37264,28 @@ class Surface extends Component {
 
   didMount () {
     const editorSession = this.getEditorSession();
+    editorSession.onRender('selection', this._onSelectionChanged, this);
     const surfaceManager = this.getSurfaceManager();
     if (surfaceManager) {
       surfaceManager.registerSurface(this);
     }
-    editorSession.onRender('selection', this._onSelectionChanged, this);
-
-    const globalEventHandler = editorSession.globalEventHandler;
-    globalEventHandler.addEventListener('keydown', this._muteNativeHandlers, this);
+    const globalEventHandler = this.getGlobalEventHandler();
+    if (globalEventHandler) {
+      globalEventHandler.addEventListener('keydown', this._muteNativeHandlers, this);
+    }
   }
 
   dispose () {
     const editorSession = this.getEditorSession();
-    const surfaceManager = this.getSurfaceManager();
     editorSession.off(this);
+    const surfaceManager = this.getSurfaceManager();
     if (surfaceManager) {
       surfaceManager.unregisterSurface(this);
     }
-
-    const globalEventHandler = editorSession.globalEventHandler;
-    globalEventHandler.removeEventListener('keydown', this._muteNativeHandlers);
+    const globalEventHandler = this.getGlobalEventHandler();
+    if (globalEventHandler) {
+      globalEventHandler.removeEventListener('keydown', this._muteNativeHandlers);
+    }
   }
 
   didUpdate () {
@@ -38907,20 +37334,6 @@ class Surface extends Component {
     return el
   }
 
-  renderNode ($$, node) {
-    let componentRegistry = this.getComponentRegistry();
-    let ComponentClass = componentRegistry.get(node.type);
-    if (!ComponentClass) {
-      console.error('Could not resolve a component for type: ' + node.type);
-      ComponentClass = UnsupportedNodeComponent;
-    }
-    return $$(ComponentClass, this._extractNodeProps(node)).ref(node.id)
-  }
-
-  getComponentRegistry () {
-    return this.context.componentRegistry || this.props.componentRegistry
-  }
-
   getName () {
     return this.name
   }
@@ -38957,12 +37370,28 @@ class Surface extends Component {
     return this.getEditorSession().getDocument()
   }
 
+  getComponentRegistry () {
+    return this.context.componentRegistry
+  }
+
+  getConfigurator () {
+    return this.context.configurator
+  }
+
   getEditorSession () {
-    return this.editorSession
+    return this.context.editorSession
   }
 
   getSurfaceManager () {
     return this.context.surfaceManager
+  }
+
+  getGlobalEventHandler () {
+    return this.context.globalEventHandler
+  }
+
+  getKeyboardManager () {
+    return this.context.keyboardManager
   }
 
   isEnabled () {
@@ -38986,14 +37415,18 @@ class Surface extends Component {
   }
 
   focus () {
-    if (this.getEditorSession().getFocusedSurface() !== this) {
+    const editorSession = this.getEditorSession();
+    const sel = editorSession.getSelection();
+    if (sel.surfaceId !== this.getId()) {
       this.selectFirst();
     }
   }
 
   blur () {
-    if (this.getEditorSession().getFocusedSurface() === this) {
-      this.getEditorSession().setSelection(null);
+    const editorSession = this.getEditorSession();
+    const sel = editorSession.getSelection();
+    if (sel.surfaceId === this.getId()) {
+      editorSession.setSelection(null);
     }
   }
 
@@ -39010,11 +37443,10 @@ class Surface extends Component {
       if (sel.surfaceId === this.getId()) {
         this.domSelection.setSelection(sel);
         
-        
-        
         const scrollPane = this.context.scrollPane;
-        if (scrollPane) {
-          this.context.scrollPane.onSelectionPositioned();
+        if (scrollPane && scrollPane.onSelectionPositioned) {
+          console.error('DEPRECATED: you should manage the scrollPane yourself');
+          scrollPane.onSelectionPositioned();
         }
       }
     }
@@ -39035,7 +37467,8 @@ class Surface extends Component {
     if (event.key === 'Dead') return
 
     
-    let custom = this.getEditorSession().keyboardManager.onKeydown(event);
+    const keyboardManager = this.getKeyboardManager();
+    let custom = keyboardManager.onKeydown(event);
     if (!custom) {
       
       switch (event.keyCode) {
@@ -39076,9 +37509,10 @@ class Surface extends Component {
     event.preventDefault();
     event.stopPropagation();
     if (!event.data) return
-    const editorSession = this.getEditorSession();
     let text = event.data;
-    if (!editorSession.keyboardManager.onTextInput(text)) {
+    const keyboardManager = this.getKeyboardManager();
+    if (!keyboardManager || !keyboardManager.onTextInput(text)) {
+      const editorSession = this.getEditorSession();
       editorSession.transaction((tx) => {
         tx.insertText(text);
       }, { action: 'type' });
@@ -39096,12 +37530,13 @@ class Surface extends Component {
     
     
     if (event.data) {
+      const editorSession = this.getEditorSession();
       let l = event.data.length;
-      let sel = this.getEditorSession().getSelection();
+      let sel = editorSession.getSelection();
       if (sel.isPropertySelection() && sel.isCollapsed()) {
         
         let offset = sel.start.offset;
-        this.getEditorSession().setSelection(sel.createWithNewRange(offset - l, offset));
+        editorSession.setSelection(sel.createWithNewRange(offset - l, offset));
       }
     }
   }
@@ -39117,8 +37552,10 @@ class Surface extends Component {
       if (!event.data) return
       this._delayed(() => {
         let text = event.data;
-        if (!this.getEditorSession().keyboardManager.onTextInput(text)) {
-          this.getEditorSession().transaction((tx) => {
+        const keyboardManager = this.getKeyboardManager();
+        if (!keyboardManager || !keyboardManager.onTextInput(text)) {
+          const editorSession = this.getEditorSession();
+          editorSession.transaction((tx) => {
             tx.insertText(text);
           }, { action: 'type' });
         }
@@ -39146,7 +37583,8 @@ class Surface extends Component {
     }
     event.preventDefault();
     event.stopPropagation();
-    if (!this.getEditorSession().keyboardManager.onTextInput(character)) {
+    const keyboardManager = this.getKeyboardManager();
+    if (!keyboardManager || !keyboardManager.onTextInput(character)) {
       if (character.length > 0) {
         this.getEditorSession().transaction((tx) => {
           tx.insertText(character);
@@ -39163,7 +37601,7 @@ class Surface extends Component {
   onMouseDown (event) {
     if (!this._shouldConsumeEvent(event)) {
       
-      return
+      return false
     }
 
     
@@ -39302,20 +37740,24 @@ class Surface extends Component {
     
     
     
-    let enableContenteditable = false;
-    if (this.isEditable() && !this.props.disabled) {
-      enableContenteditable = true;
-      if (this.state.mode === 'co-focused') {
-        let selState = this.context.editorSession.getSelectionState();
-        let sel = selState.getSelection();
-        let surface = this.getSurfaceManager().getSurface(sel.surfaceId);
+    
+    function isInsideOpenIsolatedNode (editorSession, surfaceManager) {
+      if (surfaceManager) {
+        let sel = editorSession.getSelection();
+        let surface = surfaceManager.getSurface(sel.surfaceId);
         if (surface) {
           let isolatedNodeComponent = surface.context.isolatedNodeComponent;
           if (isolatedNodeComponent) {
-            enableContenteditable = isolatedNodeComponent.isOpen();
+            return isolatedNodeComponent.isOpen()
           }
         }
       }
+    }
+
+    
+    let enableContenteditable = this.isEditable() && !this.props.disabled;
+    if (enableContenteditable && this.state.mode === 'co-focused') {
+      enableContenteditable = isInsideOpenIsolatedNode(this.getEditorSession(), this.getSurfaceManager());
     }
     if (enableContenteditable) {
       this.el.setAttribute('contenteditable', true);
@@ -39353,7 +37795,7 @@ class Surface extends Component {
       this._state.skipNextFocusEvent = true;
       
       
-      this.el.focus();
+      this.el.focus({ preventScroll: true });
       this._state.skipNextFocusEvent = false;
     }
   }
@@ -39408,8 +37850,10 @@ class Surface extends Component {
     event.stopPropagation();
     event.preventDefault();
     const text = ' ';
-    if (!this.getEditorSession().keyboardManager.onTextInput(text)) {
-      this.getEditorSession().transaction((tx) => {
+    const keyboardManager = this.getKeyboardManager();
+    if (!keyboardManager || !keyboardManager.onTextInput(text)) {
+      const editorSession = this.getEditorSession();
+      editorSession.transaction((tx) => {
         tx.insertText(text);
       }, { action: 'type' });
     }
@@ -39496,29 +37940,22 @@ class Surface extends Component {
     }));
   }
 
-  
-  
   _renderNode ($$, nodeId) {
     let doc = this.getDocument();
     let node = doc.get(nodeId);
-    let componentRegistry = this.context.componentRegistry || this.props.componentRegistry;
-    let ComponentClass = componentRegistry.get(node.type);
+    let ComponentClass = this.getComponent(node.type, true);
     if (!ComponentClass) {
       console.error('Could not resolve a component for type: ' + node.type);
       ComponentClass = UnsupportedNodeComponent;
     }
-    return $$(ComponentClass, {
-      doc: doc,
-      node: node
-    })
+    return $$(ComponentClass, this._getNodeProps(node))
   }
 
-  _extractNodeProps (node) {
-    let doc = this.getDocument();
+  _getNodeProps (node) {
     return {
+      node,
       placeholder: this.props.placeholder,
-      doc: doc,
-      node: node
+      disabled: this.props.disabled
     }
   }
 
@@ -39552,7 +37989,9 @@ class Surface extends Component {
   }
 
   _delayed (fn) {
-    window.setTimeout(fn, BROWSER_DELAY);
+    if (platform.inBrowser) {
+      window.setTimeout(fn, BROWSER_DELAY);
+    }
   }
 
   
@@ -39595,6 +38034,7 @@ Surface.createSurfaceId = function (surface) {
 class ContainerEditor extends Surface {
   constructor (parent, props, el) {
     
+    
     props.containerId = props.containerId || props.node.id;
     props.name = props.name || props.containerId || props.node.id;
 
@@ -39609,8 +38049,6 @@ class ContainerEditor extends Surface {
     if (!this.container) {
       throw new Error('Container with id ' + this.containerId + ' does not exist.')
     }
-
-    this.editingBehavior = this.context.editingBehavior || new EditingBehavior();
 
     this._deriveInternalState(this.props);
   }
@@ -39681,26 +38119,18 @@ class ContainerEditor extends Surface {
   }
 
   _renderNode ($$, node, nodeIndex) {
-    let props = { node };
     if (!node) throw new Error('Illegal argument')
-    if (node.isText()) {
-      return this.renderNode($$, node, nodeIndex)
-    } else {
-      let componentRegistry = this.context.componentRegistry;
-      let ComponentClass = componentRegistry.get(node.type);
-      if (ComponentClass.prototype._isCustomNodeComponent || ComponentClass.prototype._isIsolatedNodeComponent) {
-        return $$(ComponentClass, props).ref(node.id)
-      } else {
-        return $$(IsolatedNodeComponent, props).ref(node.id)
-      }
-    }
+    let ComponentClass = this._getNodeComponentClass(node);
+    let props = this._getNodeProps(node);
+    return $$(ComponentClass, props).ref(node.id)
   }
 
-  _extractNodeProps (node) {
-    let doc = this.getDocument();
-    return {
-      doc: doc,
-      node: node
+  _getNodeComponentClass (node) {
+    let ComponentClass = this.getComponent(node.type);
+    if (node.isText() || ComponentClass.prototype._isCustomNodeComponent || ComponentClass.prototype._isIsolatedNodeComponent) {
+      return ComponentClass
+    } else {
+      return this.getComponent('isolated-node')
     }
   }
 
@@ -39715,17 +38145,17 @@ class ContainerEditor extends Surface {
 
   _selectNextIsolatedNode (direction) {
     let selState = this.getEditorSession().getSelectionState();
-    let node = (direction === 'left') ? selState.getPreviousNode() : selState.getNextNode();
+    let node = (direction === 'left') ? selState.previousNode : selState.nextNode;
     let isIsolatedNode = !node.isText() && !node.isList();
     if (!node || !isIsolatedNode) return false
     if (
-      (direction === 'left' && selState.isFirst()) ||
-      (direction === 'right' && selState.isLast())
+      (direction === 'left' && selState.isFirst) ||
+      (direction === 'right' && selState.isLast)
     ) {
       this.getEditorSession().setSelection({
         type: 'node',
         nodeId: node.id,
-        containerId: selState.getContainer().id,
+        containerId: selState.container.id,
         surfaceId: this.id
       });
       return true
@@ -39907,9 +38337,9 @@ class ContainerEditor extends Surface {
     }
     this._attachPlaceholder();
   }
-}
 
-ContainerEditor.prototype._isContainerEditor = true;
+  get _isContainerEditor () { return true }
+}
 
 class CustomSurface extends Component {
   constructor (...args) {
@@ -39930,12 +38360,12 @@ class CustomSurface extends Component {
   }
 
   didMount () {
-    const surfaceManager = this.context.editorSession.surfaceManager;
+    const surfaceManager = this._getSurfaceManager();
     surfaceManager.registerSurface(this);
   }
 
   dispose () {
-    const surfaceManager = this.context.editorSession.surfaceManager;
+    const surfaceManager = this._getSurfaceManager();
     surfaceManager.unregisterSurface(this);
   }
 
@@ -39992,36 +38422,9 @@ class CustomSurface extends Component {
   _getCustomResourceId () {
     throw new Error('This method needs to be implemented by a CustomSurface')
   }
-}
 
-class EditAnnotationCommand extends Command {
-  constructor (...args) {
-    super(...args);
-
-    if (!this.config.nodeType) {
-      throw new Error("'nodeType' is required")
-    }
-  }
-
-  
-  getCommandState (params) {
-    let sel = this._getSelection(params);
-    let annos = this._getAnnotationsForSelection(params);
-    let newState = {
-      disabled: true
-    };
-    if (annos.length === 1 && sel.isPropertySelection() && sel.isCollapsed()) {
-      newState.disabled = false;
-      newState.showInContext = true;
-      newState.nodeId = annos[0].id;
-    }
-    return newState
-  }
-
-  execute(params) { } 
-
-  _getAnnotationsForSelection (params) {
-    return params.selectionState.getAnnotationsForType(this.config.nodeType)
+  _getSurfaceManager () {
+    return this.context.surfaceManager
   }
 }
 
@@ -40033,14 +38436,13 @@ class EditInlineNodeCommand extends Command {
     }
   }
 
-  getCommandState (params) {
+  getCommandState (params, context) { 
     let sel = params.selection;
     let newState = {
       disabled: true,
       active: false
     };
     let annos = this._getAnnotationsForSelection(params);
-
     
     
     if (annos.length > 0) {
@@ -40054,12 +38456,26 @@ class EditInlineNodeCommand extends Command {
     return newState
   }
 
-  execute(params) { 
-
-  }
+  execute (params, context) { } 
 
   _getAnnotationsForSelection (params) {
-    return params.selectionState.getAnnotationsForType(this.config.nodeType)
+    return params.selectionState.annosByType[this.config.nodeType] || []
+  }
+}
+
+class EditAnnotationCommand extends EditInlineNodeCommand {
+  getCommandState (params, context) { 
+    let sel = params.selection;
+    let annos = this._getAnnotationsForSelection(params);
+    let newState = {
+      disabled: true
+    };
+    if (annos.length === 1 && sel.isPropertySelection() && sel.isCollapsed()) {
+      newState.disabled = false;
+      newState.showInContext = true;
+      newState.nodeId = annos[0].id;
+    }
+    return newState
   }
 }
 
@@ -40124,31 +38540,31 @@ class Highlights extends EventEmitter {
 
 class InsertInlineNodeCommand extends Command {
   
-  getCommandState (params) {
+  getCommandState (params, context) {
     let sel = params.selection;
     let newState = {
-      disabled: this.isDisabled(params),
+      disabled: this.isDisabled(params, context),
       active: false,
-      showInContext: this.showInContext(sel, params)
+      showInContext: this.showInContext(sel, params, context)
     };
     return newState
   }
 
   
-  showInContext (sel) {
+  showInContext (sel, context) { 
     return !sel.isCollapsed()
   }
 
-  isDisabled (params) {
-    let sel = params.selection;
-    let selectionState = params.editorSession.getSelectionState();
+  isDisabled (params, context) { 
+    const editorSession = this.getEditorSession(params, context);
+    let sel = editorSession.getSelection();
+    let selectionState = editorSession.getSelectionState();
     if (!sel.isPropertySelection()) {
       return true
     }
-
     
     
-    if (selectionState.isInlineNodeSelection()) {
+    if (selectionState.isInlineNodeSelection) {
       return true
     }
     return false
@@ -40160,17 +38576,17 @@ class InsertInlineNodeCommand extends Command {
   }
 
   
-  execute (params) {
-    let state = this.getCommandState(params);
+  execute (params, context) {
+    let state = params.commandState;
+    let editorSession = params.editorSession;
     if (state.disabled) return
-    let editorSession = this._getEditorSession(params);
     editorSession.transaction((tx) => {
-      let nodeData = this.createNodeData(tx, params);
+      let nodeData = this.createNodeData(tx, params, context);
       tx.insertInlineNode(nodeData);
     });
   }
 
-  createNodeData(tx) { 
+  createNodeData (tx, params, context) { 
     throw new Error('This method is abstract')
   }
 }
@@ -40191,7 +38607,7 @@ class InsertNodeCommand extends Command {
     return this.config.nodeType
   }
 
-  getCommandState (params) {
+  getCommandState (params, context) { 
     let sel = params.selection;
     let newState = {
       disabled: true,
@@ -40200,13 +38616,14 @@ class InsertNodeCommand extends Command {
     if (sel && !sel.isNull() && !sel.isCustomSelection() && sel.containerId) {
       newState.disabled = false;
     }
-    newState.showInContext = this.showInContext(sel, params);
+    newState.showInContext = this.showInContext(sel, params, context);
     return newState
   }
 
-  showInContext (sel, params) {
-    let selectionState = params.selectionState;
-    return sel.isCollapsed() && selectionState.isFirst() && selectionState.isLast()
+  showInContext (sel, params, context) { 
+    const editorSession = params.editorSession;
+    let selectionState = editorSession.getSelectionState();
+    return sel.isCollapsed() && selectionState.isFirst && selectionState.isLast
   }
 
   isInsertCommand () {
@@ -40216,7 +38633,7 @@ class InsertNodeCommand extends Command {
   execute (params, context) {
     var state = params.commandState;
     if (state.disabled) return
-    let editorSession = this._getEditorSession(params, context);
+    let editorSession = params.editorSession;
     editorSession.transaction((tx) => {
       let nodeData = this.createNodeData(tx, params, context);
       let node = tx.insertBlockNode(nodeData);
@@ -40227,7 +38644,8 @@ class InsertNodeCommand extends Command {
   createNodeData (tx, params, context) {
     const type = params.type;
     if (!type) throw new Error("'type' is mandatory")
-    const doc = context.editorSession.getDocument();
+    const editorSession = params.editorSession;
+    const doc = editorSession.getDocument();
     const nodeSchema = doc.getSchema().getNodeSchema(type);
     let nodeData = {type};
     for (let property of nodeSchema) {
@@ -40247,323 +38665,148 @@ class InsertNodeCommand extends Command {
   }
 }
 
-class MenuItem extends Component {
+class IsolatedInlineNodeComponent extends AbstractIsolatedNodeComponent {
   render ($$) {
-    let commandState = this.props.commandState;
-    let el = $$('button')
-      .addClass('sc-menu-item')
-      .append(
-        this._renderIcon($$),
-        this._renderLabel($$),
-        this._renderKeyboardShortcut($$)
-      )
-      .on('click', this._onClick);
+    const node = this.props.node;
+    const ContentClass = this.ContentClass;
+    const state = this.state;
 
-    if (this.props.label) {
-      el.append(this.renderLabel($$));
-    }
-    if (commandState.active) {
-      el.addClass('sm-active');
-    }
-    if (commandState.disabled) {
-      
-      el.attr('tabindex', -1)
-        .attr('disabled', true);
+    let el = $$('span');
+    el.addClass(this.getClassNames())
+      .addClass('sc-inline-node')
+      .addClass('sm-' + this.props.node.type)
+      .attr('data-id', node.id)
+      .attr('data-inline', '1');
+
+    let disabled = this.isDisabled();
+
+    if (state.mode) {
+      el.addClass('sm-' + state.mode);
     } else {
-      
-      el.attr('tabindex', 1);
+      el.addClass('sm-not-selected');
     }
-    return el
-  }
 
-  _renderLabel ($$) {
-    return $$('div').addClass('se-label').append(
-      this._getLabel()
-    )
-  }
-
-  _renderIcon ($$) {
-    return $$('div').addClass('se-icon').append(
-      this.context.iconProvider.renderIcon($$, this.props.name)
-    )
-  }
-
-  _renderKeyboardShortcut ($$) {
-    return $$('div').addClass('se-keyboard-shortcut').append(
-      this._getKeyboardShortcut()
-    )
-  }
-
-  _getLabel () {
-    let labelProvider = this.context.labelProvider;
-    return labelProvider.getLabel(this.props.name, this.props.commandState)
-  }
-
-  _getKeyboardShortcut () {
-    let name = this.props.name;
-    let keyboardShortcuts = this.context.keyboardShortcuts;
-    if (keyboardShortcuts[name]) {
-      return keyboardShortcuts[name]
-    } else {
-      return ''
+    if (!ContentClass.noStyle) {
+      el.addClass('sm-default-style');
     }
-  }
 
-  _onClick (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!this.props.commandState.disabled) this.executeCommand();
-  }
-
-  
-  executeCommand (props) {
-    
-    this.context.commandManager.executeCommand(this.props.name, props);
-  }
-}
-
-class ToolPanel extends Component {
-  didMount () {
-    this.context.editorSession.onRender(this._onCommandStatesChanged, this);
-  }
-
-  dispose () {
-    this.context.editorSession.off(this);
-  }
-
-  render($$) { 
-    throw new Error('This method is abstract')
-  }
-
-  
-  getEntryTypeComponents () {
-    return {
-      'tool-group': this.getComponent('tool-group'),
-      'tool-dropdown': this.getComponent('tool-dropdown'),
-      'tool-prompt': this.getComponent('tool-prompt'),
-      'tool-separator': this.getComponent('tool-separator')
-    }
-  }
-
-  renderEntries ($$) {
-    return this.props.toolPanel.map(entry => {
-      let entryTypeComponents = this.getEntryTypeComponents();
-      let ComponentClass = entryTypeComponents[entry.type];
-      if (!ComponentClass) throw new Error('Toolpanel entry type not found')
-      let props = Object.assign({}, entry, { theme: this.getTheme() });
-      let el = $$(ComponentClass, props);
-      if (entry.name) el.ref(entry.name);
-      return el
-    })
-  }
-
-  hasEnabledTools () {
-    let entriesContainer = this.refs.entriesContainer;
-    let entries = entriesContainer.childNodes;
-    let hasEnabledTools = false;
-    entries.forEach((entry) => {
-      if (entry.hasEnabledTools()) {
-        hasEnabledTools = true;
-      }
-    });
-    return hasEnabledTools
-  }
-
-  getActiveToolGroupNames () {
-    throw new Error('Abstract method')
-  }
-
-  showDisabled () {
-    return false
-  }
-
-  
-  getToolStyle () {
-    throw new Error('Abstract method')
-  }
-
-  getTheme () {
-    return this.props.theme || 'dark'
-  }
-
-  _onCommandStatesChanged (editorSession) {
-    if (editorSession.hasChanged('commandStates')) {
-      this.rerender();
-    }
-  }
-}
-
-class Overlay extends ToolPanel {
-  didMount () {
-    super.didMount();
-    if (!this.context.scrollPane) {
-      throw new Error('Requires scrollPane context')
-    }
-    this.context.scrollPane.on('selection:positioned', this._onSelectionPositioned, this);
-  }
-
-  dispose () {
-    super.dispose();
-    this.context.scrollPane.off(this);
-  }
-
-  render ($$) {
-    let el = $$('div').addClass('sc-overlay');
-    el.addClass('sm-hidden');
-    el.addClass('sm-theme-' + this.getTheme());
-    el.append(
-      $$('div').addClass('se-active-tools').append(
-        this.renderEntries($$)
-      ).ref('entriesContainer')
-    );
-    return el
-  }
-
-  show (hints) {
-    this.el.removeClass('sm-hidden');
-    this._position(hints);
-  }
-
-  hide () {
-    this.el.addClass('sm-hidden');
-  }
-
-  _onSelectionPositioned (hints) {
-    if (this.hasEnabledTools()) {
-      this.el.removeClass('sm-hidden');
-      let overlayWidth = this.el.htmlProp('offsetWidth');
-      let selRect = hints.selectionRect;
-      let selectionMaxWidth = selRect.width;
-      
-      this.el.css('top', selRect.top + selRect.height);
-      let leftPos = selRect.left + selectionMaxWidth / 2 - overlayWidth / 2;
-      
-      leftPos = Math.max(leftPos, 0);
-      
-      let maxLeftPos = selRect.left + selectionMaxWidth + selRect.right - overlayWidth;
-      leftPos = Math.min(leftPos, maxLeftPos);
-      this.el.css('left', leftPos);
-    } else {
-      this.el.addClass('sm-hidden');
-    }
-  }
-
-  getTheme () {
-    return this.props.theme || 'dark'
-  }
-}
-
-class ResponsiveApplication extends Component {
-  constructor (...args) {
-    super(...args);
-
-    this.pages = {};
-
-    this.handleActions({
-      'navigate': this.navigate
-    });
-  }
-
-  getInitialState () {
-    return {
-      route: undefined,
-      mobile: this._isMobile()
-    }
-  }
-
-  didMount () {
-    if (platform.inBrowser) {
-      let _window = DefaultDOMElement.getBrowserWindow();
-      _window.on('resize', this._onResize, this);
-    }
-    this.router = this.getRouter();
-    this.router.on('route:changed', this._onRouteChanged, this);
-    let route = this.router.readRoute();
     
     
-    this.navigate(route, {replace: true});
-  }
-
-  dispose () {
-    this.router.off(this);
-    this.router.dispose();
-  }
-
-  
-  navigate (route, opts) {
-    this.extendState({
-      route: route
-    });
-    this.router.writeRoute(route, opts);
-  }
-
-  _onRouteChanged (route) {
     
-    this.navigate(route, {replace: true});
-  }
-
-  _isMobile () {
-    if (platform.inBrowser) {
-      return window.innerWidth < 700
-    }
-  }
-
-  _onResize () {
-    if (this._isMobile()) {
-      
-      if (!this.state.mobile) {
-        this.extendState({
-          mobile: true
-        });
-      }
-    } else {
-      if (this.state.mobile) {
-        this.extendState({
-          mobile: false
-        });
-      }
-    }
-  }
-
-  _getPage () {
-    return this.state.route.page || this.getDefaultPage()
-  }
-
-  _getPageClass () {
-    let page = this._getPage();
-    return this.pages[page]
-  }
-
-  _getPageProps () {
-    let props = cloneDeep(this.state.route);
-    delete props.page;
-    props.mobile = this.state.mobile;
-    return props
-  }
-
-  addPage (pageName, PageClass) {
-    this.pages[pageName] = PageClass;
-  }
-
-  renderPage ($$) {
-    let PageClass = this._getPageClass();
-    let pageName = this._getPage();
-    return $$(PageClass, this._getPageProps()).ref(pageName)
-  }
-
-  render ($$) {
-    let el = $$('div').addClass('sc-responsive-application');
-
-    if (this.state.route === undefined) {
-      
-      return el
-    }
+    el.on('keydown', this.onKeydown);
 
     el.append(
-      this.renderPage($$)
+      this.renderContent($$, node)
+        .ref('content')
+        .addClass('se-content')
     );
 
+    if (disabled) {
+      el.addClass('sm-disabled')
+        .attr('contenteditable', false)
+        .on('click', this.onClick);
+    }
+
+    
+    
+    
+    
+    
+    
+    
+    el.attr('draggable', true);
+
     return el
+  }
+
+  isDisabled () {
+    return !this.state.mode || ['co-selected', 'cursor'].indexOf(this.state.mode) > -1
+  }
+
+  getClassNames () {
+    return ''
+  }
+
+  onClick (event) {
+    if (!this._shouldConsumeEvent(event)) {
+      return
+    }
+    this.selectNode();
+  }
+
+  selectNode () {
+    
+    const editorSession = this.getEditorSession();
+    const surface = this.getParentSurface();
+    const node = this.props.node;
+    editorSession.setSelection({
+      type: 'property',
+      path: node.start.path,
+      startOffset: node.start.offset,
+      endOffset: node.end.offset,
+      containerId: surface.getContainerId(),
+      surfaceId: surface.id
+    });
+  }
+
+  _getContentClass () {
+    const node = this.props.node;
+    let ComponentClass;
+    
+    ComponentClass = this.getComponent(node.type, true);
+    
+    
+    if (!ComponentClass) {
+      ComponentClass = this.getComponent('unsupported-inline-node', true);
+    }
+    
+    
+    
+    if (!ComponentClass) {
+      console.error(`No component registered for inline node '${node.type}'.`);
+      ComponentClass = StubInlineNodeComponent;
+    }
+    return ComponentClass
+  }
+
+  
+  
+  _deriveStateFromSelectionState (sel, selState) {
+    const surface = this._getSurfaceForSelection(sel, selState);
+    const parentSurface = this.getParentSurface();
+    if (!surface) return null
+    
+    if (surface === parentSurface) {
+      const node = this.props.node;
+      if (sel.isPropertySelection() && !sel.isCollapsed() && isEqual(sel.start.path, node.start.path)) {
+        const nodeSel = node.getSelection();
+        if (nodeSel.equals(sel)) {
+          return { mode: 'selected' }
+        }
+        if (sel.contains(nodeSel)) {
+          return { mode: 'co-selected' }
+        }
+      }
+    }
+    let isolatedNodeComponent = surface.context.isolatedNodeComponent;
+    if (!isolatedNodeComponent) return null
+    if (isolatedNodeComponent === this) {
+      return { mode: 'focused' }
+    }
+    let isolatedNodes = this._getIsolatedNodes(sel, selState);
+    if (isolatedNodes.indexOf(this) > -1) {
+      return { mode: 'co-focused' }
+    }
+    return null
+  }
+
+  get _isInlineNodeComponent () { return true }
+}
+
+class StubInlineNodeComponent extends Component {
+  render ($$) {
+    const node = this.props.node;
+    return $$('span').text('???').attr('data-id', node.id).attr('data-type', node.type)
   }
 }
 
@@ -40692,14 +38935,13 @@ class SwitchTextTypeCommand extends Command {
   }
 
   getCommandState (params) {
-    let doc = params.editorSession.getDocument();
-    let sel = params.selection;
-    let isBlurred = params.editorSession.isBlurred();
-
+    const editorSession = params.editorSession;
+    const doc = editorSession.getDocument();
+    const sel = params.selection;
+    const isBlurred = editorSession.isBlurred();
     let commandState = {
       disabled: false
     };
-
     if (sel.isPropertySelection() && !isBlurred) {
       let path = sel.getPath();
       let node = doc.get(path[0]);
@@ -40715,18 +38957,12 @@ class SwitchTextTypeCommand extends Command {
       
       commandState.disabled = true;
     }
-
     return commandState
   }
 
   
   execute (params) {
-    let surface = params.surface;
-    let editorSession = params.editorSession;
-    if (!surface) {
-      console.warn('No focused surface. Stopping command execution.');
-      return
-    }
+    const editorSession = params.editorSession;
     editorSession.transaction((tx) => {
       return tx.switchTextType(this.config.spec)
     });
@@ -40738,20 +38974,6 @@ class SwitchTextTypeCommand extends Command {
 }
 
 class TextBlockComponent extends NodeComponent {
-  didMount (...args) {
-    super.didMount(...args);
-
-    let node = this.props.node;
-    this.context.editorSession.onRender('document', this.rerender, this, {
-      path: [node.id, 'textAlign']
-    });
-  }
-
-  dispose (...args) {
-    super.dispose(...args);
-    this.context.editorSession.off(this);
-  }
-
   render ($$) {
     let el = super.render($$);
     el.addClass('sc-text-block');
@@ -40799,6 +39021,7 @@ class TextPropertyEditor extends Surface {
 
     el.append(
       $$(TextPropertyComponent, {
+        doc: this.getDocument(),
         placeholder: this.props.placeholder,
         tagName: this.props.tagName || 'div',
         path: this.props.path,
@@ -40848,856 +39071,8 @@ class TextPropertyEditor extends Surface {
       code: event.code
     });
   }
-}
 
-TextPropertyEditor.prototype._isTextPropertyEditor = true;
-
-class Tooltip extends Component {
-  render ($$) {
-    let el = $$('div').addClass('sc-tooltip');
-    el.append(this.props.text);
-    return el
-  }
-}
-
-class ToggleTool extends Component {
-  get _isTool () {
-    return true
-  }
-
-  
-  render ($$) {
-    let el = $$('div')
-      .addClass('sc-toggle-tool');
-
-    let customClassNames = this.getClassNames();
-    if (customClassNames) {
-      el.addClass(customClassNames);
-    }
-
-    el.append(
-      this.renderButton($$)
-    );
-
-    
-    el.append(
-      $$(Tooltip, {
-        text: this._getTooltipText()
-      })
-    );
-    return el
-  }
-
-  renderButton ($$) {
-    let commandState = this.props.commandState;
-    let Button = this.getComponent('button');
-    let btn = $$(Button, {
-      icon: this.getIconName(),
-      active: commandState.active,
-      disabled: commandState.disabled,
-      theme: this.props.theme
-    }).on('click', this.onClick);
-    return btn
-  }
-
-  getClassNames () {
-    return ''
-  }
-
-  getCommandName () {
-    return this.getName()
-  }
-
-  getName () {
-    return this.props.name
-  }
-
-  getIconName () {
-    return this.props.name
-  }
-
-  onClick (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!this.props.disabled) {
-      this.executeCommand();
-    }
-  }
-
-  _getTooltipText () {
-    let name = this.props.name;
-    let label = this.context.labelProvider.getLabel(name);
-    let keyboardShortcuts = this.context.keyboardShortcuts;
-    if (keyboardShortcuts[name]) {
-      return [label, ' (', keyboardShortcuts[name], ')'].join('')
-    } else {
-      return label
-    }
-  }
-
-  
-  executeCommand (props) {
-    props = Object.assign({ mode: this.props.mode }, props);
-    this.context.commandManager.executeCommand(this.getCommandName(), props);
-  }
-}
-
-class ToolGroup extends Component {
-  
-  isToolEnabled (commandName, commandState) {
-    let enabled = true;
-    if (this.props.contextual && !commandState.showInContext) {
-      enabled = false;
-    }
-    if (commandState.disabled) {
-      enabled = false;
-    }
-    return enabled
-  }
-
-  
-  hasEnabledTools (commandStates) {
-    if (!commandStates) {
-      commandStates = this._getCommandStates();
-    }
-    let hasEnabledTools;
-    forEach(commandStates, (commandState, commandName) => {
-      if (this.isToolEnabled(commandName, commandState)) {
-        hasEnabledTools = true;
-      }
-    });
-    return hasEnabledTools
-  }
-
-  render ($$) {
-    let commandStates = this._getCommandStates();
-    let el = $$('div').addClass(this._getClassNames());
-    el.addClass('sm-' + this.props.name);
-    forEach(commandStates, (commandState, commandName) => {
-      if (this.isToolEnabled(commandName, commandState) || this.props.showDisabled) {
-        let ToolClass = this._getToolClass(commandName);
-        el.append(
-          $$(ToolClass, {
-            name: commandName,
-            commandState: commandState,
-            style: this.props.style,
-            theme: this.props.theme
-          }).ref(commandName)
-        );
-      }
-    });
-    return el
-  }
-
-  
-  _getCommandStates () {
-    let commandStates = this.context.editorSession.getCommandStates();
-    let commandGroups = this.context.commandGroups;
-    let filteredCommandStates = {}; 
-    this.props.commandGroups.forEach((commandGroup) => {
-      
-      
-      if (!commandGroups[commandGroup]) {
-        
-        return
-      }
-      commandGroups[commandGroup].forEach((commandName) => {
-        
-        
-        
-        
-        
-        if (commandStates[commandName]) {
-          filteredCommandStates[commandName] = commandStates[commandName];
-        }
-      });
-    });
-    return filteredCommandStates
-  }
-
-  _getClassNames () {
-    return 'sc-tool-group'
-  }
-
-  _getToolClass (commandName) {
-    let tools = this.context.tools;
-    let DefaultToolClass;
-    if (this.props.style === 'descriptive') {
-      DefaultToolClass = MenuItem;
-    } else {
-      DefaultToolClass = ToggleTool;
-    }
-    return tools[commandName] || DefaultToolClass
-  }
-}
-
-class Menu extends Component {
-  render ($$) {
-    let commandState = this.props.commandStates;
-    let el = $$('div').addClass('sc-menu');
-    this.props.items.forEach((item) => {
-      if (item.command) {
-        el.append(
-          $$(MenuItem, {
-            name: item.command,
-            commandState: commandState[item.command]
-          })
-        );
-      } else if (item.type === 'separator') {
-        el.append(
-          $$('div').addClass('separator')
-        );
-      }
-    });
-    return el
-  }
-}
-
-class ToolDropdown extends ToolGroup {
-  
-  willReceiveProps () {
-    this.setState({showChoices: false});
-  }
-
-  render ($$) {
-    let Button = this.getComponent('button');
-    let commandStates = this._getCommandStates();
-    let el = $$('div').addClass('sc-tool-dropdown');
-    el.addClass('sm-' + this.props.name);
-
-    
-    const toggleName = this._getToggleName(commandStates) || this.props.name;
-
-    
-    
-    if (this.props.showDisabled || this.hasEnabledTools(commandStates)) {
-      let toggleButton;
-      if (this.props.style === 'minimal') {
-        toggleButton = $$(Button, {
-          icon: toggleName,
-          dropdown: true,
-          active: this.state.showChoices,
-          theme: this.props.theme
-        }).on('click', this._toggleChoices);
-      } else if (this.props.style === 'descriptive') {
-        toggleButton = $$(Button, {
-          label: toggleName,
-          
-          commandState: commandStates[toggleName],
-          dropdown: true,
-          active: this.state.showChoices,
-          theme: this.props.theme
-        }).on('click', this._toggleChoices);
-      } else {
-        throw new Error('Style ' + this.props.style + ' not supported')
-      }
-      el.append(toggleButton);
-
-      if (this.state.showChoices) {
-        el.append(
-          $$('div').addClass('se-choices').append(
-            $$(Menu, {
-              commandStates: commandStates,
-              items: this._getMenuItems(commandStates)
-            })
-          )
-        );
-      } else if (this.props.style === 'minimal' || toggleName !== this.props.name) {
-        
-        el.append(
-          this._renderToolTip($$)
-        );
-      }
-    }
-    return el
-  }
-
-  _renderToolTip ($$) {
-    let labelProvider = this.context.labelProvider;
-    return $$(Tooltip, {
-      text: labelProvider.getLabel(this.props.name)
-    })
-  }
-
-  
-  _getToggleName (commandStates) {
-    return this._getActiveCommandName(commandStates)
-  }
-
-  
-  _getMenuItems (commandStates) {
-    const showDisabled = this.props.showDisabled;
-    let menuItems = [];
-    forEach(commandStates, (commandState, commandName) => {
-      
-      
-      if (showDisabled || this.isToolEnabled(commandName, commandState)) {
-        menuItems.push({
-          command: commandName
-        });
-      }
-    });
-    return menuItems
-  }
-
-  _getActiveCommandName (commandStates) {
-    let activeCommand;
-
-    forEach(commandStates, (commandState, commandName) => {
-      if (commandState.active && !activeCommand) {
-        activeCommand = commandName;
-      }
-    });
-    return activeCommand
-  }
-
-  _toggleChoices () {
-    this.setState({
-      showChoices: !(this.state.showChoices)
-    });
-  }
-}
-
-class MenuGroup extends ToolGroup {
-  _getToolClass (commandName) {
-    let tools = this.context.tools;
-    return tools[commandName] || MenuItem
-  }
-
-  _getClassNames () {
-    return 'sc-menu-group'
-  }
-}
-
-class ToolPrompt extends ToolGroup {
-  _getClassNames () {
-    return 'sc-tool-prompt'
-  }
-}
-
-class WorkflowPane extends ToolPanel {
-  render ($$) {
-    let el = $$('div').addClass('sc-workflow-pane');
-    el.append(
-      $$('div').addClass('se-active-tools').append(
-        this.renderEntries($$)
-      ).ref('entriesContainer')
-    );
-    return el
-  }
-
-  getTheme () {
-    return this.props.theme || 'light'
-  }
-}
-
-class Button extends Component {
-  render ($$) {
-    let el = $$('button')
-      .addClass('sc-button');
-
-    if (this.props.icon) {
-      el.append(this.renderIcon($$));
-    }
-    if (this.props.label) {
-      el.append(this.renderLabel($$));
-    }
-
-    if (this.props.dropdown) {
-      el.append(this.renderDropdownIcon($$));
-    }
-
-    if (this.props.active) {
-      el.addClass('sm-active');
-    }
-    if (this.props.theme) {
-      el.addClass('sm-theme-' + this.props.theme);
-    }
-
-    if (this.props.disabled) {
-      
-      el.attr('tabindex', -1)
-        .attr('disabled', true);
-    } else {
-      
-      el.attr('tabindex', 1);
-    }
-
-    
-    el.append(this.props.children);
-    return el
-  }
-
-  renderIcon ($$) {
-    let iconEl = this.context.iconProvider.renderIcon($$, this.props.icon);
-    return iconEl
-  }
-
-  renderDropdownIcon ($$) {
-    let iconEl = this.context.iconProvider.renderIcon($$, 'dropdown');
-    iconEl.addClass('se-dropdown');
-    return iconEl
-  }
-
-  renderLabel ($$) {
-    return $$('span').addClass('se-label').append(
-      this.getLabel(this.props.label)
-    )
-  }
-
-  getLabel (name) {
-    let labelProvider = this.context.labelProvider;
-    return labelProvider.getLabel(name, this.props.commandState)
-  }
-}
-
-class Layout extends Component {
-  render ($$) {
-    let el = $$('div').addClass('sc-layout');
-    el.addClass('sm-width-' + this.props.width);
-    if (this.props.textAlign) {
-      el.addClass('sm-text-align-' + this.props.textAlign);
-    }
-
-    if (this.props.noPadding) {
-      el.addClass('sm-no-padding');
-    }
-
-    el.append(this.props.children);
-    return el
-  }
-}
-
-function getRelativeBoundingRect (els, containerEl) {
-  let nativeCotainerEl;
-  if (containerEl._isDOMElement) {
-    nativeCotainerEl = containerEl.getNativeElement();
-  } else {
-    nativeCotainerEl = containerEl;
-  }
-  if (!isArray(els)) els = [els];
-  let elRects = els.map((el) => {
-    let nativeEl;
-    if (el._isDOMElement) {
-      nativeEl = el.getNativeElement();
-    } else {
-      nativeEl = el;
-    }
-    return _getBoundingOffsetsRect(nativeEl, nativeCotainerEl)
-  });
-
-  let elsRect = _getBoundingRect(elRects);
-  let containerElRect = nativeCotainerEl.getBoundingClientRect();
-  return {
-    left: elsRect.left,
-    top: elsRect.top,
-    right: containerElRect.width - elsRect.left - elsRect.width,
-    bottom: containerElRect.height - elsRect.top - elsRect.height,
-    width: elsRect.width,
-    height: elsRect.height
-  }
-}
-
-
-function _getBoundingRect (rects) {
-  var bounds = {
-    left: Number.POSITIVE_INFINITY,
-    top: Number.POSITIVE_INFINITY,
-    right: Number.NEGATIVE_INFINITY,
-    bottom: Number.NEGATIVE_INFINITY,
-    width: Number.NaN,
-    height: Number.NaN
-  };
-
-  forEach(rects, function (rect) {
-    if (rect.left < bounds.left) {
-      bounds.left = rect.left;
-    }
-    if (rect.top < bounds.top) {
-      bounds.top = rect.top;
-    }
-    if (rect.left + rect.width > bounds.right) {
-      bounds.right = rect.left + rect.width;
-    }
-    if (rect.top + rect.height > bounds.bottom) {
-      bounds.bottom = rect.top + rect.height;
-    }
-  });
-  bounds.width = bounds.right - bounds.left;
-  bounds.height = bounds.bottom - bounds.top;
-  return bounds
-}
-
-
-function _getBoundingOffsetsRect (el, relativeParentEl) {
-  var relativeParentElRect = relativeParentEl.getBoundingClientRect();
-  var elRect = _getBoundingRect(el.getClientRects());
-
-  var left = elRect.left - relativeParentElRect.left;
-  var top = elRect.top - relativeParentElRect.top;
-  return {
-    left: left,
-    top: top,
-    right: relativeParentElRect.width - left - elRect.width,
-    bottom: relativeParentElRect.height - top - elRect.height,
-    width: elRect.width,
-    height: elRect.height
-  }
-}
-
-class Scrollbar extends Component {
-  didMount () {
-    
-    DefaultDOMElement.getBrowserWindow().on('resize', this.onResize, this);
-    
-    this.props.scrollPane.on('scroll', this.onScroll, this);
-    
-    setTimeout(function () {
-      this.updatePositions();
-    }.bind(this));
-  }
-
-  dispose () {
-    DefaultDOMElement.getBrowserWindow().off(this);
-    this.props.scrollPane.off(this);
-  }
-
-  didUpdate () {
-    this.updatePositions();
-  }
-
-  render ($$) {
-    let el = $$('div')
-      .addClass('sc-scrollbar')
-      .on('mousedown', this.onMouseDown);
-
-    if (this.props.highlights) {
-      let highlightEls = [];
-
-      forEach(this.props.highlights, function (highlights, scope) {
-        forEach(highlights, function (h) {
-          highlightEls.push(
-            $$('div').ref(h).addClass('se-highlight sm-' + scope)
-          );
-        });
-      });
-
-      el.append(
-        $$('div').ref('highlights')
-          .addClass('se-highlights')
-          .append(highlightEls)
-      );
-    }
-    el.append($$('div').ref('thumb').addClass('se-thumb'));
-    return el
-  }
-
-  updatePositions () {
-    let scrollPane = this.props.scrollPane;
-    let scrollableEl = scrollPane.getScrollableElement();
-    let contentHeight = scrollPane.getContentHeight();
-    let scrollPaneHeight = scrollPane.getHeight();
-    let scrollTop = scrollPane.getScrollPosition();
-    let contentEl = scrollPane.getContentElement();
-
-    
-    this.factor = (contentHeight / scrollPaneHeight);
-
-    if (this.factor <= 1) {
-      this.el.addClass('sm-hide-thumb');
-    } else {
-      this.el.removeClass('sm-hide-thumb');
-    }
-
-    this.refs.thumb.css({
-      top: scrollTop / this.factor,
-      height: scrollPaneHeight / this.factor
-    });
-
-    
-    if (this.props.highlights) {
-      
-      forEach(this.props.highlights, function (highlights) {
-        forEach(highlights, function (nodeId) {
-          let nodeEl = scrollableEl.find('*[data-id="' + nodeId + '"]');
-
-          if (!nodeEl) return
-
-          
-          let rect = getRelativeBoundingRect(nodeEl, contentEl);
-          let top = rect.top / this.factor;
-          let height = rect.height / this.factor;
-
-          
-          if (height < Scrollbar.overlayMinHeight) {
-            height = Scrollbar.overlayMinHeight;
-          }
-
-          let highlightEl = this.refs[nodeId];
-          if (highlightEl) {
-            this.refs[nodeId].css({
-              top: top,
-              height: height
-            });
-          } else {
-            console.warn('no ref found for highlight', nodeId);
-          }
-        }.bind(this));
-      }.bind(this));
-    }
-  }
-
-  getScrollableElement () {
-    return this.props.scrollPane.getScrollableElement()
-  }
-
-  onResize () {
-    this.rerender();
-  }
-
-  onScroll () {
-    this.updatePositions();
-  }
-
-  onMouseDown (e) {
-    e.stopPropagation();
-    e.preventDefault();
-    this._mouseDown = true;
-
-    
-    
-    let _window = DefaultDOMElement.getBrowserWindow();
-    _window.on('mousemove', this.onMouseMove, this);
-    _window.on('mouseup', this.onMouseUp, this);
-
-    let scrollBarOffset = this.el.getOffset().top;
-    let y = e.pageY - scrollBarOffset;
-    let thumbEl = this.refs.thumb.el;
-    if (e.target !== thumbEl.getNativeElement()) {
-      
-      this.offset = thumbEl.height / 2;
-      this.onMouseMove(e);
-    } else {
-      this.offset = y - thumbEl.getPosition().top;
-    }
-  }
-
-  
-  onMouseUp () {
-    this._mouseDown = false;
-    let _window = DefaultDOMElement.getBrowserWindow();
-    _window.off('mousemove', this.onMouseMove, this);
-    _window.off('mouseup', this.onMouseUp, this);
-  }
-
-  onMouseMove (e) {
-    if (this._mouseDown) {
-      let scrollPane = this.props.scrollPane;
-      let scrollableEl = scrollPane.getScrollableElement();
-      let scrollBarOffset = this.el.getOffset().top;
-      let y = e.pageY - scrollBarOffset;
-
-      
-      let scroll = (y - this.offset) * this.factor;
-      scrollableEl.setProperty('scrollTop', scroll);
-    }
-  }
-}
-
-Scrollbar.overlayMinHeight = 2;
-
-class ScrollPane extends AbstractScrollPane {
-  didMount () {
-    super.didMount();
-    if (this.refs.scrollbar && this.props.highlights) {
-      this.props.highlights.on('highlights:updated', this.onHighlightsUpdated, this);
-    }
-    if (this.refs.scrollbar) {
-      if (platform.inBrowser) {
-        this.domObserver = new window.MutationObserver(this._onContentChanged.bind(this));
-        this.domObserver.observe(this.el.getNativeElement(), {
-          subtree: true,
-          attributes: true,
-          characterData: true,
-          childList: true
-        });
-      }
-      this.context.editorSession.onPosition(this._onPosition, this);
-    }
-  }
-
-  dispose () {
-    super.dispose();
-    if (this.props.highlights) {
-      this.props.highlights.off(this);
-    }
-    this.context.editorSession.off(this);
-    this.context.dragManager.off(this);
-    if (this.domObserver) {
-      this.domObserver.disconnect();
-    }
-  }
-
-  render ($$) {
-    let el = $$('div')
-      .addClass('sc-scroll-pane');
-
-    if (platform.isFF) {
-      el.addClass('sm-firefox');
-    }
-
-    
-    
-    if (!this.props.noStyle) {
-      el.addClass('sm-default-style');
-    }
-
-    
-    if (this.props.scrollbarType === 'substance') {
-      el.addClass('sm-substance-scrollbar');
-      el.addClass('sm-scrollbar-position-' + this.props.scrollbarPosition);
-
-      el.append(
-        
-        
-        $$(Scrollbar, {
-          scrollPane: this
-        }).ref('scrollbar')
-          .attr('id', 'content-scrollbar')
-      );
-
-      
-      el.append(
-        $$('div').ref('scanline').addClass('se-scanline')
-      );
-    }
-
-    el.append(
-      $$('div').ref('scrollable').addClass('se-scrollable').append(
-        this.renderContent($$)
-      ).on('scroll', this.onScroll)
-    );
-    return el
-  }
-
-  renderContent ($$) {
-    let contentEl = $$('div').ref('content').addClass('se-content');
-    contentEl.append(this.props.children);
-    if (this.props.contextMenu === 'custom') {
-      contentEl.on('contextmenu', this._onContextMenu);
-    }
-    return contentEl
-  }
-
-  _onContentChanged () {
-    this._contentChanged = true;
-  }
-
-  _onPosition () {
-    if (this.refs.scrollbar && this._contentChanged) {
-      this._contentChanged = false;
-      this._updateScrollbar();
-    }
-  }
-
-  _updateScrollbar () {
-    if (this.refs.scrollbar) {
-      this.refs.scrollbar.updatePositions();
-    }
-  }
-
-  onHighlightsUpdated (highlights) {
-    this.refs.scrollbar.extendProps({
-      highlights: highlights
-    });
-  }
-
-  onScroll () {
-    let scrollPos = this.getScrollPosition();
-    let scrollable = this.refs.scrollable;
-    if (this.props.onScroll) {
-      this.props.onScroll(scrollPos, scrollable);
-    }
-    
-    if (this.props.tocProvider) {
-      this.props.tocProvider.markActiveEntry(this);
-    }
-    this.emit('scroll', scrollPos, scrollable);
-  }
-
-  
-  getHeight () {
-    let scrollableEl = this.getScrollableElement();
-    return scrollableEl.height
-  }
-
-  
-  getContentHeight () {
-    let contentEl = this.refs.content.el.getNativeElement();
-    
-    
-    
-    return contentEl.scrollHeight
-  }
-
-  
-  getContentElement () {
-    return this.refs.content.el
-  }
-
-  
-  getScrollableElement () {
-    return this.refs.scrollable.el
-  }
-
-  
-  getScrollPosition () {
-    let scrollableEl = this.getScrollableElement();
-    return scrollableEl.getProperty('scrollTop')
-  }
-
-  setScrollPosition (scrollPos) {
-    let scrollableEl = this.getScrollableElement();
-    scrollableEl.setProperty('scrollTop', scrollPos);
-  }
-
-  
-  getPanelOffsetForElement (el) {
-    let contentContainerEl = this.refs.content.el;
-    let rect = getRelativeBoundingRect(el, contentContainerEl);
-    return rect.top
-  }
-
-  
-  scrollTo (selector, onlyIfNotVisible) {
-    let scrollableEl = this.getScrollableElement();
-    let targetNode = scrollableEl.find(selector);
-    if (targetNode) {
-      const offset = this.getPanelOffsetForElement(targetNode);
-      let shouldScroll = true;
-      if (onlyIfNotVisible) {
-        const height = scrollableEl.height;
-        const oldOffset = scrollableEl.getProperty('scrollTop');
-        shouldScroll = (offset < oldOffset || oldOffset + height < offset);
-      }
-      if (shouldScroll) {
-        this.setScrollPosition(offset);
-      }
-    } else {
-      console.warn(`No match found for selector '${selector}' in scrollable container`);
-    }
-  }
-
-  
-  onSelectionPositioned (...args) {
-    super.onSelectionPositioned(...args);
-    this._updateScrollbar();
-  }
-
-  _onContextMenu (e) {
-    super._onContextMenu(e);
-    this._updateScrollbar();
-  }
+  get _isTextPropertyEditor () { return true }
 }
 
 class SplitPane extends Component {
@@ -41745,19 +39120,97 @@ class SplitPane extends Component {
   }
 }
 
-class Toolbar extends ToolPanel {
-  render ($$) {
-    let el = $$('div').addClass('sc-toolbar');
-    el.append(
-      $$('div').addClass('se-active-tools').append(
-        this.renderEntries($$)
-      ).ref('entriesContainer')
-    );
-    return el
+class Undo extends Command {
+  getCommandState (params) {
+    let editorSession = params.editorSession;
+    return {
+      disabled: !editorSession.canUndo(),
+      active: false
+    }
   }
 
-  getTheme () {
-    return this.props.theme || 'light'
+  execute (params) {
+    let editorSession = params.editorSession;
+    if (editorSession.canUndo()) {
+      editorSession.undo();
+    }
+    return true
+  }
+}
+
+class Redo extends Command {
+  getCommandState (params) {
+    let editorSession = params.editorSession;
+    return {
+      disabled: !editorSession.canRedo(),
+      active: false
+    }
+  }
+
+  execute (params) {
+    let editorSession = params.editorSession;
+    if (editorSession.canRedo()) {
+      editorSession.redo();
+      return true
+    } else {
+      return false
+    }
+  }
+}
+
+class SelectAll extends Command {
+  getCommandState (params) {
+    let editorSession = params.editorSession;
+    let isBlurred = editorSession.isBlurred();
+    let surface = params.surface || editorSession.getFocusedSurface();
+    let sel = editorSession.getSelection();
+    
+    let disabled = (
+      isBlurred ||
+      !sel || sel.isNull() ||
+      !surface ||
+      !(surface._isContainerEditor || surface._isTextPropertyEditor)
+    );
+    return { disabled }
+  }
+
+  execute (params) {
+    let editorSession = params.editorSession;
+    let doc = editorSession.getDocument();
+    let surface = params.surface || editorSession.getFocusedSurface();
+    if (surface) {
+      let sel;
+      
+      if (surface._isContainerEditor) {
+        let container = surface.getContainer();
+        let nodeIds = container.getContent();
+        if (nodeIds.length === 0) return false
+        let firstNodeId = nodeIds[0];
+        let lastNodeId = last$1(nodeIds);
+        sel = editorSession.createSelection({
+          type: 'container',
+          startPath: [firstNodeId],
+          startOffset: 0,
+          endPath: [lastNodeId],
+          endOffset: 1,
+          containerId: container.id,
+          surfaceId: surface.id
+        });
+      } else if (surface._isTextPropertyEditor) {
+        let path = surface.getPath();
+        let text = doc.get(path);
+        sel = editorSession.createSelection({
+          type: 'property',
+          path: path,
+          startOffset: 0,
+          endOffset: text.length,
+          surfaceId: surface.id
+        });
+      }
+      editorSession.setSelection(sel);
+      return true
+    }
+    return false
   }
 }
 
@@ -41778,6 +39231,106 @@ var async = /*#__PURE__*/Object.freeze({
   series: series
 });
 
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function getColumnLabel (colIdx) {
+  if (!isNumber(colIdx)) {
+    throw new Error('Illegal argument.')
+  }
+  let label = '';
+  while(true) { 
+    let mod = colIdx % ALPHABET.length;
+    colIdx = Math.floor(colIdx / ALPHABET.length);
+    label = ALPHABET[mod] + label;
+    if (colIdx > 0) colIdx--;
+    else if (colIdx === 0) break
+  }
+  return label
+}
+
+function getRowCol (cellLabel) {
+  var match = /^([A-Z]+)([1-9][0-9]*)$/.exec(cellLabel);
+  return [
+    parseInt(match[2], 10) - 1,
+    getColumnIndex(match[1])
+  ]
+}
+
+const A = 'A'.charCodeAt(0);
+const ALPHABET_LENGTH = ALPHABET.length;
+
+function getColumnIndex (colStr) {
+  let index = 0;
+  let rank = 0;
+  for (let i = colStr.length - 1; i >= 0; i--) {
+    let idx = colStr.charCodeAt(i) - A;
+    if (idx < 0 || idx >= ALPHABET_LENGTH) throw new Error('Illegal column label: ' + colStr)
+    
+    index += Math.pow(ALPHABET_LENGTH, rank) * (idx + 1);
+    rank++;
+  }
+  
+  return index - 1
+}
+
+function getCellLabel (rowIdx, colIdx) {
+  let colLabel = getColumnLabel(colIdx);
+  let rowLabel = rowIdx + 1;
+  return colLabel + rowLabel
+}
+
+function getIndexesFromRange (start, end) {
+  let [startRow, startCol] = getRowCol(start);
+  let endRow, endCol;
+  if (end) {
+    ([endRow, endCol] = getRowCol(end));
+    if (startRow > endRow) ([startRow, endRow] = [endRow, startRow]);
+    if (startCol > endCol) ([startCol, endCol] = [endCol, startCol]);
+  } else {
+    ([endRow, endCol] = [startRow, startCol]);
+  }
+  return { startRow, startCol, endRow, endCol }
+}
+
+function getRangeFromMatrix (cells, startRow, startCol, endRow, endCol, force2D) {
+  if (!force2D) {
+    if (startRow === endRow && startCol === endCol) {
+      let row = cells[startRow];
+      if (row) return row[startCol]
+      else return undefined
+    }
+    if (startRow === endRow) {
+      let row = cells[startRow];
+      if (row) return row.slice(startCol, endCol + 1)
+      else return []
+    }
+    if (startCol === endCol) {
+      let res = [];
+      for (let i = startRow; i <= endRow; i++) {
+        let row = cells[i];
+        if (row) res.push(row[startCol]);
+      }
+      return res
+    }
+  }
+  let res = [];
+  for (var i = startRow; i < endRow + 1; i++) {
+    let row = cells[i];
+    if (row) res.push(row.slice(startCol, endCol + 1));
+  }
+  return res
+}
+
+var tableHelpers = /*#__PURE__*/Object.freeze({
+  ALPHABET: ALPHABET,
+  getColumnLabel: getColumnLabel,
+  getRowCol: getRowCol,
+  getColumnIndex: getColumnIndex,
+  getCellLabel: getCellLabel,
+  getIndexesFromRange: getIndexesFromRange,
+  getRangeFromMatrix: getRangeFromMatrix
+});
+
 function array2table (keys) {
   return keys.reduce((obj, key) => {
     obj[key] = true;
@@ -41785,7 +39338,124 @@ function array2table (keys) {
   }, {})
 }
 
-class Factory extends Registry {
+function levenshtein (a, b) {
+  let m = [];
+  for (let i = 0; i <= b.length; i++) {
+    m[i] = [i];
+    if (i === 0) continue
+    let ib = i - 1;
+    for (let j = 0; j <= a.length; j++) {
+      m[0][j] = j;
+      if (j === 0) continue
+      let jb = j - 1;
+      m[i][j] = b.charAt(ib) === a.charAt(jb) ? m[ib][jb] : Math.min(
+        m[ib][jb] + 1,
+        m[i][jb] + 1,
+        m[ib][j] + 1
+      );
+    }
+  }
+  return m
+}
+
+function diff (a, b, offset) {
+  if (!isString(a) || !isString(b)) {
+    throw new Error('Illegal arguments.')
+  }
+  offset = offset || 0;
+  let changes = [];
+  if (a || b) {
+    if (!a && b) {
+      changes.push({ type: 'insert', start: offset, text: b });
+    } else if (a && !b) {
+      changes.push({ type: 'delete', start: offset, end: offset + a.length });
+    } else {
+      let m = levenshtein(a, b);
+      changes = _diff(a, b, m, offset);
+    }
+  }
+  return changes
+}
+
+function _diff (a, b, m, offset) {
+  let i = b.length;
+  let j = a.length;
+  let changes = [];
+  let current;
+  while (i > 0 && j > 0) {
+    _next();
+  }
+  _commit();
+  return changes
+
+  function _next () {
+    let d = m[i][j];
+    let ib = i - 1;
+    let jb = j - 1;
+    
+    if (m[ib][jb] < d) {
+      if (current && current.type === 'replace') {
+        current.start--;
+        current.text.unshift(b.charAt(ib));
+      } else {
+        _commit();
+        current = { type: 'replace', start: jb, end: j, text: [b.charAt(ib)] };
+      }
+      i--;
+      j--;
+    
+    } else if (m[ib][j] < d) {
+      if (current && current.type === 'insert') {
+        current.start--;
+        current.text.unshift(b.charAt(ib));
+      } else {
+        _commit();
+        current = { type: 'insert', start: jb, text: [b.charAt(ib)] };
+      }
+      i--;
+    
+    } else if (m[i][jb] < d) {
+      if (current && current.type === 'delete') {
+        current.start--;
+      } else {
+        _commit();
+        current = { type: 'delete', start: jb, end: j };
+      }
+      j--;
+    
+    } else {
+      _commit();
+      i--;
+      j--;
+    }
+  }
+
+  function _commit () {
+    if (current) {
+      switch (current.type) {
+        case 'insert':
+          current.start += offset;
+          current.text = current.text.join('');
+          break
+        case 'delete':
+          current.start += offset;
+          current.end += offset;
+          break
+        case 'replace':
+          current.start += offset;
+          current.end += offset;
+          current.text = current.text.join('');
+          break
+        default:
+          throw new Error('Invalid state')
+      }
+      changes.push(current);
+      current = null;
+    }
+  }
+}
+
+class Factory extends DeprecatedRegistry {
   
   create (name) {
     var clazz = this.get(name);
@@ -41800,7 +39470,7 @@ class Factory extends Registry {
   }
 }
 
-function getRangeFromMatrix (cells, startRow, startCol, endRow, endCol, force2D) {
+function getRangeFromMatrix$1 (cells, startRow, startCol, endRow, endCol, force2D) {
   if (!force2D) {
     if (startRow === endRow && startCol === endCol) {
       let row = cells[startCol];
@@ -41926,6 +39596,51 @@ function renderListNode (listNode, $$) {
   }
 }
 
+function sendRequest (params, cb) {
+  return new Promise(function (resolve, reject) {
+    var method = (params.method || 'GET').toUpperCase();
+    var url = params.url;
+    if (['GET', 'POST', 'PUT', 'DELETE'].indexOf(method) < 0) {
+      throw new Error("Parameter 'method' must be 'GET', 'POST', 'PUT', or 'DELETE'.")
+    }
+    if (!url) {
+      throw new Error("Parameter 'url' is required.")
+    }
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onreadystatechange = function () {
+      
+      
+      if (xmlhttp.readyState === 4) return _done()
+    };
+    xmlhttp.open(method, url, true);
+    if (params.header) {
+      forEach(params.header, function (val, key) {
+        xmlhttp.setRequestHeader(key, val);
+      });
+    }
+    if (params.data instanceof FormData) { 
+      xmlhttp.send(params.data);
+    } else if (params.data) {
+      xmlhttp.send(JSON.stringify(params.data));
+    } else {
+      xmlhttp.send();
+    }
+
+    function _done () {
+      if (xmlhttp.status === 200) {
+        var response = xmlhttp.responseText;
+        if (cb) cb(null, response);
+        resolve(response);
+      } else {
+        console.error(xmlhttp.statusText);
+        let err = new Error(xmlhttp.statusText);
+        if (cb) cb(err);
+        reject(err);
+      }
+    }
+  })
+}
+
 function times$2 (num, fn, ctx) {
   for (let i = 0; i < num; i++) {
     fn.call(ctx);
@@ -41934,6 +39649,2463 @@ function times$2 (num, fn, ctx) {
 
 function toUnixLineEndings (str) {
   return str.replace(/\r?\n/g, '\n')
+}
+
+function appendChild (xmlNode, child) {
+  insertAt(xmlNode, xmlNode._childNodes.length, child);
+  return xmlNode
+}
+
+function getChildPos (xmlNode, child) {
+  return xmlNode._childNodes.indexOf(child.id)
+}
+
+function removeChild (xmlNode, child) {
+  const childPos = getChildPos(xmlNode, child);
+  if (childPos >= 0) {
+    removeAt(xmlNode, childPos);
+  } else {
+    throw new Error(`Node ${child.id} is not a child of ${xmlNode.id}`)
+  }
+  return xmlNode
+}
+
+function replaceChild (xmlNode, oldChild, newChild) {
+  const childPos = getChildPos(xmlNode, oldChild);
+  if (childPos >= 0) {
+    removeAt(xmlNode, childPos);
+    insertAt(xmlNode, childPos, newChild);
+  } else {
+    throw new Error(`Node ${oldChild.id} is not a child of ${xmlNode.id}`)
+  }
+  return xmlNode
+}
+
+function insertBefore (xmlNode, newChild, ref) {
+  if (!ref) {
+    appendChild(xmlNode, newChild);
+  } else {
+    let pos = getChildPos(xmlNode, ref);
+    if (pos < 0) {
+      throw new Error(`Node ${newChild.id} is not a child of ${xmlNode.id}`)
+    }
+    insertAt(xmlNode, pos, newChild);
+  }
+  return xmlNode
+}
+
+function insertAt (xmlNode, pos, child) {
+  const length = xmlNode._childNodes.length;
+  if (pos >= 0 && pos <= length) {
+    const doc = xmlNode.getDocument();
+    doc.update([xmlNode.id, '_childNodes'], { type: 'insert', pos, value: child.id });
+  } else {
+    throw new Error('Index out of bounds.')
+  }
+  return xmlNode
+}
+
+function removeAt (xmlNode, pos) {
+  const length = xmlNode._childNodes.length;
+  if (pos >= 0 && pos < length) {
+    const doc = xmlNode.getDocument();
+    doc.update([xmlNode.id, '_childNodes'], { type: 'delete', pos: pos });
+  } else {
+    throw new Error('Index out of bounds.')
+  }
+  return xmlNode
+}
+
+function getInnerXML (xmlNode) {
+  if (xmlNode._childNodes) {
+    return xmlNode.getChildNodes().map(child => {
+      return child.toXML().serialize()
+    }).join('')
+  } else if (xmlNode.isText()) {
+    return xmlNode.toXML().getInnerXML()
+  }
+  return ''
+}
+
+function getChildAt (xmlNode, idx) {
+  let childId = xmlNode._childNodes[idx];
+  if (childId) {
+    return xmlNode.getDocument().get(childId)
+  }
+}
+
+
+function node2element (node) {
+  
+  let dom = DefaultDOMElement.createDocument('xml');
+  let el = _node2element(dom, node);
+  return el
+}
+
+function _node2element (dom, node) {
+  let el;
+  switch (node._elementType) {
+    case 'text': {
+      el = _renderTextNode(dom, node);
+      break
+    }
+    case 'element':
+    case 'inline-element':
+    case 'container': {
+      el = _renderElementNode(dom, node);
+      break
+    }
+    case 'anchor':
+    case 'annotation': {
+      el = _createElement$1(dom, node);
+      break
+    }
+    case 'external': {
+      el = DefaultDOMElement.parseSnippet(node.xml, 'xml');
+      break
+    }
+    default:
+      throw new Error('Invalid element type.')
+  }
+  return el
+}
+
+function _createElement$1 (dom, node) {
+  let el = dom.createElement(node.type);
+  el.attr('id', node.id);
+  el.attr(node.attributes);
+  return el
+}
+
+function _renderElementNode (dom, node) {
+  let el = _createElement$1(dom, node);
+  el.append(node.getChildren().map(child => _node2element(dom, child)));
+  return el
+}
+
+function _renderTextNode (dom, node) {
+  const annos = node.getAnnotations();
+  const text = node.getText();
+  let el = _createElement$1(dom, node);
+  if (annos && annos.length > 0) {
+    let fragmenter = new Fragmenter({
+      onText: (context, text) => {
+        const node = context.node;
+        if (node.isText() || node.isAnnotation()) {
+          context.el.append(text);
+        }
+      },
+      onEnter: (fragment) => {
+        return {
+          el: _node2element(dom, fragment.node),
+          node: fragment.node
+        }
+      },
+      onExit: (fragment, context, parentContext) => {
+        parentContext.el.append(context.el);
+      }
+    });
+    fragmenter.start({ el, node }, text, annos);
+  } else {
+    el.append(text);
+  }
+  return el
+}
+
+function nameWithoutNS$1 (name) {
+  const idx = name.indexOf(':');
+  if (idx > 0) {
+    return name.slice(idx + 1)
+  } else {
+    return name
+  }
+}
+
+class Adapter extends domUtils.DomUtils {
+  
+  isTag () {
+    return true
+  }
+
+  getChildren (elem) {
+    if (elem.getChildren) {
+      return elem.getChildren()
+    } else {
+      return []
+    }
+  }
+
+  getAttributeValue (elem, name) {
+    if (elem.getAttribute) {
+      return elem.getAttribute(name)
+    }
+  }
+
+  getAttributes (elem) {
+    if (elem.hasOwnProperty('attributes')) {
+      return ['id', elem.id].concat(map(elem.attributes, (val, key) => { return [key, val] }))
+    } else {
+      return ['id', elem.id]
+    }
+  }
+
+  hasAttrib (elem, name) {
+    if (name === 'id') {
+      return true
+    } else if (elem.hasOwnProperty('attributes')) {
+      return elem.attributes.hasOwnProperty(name)
+    } else {
+      return false
+    }
+  }
+
+  getName (elem) {
+    return elem.type
+  }
+
+  getNameWithoutNS (elem) {
+    return nameWithoutNS$1(this.getName(elem))
+  }
+
+  getText (elem) {
+    if (elem._elementType === 'text') {
+      return elem.getText()
+    }
+    
+    return ''
+  }
+}
+
+const cssSelectAdapter = new Adapter();
+
+class XMLDocumentNode extends DocumentNode {
+  _initialize (doc, props) {
+    
+    
+    
+    if (props.attributes) {
+      delete props.attributes.id;
+    }
+    super._initialize(doc, props);
+  }
+
+  toXML () {
+    return node2element(this)
+  }
+
+  
+  findChild (tagName) {
+    const children = this.getChildren();
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (child.type === tagName) return child
+    }
+  }
+
+  find (cssSelector) {
+    return cssSelect.selectOne(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
+  }
+
+  findAll (cssSelector) {
+    return cssSelect.selectAll(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
+  }
+
+  isContainer () {
+    return false
+  }
+
+  
+  isBlock () {
+    const parentNode = this.parentNode;
+    return (parentNode && parentNode.isContainer())
+  }
+
+  get children () {
+    return this.getChildren()
+  }
+
+  getChildren () {
+    
+    return this.getChildNodes()
+  }
+
+  getChildNodes () {
+    if (this._childNodes) {
+      return getNodes(this.getDocument(), this._childNodes)
+    } else {
+      return []
+    }
+  }
+
+  getChildCount () {
+    if (this._childNodes) {
+      return this._childNodes.length
+    } else {
+      return 0
+    }
+  }
+
+  getChildPosition (child) {
+    if (!child || !this._childNodes) return -1
+    return this._childNodes.indexOf(child.id)
+  }
+
+  getChildNodeIterator () {
+    return new ArrayIterator(this.getChildNodes())
+  }
+
+  getFirstChild () {
+    if (this._childNodes) {
+      return this.getDocument().get(this._childNodes[0])
+    }
+  }
+
+  getLastChild () {
+    if (this._childNodes) {
+      return this.getDocument().get(last$1(this._childNodes))
+    }
+  }
+
+  getParent () {
+    return this.parentNode
+  }
+
+  setParent (parentNode) {
+    this.parentNode = parentNode;
+  }
+
+  get tagName () {
+    return this.type
+  }
+
+  
+  get parent () {
+    return this.parentNode
+  }
+
+  setAttribute (name, val) {
+    if (name === 'id') {
+      throw new Error("'id' is read-only and can not be changed")
+    }
+    this.getDocument().set([this.id, 'attributes', name], val);
+    return this
+  }
+
+  getAttribute (name) {
+    if (name === 'id') return this.id
+    return this.attributes[name]
+  }
+
+  removeAttribute (name) {
+    if (this.attributes.hasOwnProperty(name)) {
+      this.getDocument().set([this.id, 'attributes', name], undefined);
+      delete this.attributes[name];
+    }
+    return this
+  }
+
+  getAttributes () {
+    return clone(this.attributes)
+  }
+
+  getElementSchema () {
+    return this.getDocument().getElementSchema(this.type)
+  }
+
+  serialize () {
+    return this.toXML()
+  }
+
+  isTextNode () {
+    return false
+  }
+
+  isElementNode () {
+    return false
+  }
+
+  getInnerXML () {
+    return getInnerXML(this)
+  }
+
+  get _isXMLNode () { return true }
+}
+
+XMLDocumentNode.prototype.attr = DOMElement.prototype.attr;
+
+XMLDocumentNode.schema = {
+  attributes: { type: 'object', default: {} }
+};
+
+class XMLAnchorNode extends XMLDocumentNode {
+  
+  get parentNode () {
+    const path = this.coor.start.path;
+    const doc = this.getDocument();
+    return doc.get(path[0])
+  }
+}
+
+XMLAnchorNode.prototype._elementType = 'anchor';
+
+XMLAnchorNode.type = 'anchor';
+
+XMLAnchorNode.schema = {
+  coor: { type: 'coordinate', optional: true }
+};
+
+class XMLAnnotationNode extends AnnotationMixin(XMLDocumentNode) {
+  
+  get parentNode () {
+    const path = this.start.path;
+    const doc = this.getDocument();
+    return doc.get(path[0])
+  }
+
+  static isPropertyAnnotation () { return true }
+
+  get _elementType () { return 'annotation' }
+}
+
+
+XMLAnnotationNode.schema = {
+  type: '@annotation'
+};
+
+class XMLElementNode extends XMLDocumentNode {
+  appendChild (child) {
+    return appendChild(this, child)
+  }
+
+  removeChild (child) {
+    return removeChild(this, child)
+  }
+
+  insertBefore (newChild, ref) {
+    return insertBefore(this, newChild, ref)
+  }
+
+  insertAt (pos, child) {
+    return insertAt(this, pos, child)
+  }
+
+  removeAt (pos) {
+    return removeAt(this, pos)
+  }
+
+  getChildAt (idx) {
+    return getChildAt(this, idx)
+  }
+
+  isElementNode () {
+    return true
+  }
+
+  append () {
+    return DOMElement.prototype.append.apply(this, arguments)
+  }
+
+  replaceChild (oldChild, newChild) {
+    return replaceChild(this, oldChild, newChild)
+  }
+
+  get _elementType () { return 'element' }
+
+  static isBlock () { return true }
+}
+
+XMLElementNode.schema = {
+  type: 'element',
+  _childNodes: { type: ['array', 'id'], default: [], owned: true }
+};
+
+class XMLContainerNode extends ContainerMixin(XMLElementNode) {
+  getContentPath () {
+    return [this.id, '_childNodes']
+  }
+
+  getContent () {
+    return this._childNodes
+  }
+
+  isContainer () {
+    return true
+  }
+
+  appendChild (child) {
+    super.show(child.id);
+  }
+
+  get _elementType () { return 'container' }
+
+  static isBlock () { return true }
+}
+
+XMLContainerNode.schema = {
+  
+  type: 'container'
+};
+
+class XMLParentNodeHook {
+  constructor (doc) {
+    this.doc = doc;
+    
+    this.parents = {};
+    doc.data.on('operation:applied', this._onOperationApplied, this);
+  }
+
+  _onOperationApplied (op) {
+    const doc = this.doc;
+    const parents = this.parents;
+    let node = doc.get(op.path[0]);
+    switch (op.type) {
+      case 'create': {
+        if (node._childNodes) {
+          _setParent(node, node._childNodes);
+        }
+        _setRegisteredParent(node);
+        break
+      }
+      case 'update': {
+        
+        
+        let update = op.diff;
+        if (op.path[1] === '_childNodes') {
+          if (update.isInsert()) {
+            _setParent(node, update.getValue());
+          } else if (update.isDelete()) {
+            _setParent(null, update.getValue());
+          }
+        }
+        break
+      }
+      case 'set': {
+        if (op.path[1] === '_childNodes') {
+          _setParent(null, op.getOldValue());
+          _setParent(node, op.getValue());
+        }
+        break
+      }
+      default:
+        
+    }
+
+    function _setParent (parent, ids) {
+      if (ids) {
+        if (isArray(ids)) {
+          ids.forEach(_set);
+        } else {
+          _set(ids);
+        }
+      }
+      function _set (id) {
+        
+        
+        
+        parents[id] = parent;
+        let child = doc.get(id);
+        if (child) {
+          child.parentNode = parent;
+        }
+      }
+    }
+    function _setRegisteredParent (child) {
+      let parent = parents[child.id];
+      if (parent) {
+        child.parentNode = parent;
+      }
+    }
+  }
+
+  static register (doc) {
+    return new XMLParentNodeHook(doc)
+  }
+}
+
+class XMLEditingInterface extends EditingInterface {
+  find (cssSelector) {
+    return this.getDocument().find(cssSelector)
+  }
+
+  findAll (cssSelector) {
+    return this.getDocument().findAll(cssSelector)
+  }
+
+  createElement (...args) {
+    return this.getDocument().createElement(...args)
+  }
+}
+
+class XMLDocument extends Document {
+  _initialize () {
+    this.nodeFactory = new DocumentNodeFactory(this);
+    this.data = new IncrementalData(this.schema, this.nodeFactory);
+    
+    this.addIndex('type', new PropertyIndex('type'));
+    
+    this.addIndex('annotations', new AnnotationIndex());
+    XMLParentNodeHook.register(this);
+  }
+
+  toXML () {
+    let dom = DefaultDOMElement.createDocument('xml');
+    dom.setDoctype(...this.getDocTypeParams());
+    let rootElement = this.getRootNode().toXML();
+    dom.append(rootElement);
+    return dom
+  }
+
+  getDocTypeParams () {
+    
+    throw new Error('This method is abstract')
+  }
+
+  getXMLSchema () {
+    
+    throw new Error('This method is abstract')
+  }
+
+  getRootNode () {
+    
+    throw new Error('This method is abstract')
+  }
+
+  
+  getDocTypeAsString () {
+    return new Error('This method is abstract')
+  }
+
+  createEditingInterface () {
+    return new XMLEditingInterface(this)
+  }
+
+  find (cssSelector) {
+    return this.getRootNode().find(cssSelector)
+  }
+
+  findAll (cssSelector) {
+    return this.getRootNode().findAll(cssSelector)
+  }
+
+  createElement (tagName, data) {
+    let node = this.create(Object.assign({
+      id: uuid(tagName),
+      type: tagName
+    }, data));
+    return node
+  }
+
+  getElementSchema (type) {
+    return this.getXMLSchema().getElementSchema(type)
+  }
+
+  _validateChange (change) {
+    let changed = {};
+    let deleted = [];
+    change.ops.forEach((op) => {
+      switch (op.type) {
+        case 'delete': {
+          deleted.push(op.val.id);
+          break
+        }
+        case 'create': {
+          changed[op.val.id] = true;
+          break
+        }
+        default: {
+          if (op.path) {
+            changed[op.path[0]] = true;
+          }
+        }
+      }
+    });
+    
+    deleted.forEach(id => delete changed[id]);
+
+    const xmlSchema = this.getXMLSchema();
+    let errors = [];
+    Object.keys(changed).forEach((id) => {
+      let node = this.get(id);
+      if (node && node._isXMLNode) {
+        let res = xmlSchema.validateElement(node);
+        if (!res.ok) {
+          errors = errors.concat(res.errors);
+        }
+      }
+    });
+    return {
+      ok: errors.length === 0,
+      errors
+    }
+  }
+
+  
+  _apply (documentChange) {
+    
+    if (!documentChange.ops) return
+
+    let created = {};
+    let deleted = {};
+    let updated = {};
+
+    const doc = this;
+
+    function _recordUpdate (id, op) {
+      let record = updated[id];
+      if (!record) {
+        record = updated[id] = { ops: [] };
+      }
+      if (op) record.ops.push(op);
+      return record
+    }
+
+    
+    function _checkAnnotation (op) {
+      
+      switch (op.type) {
+        case 'create':
+        case 'delete': {
+          const annoData = op.val;
+          if (annoData.hasOwnProperty('start')) {
+            updated[annoData.start.path] = true;
+            let node = doc.get(annoData.start.path[0]);
+            if (node) {
+              _recordUpdate(node.id, op);
+            }
+          }
+          if (annoData.hasOwnProperty('end')) {
+            updated[annoData.end.path] = true;
+            let node = doc.get(annoData.start.path[0]);
+            if (node) {
+              _recordUpdate(node.id, op);
+            }
+          }
+          break
+        }
+        case 'update':
+        case 'set': {
+          let anno = doc.get(op.path[0]);
+          if (anno) {
+            if (anno.isPropertyAnnotation()) {
+              updated[anno.start.path] = true;
+              let node = doc.get(anno.start.path[0]);
+              if (node) {
+                _recordUpdate(node.id, op);
+              }
+            } else if (anno.isContainerAnnotation()) ;
+          }
+          break
+        }
+        default:
+          
+      }
+    }
+
+    documentChange.ops.forEach((op) => {
+      
+      
+      
+      switch (op.type) {
+        case 'create': {
+          created[op.path[0]] = op.val;
+          break
+        }
+        case 'delete': {
+          let node = this.get(op.path[0]);
+          deleted[node.id] = node;
+          break
+        }
+        case 'update':
+        case 'set': {
+          updated[op.path] = true;
+          let node = this.get(op.path[0]);
+          _recordUpdate(node.id, op);
+          break
+        }
+        default:
+          
+      }
+      
+      _checkAnnotation(op);
+
+      this._applyOp(op);
+    });
+    
+    Object.keys(deleted).forEach((id) => {
+      delete updated[id];
+    });
+    documentChange.created = created;
+    documentChange.updated = updated;
+    documentChange.deleted = deleted;
+    documentChange._extracted = true;
+  }
+}
+
+XMLDocument.prototype._isXMLDocument = true;
+
+const START = 'START';
+const END = 'END';
+const EPSILON = 'EPSILON';
+const TEXT$1 = 'TEXT';
+
+class DFA {
+  constructor (transitions) {
+    if (!transitions || Object.keys(transitions).length === 0) {
+      transitions = { START: { EPSILON: END } };
+    }
+    this.transitions = transitions;
+  }
+
+  consume (state, id) {
+    const T = this.transitions;
+    
+    
+    if (!T[state]) return -1
+    let nextState = T[state][id];
+    if (nextState !== undefined) {
+      return nextState
+    }
+    while (T[state][EPSILON] !== undefined) {
+      state = T[state][EPSILON];
+      if (state === END) {
+        return -1
+      }
+      nextState = T[state][id];
+      if (nextState !== undefined) {
+        return nextState
+      }
+    }
+    return -1
+  }
+
+  canConsume (state, id) {
+    let nextState = this.consume(state, id);
+    return (nextState !== -1)
+  }
+
+  isFinished (state) {
+    const T = this.transitions;
+    if (state === 'END') return true
+    
+    if (!T[state]) return false
+    while (T[state][EPSILON] !== undefined) {
+      state = T[state][EPSILON];
+      if (state === 'END') return true
+    }
+    return false
+  }
+
+  
+
+  
+  _tokensByPath () {
+    const result = [];
+    const transitions = this.transitions;
+    if (!transitions) return []
+
+    
+    let first = {};
+    forEach(transitions[START], (to, token) => {
+      if (!first[to]) first[to] = [];
+      first[to].push(token);
+    });
+
+    let visited = {START: true, END: true};
+    forEach(first, (tokens, state) => {
+      
+      
+      
+      
+      let _siblings = {};
+      tokens.forEach((t) => {
+        if (t !== EPSILON) {
+          _siblings[t] = true;
+        }
+      });
+      let stack = [state];
+      while (stack.length > 0) {
+        let from = stack.pop();
+        if (state === END) continue
+        visited[from] = true;
+        let T = transitions[from];
+        if (!T) throw new Error(`Internal Error: no transition from state ${from}`)
+        let tokens = Object.keys(T);
+        for (let i = 0; i < tokens.length; i++) {
+          const token = tokens[i];
+          const to = T[token];
+          if (!visited[to]) stack.push(to);
+          if (token !== EPSILON) {
+            _siblings[token] = true;
+          }
+        }
+      }
+      let _siblingTokens = Object.keys(_siblings);
+      if (_siblingTokens.length > 0) {
+        result.push(_siblingTokens);
+      }
+    });
+    return result
+  }
+}
+
+DFA.START = START;
+DFA.END = END;
+DFA.EPSILON = EPSILON;
+DFA.TEXT = TEXT$1;
+
+function _isTextNodeEmpty (el) {
+  return Boolean(/^\s*$/.exec(el.textContent))
+}
+
+const { TEXT: TEXT$2 } = DFA;
+
+class ValidatingChildNodeIterator {
+  constructor (el, it, expr) {
+    this.el = el;
+    this.it = it;
+    this.expr = expr;
+    this.state = expr.getInitialState();
+    this._oldStates = [];
+  }
+
+  hasNext () {
+    return this.it.hasNext()
+  }
+
+  next () {
+    const state = this.state;
+    const expr = this.expr;
+    let next = this.it.next();
+    let oldState = cloneDeep(this.state);
+    let ok;
+    if (next.isTextNode()) {
+      ok = expr.consume(state, TEXT$2);
+    } else if (next.isElementNode()) {
+      ok = expr.consume(state, next.tagName);
+    }
+    if (!ok) {
+      if (next.isTextNode()) {
+        if (!_isTextNodeEmpty(next)) {
+          console.error(`TEXT is invalid within <${expr.name}>. Skipping.`, next.textContent);
+        }
+      } else if (next.isElementNode()) {
+        let error = last$1(state.errors);
+        console.error(error.msg, this.el.getNativeElement());
+      }
+      
+      this.state = oldState;
+      return next.createComment(next.outerHTML)
+    } else {
+      this._oldStates.push(oldState);
+      return next
+    }
+  }
+
+  back () {
+    this.it.back();
+    this.state = this._oldStates.pop();
+    return this
+  }
+
+  peek () {
+    return this.it.peek()
+  }
+}
+
+function _mapParams (config) {
+  const schema = config.schema;
+  
+  
+  const xmlSchema = config.xmlSchema || schema.xmlSchema;
+  const converters = config.converters;
+  const idAttribute = config.idAttribute || xmlSchema.getIdAttribute();
+  return {
+    schema,
+    xmlSchema,
+    converters,
+    idAttribute
+  }
+}
+
+class XMLDocumentImporter extends DOMImporter {
+  constructor (config, context) {
+    super(_mapParams(config, context), context);
+
+    this.xmlSchema = config.xmlSchema || config.schema.xmlSchema;
+  }
+
+  importDocument (dom) {
+    this.reset();
+    const doc = this.state.doc;
+    if (isString(dom)) {
+      dom = DefaultDOMElement.parseXML(dom);
+    }
+    const startTag = this.xmlSchema.getStartElement();
+    let rootEl;
+    if (dom.is(startTag)) {
+      rootEl = dom;
+    } else {
+      rootEl = dom.find(startTag);
+    }
+    if (!rootEl) throw new Error(`Could not find <${startTag}> element.`)
+    
+    
+    doc.root = this.convertElement(rootEl);
+    return this.state.doc
+  }
+
+  _initialize () {
+    const schema = this.schema;
+    const defaultTextType = schema.getDefaultTextType();
+    const converters = this.converters;
+
+    this._allConverters = [];
+    this._propertyAnnotationConverters = [];
+    this._blockConverters = [];
+
+    for (let i = 0; i < converters.length; i++) {
+      let converter;
+      if (typeof converters[i] === 'function') {
+        const Converter = converters[i];
+        converter = new Converter();
+      } else {
+        converter = converters[i];
+      }
+      if (!converter.type) {
+        throw new Error('Converter must provide the type of the associated node.')
+      }
+      if (!converter.matchElement && !converter.tagName) {
+        throw new Error('Converter must provide a matchElement function or a tagName property.')
+      }
+      if (!converter.matchElement) {
+        converter.matchElement = this._defaultElementMatcher.bind(converter);
+      }
+      const NodeClass = schema.getNodeClass(converter.type);
+      if (!NodeClass) {
+        throw new Error('No node type defined for converter')
+      }
+      if (!this._defaultBlockConverter && defaultTextType === converter.type) {
+        this._defaultBlockConverter = converter;
+      }
+
+      
+      if (NodeClass.isAnnotation() || NodeClass.isInlineNode()) {
+        this._propertyAnnotationConverters.push(converter);
+      } else {
+        this._blockConverters.push(converter);
+      }
+    }
+    this._allConverters = this._blockConverters.concat(this._propertyAnnotationConverters);
+  }
+
+  _createNodeData (el, type) {
+    let nodeData = super._createNodeData(el, type);
+    let attributes = {};
+    el.getAttributes().forEach((value, key) => {
+      attributes[key] = value;
+    });
+    nodeData.attributes = attributes;
+    return nodeData
+  }
+
+  getChildNodeIterator (el) {
+    
+    let schema = this.xmlSchema.getElementSchema(el.tagName);
+    let it = el.getChildNodeIterator();
+    if (schema) {
+      return new ValidatingChildNodeIterator(el, it, schema.expr)
+    } else {
+      return it
+    }
+  }
+
+  _convertPropertyAnnotation () {
+    throw new Error('stand-alone annotations are not supported.')
+  }
+
+  _convertInlineNode (el, nodeData, converter) {
+    const path = [];
+    if (converter.import) {
+      nodeData = converter.import(el, nodeData, this) || nodeData;
+    }
+    nodeData.start = { path, offset: 0 };
+    nodeData.end = { offset: 0 };
+    return nodeData
+  }
+}
+
+class XMLNodeConverter {
+  constructor (type) {
+    this.type = type;
+    this.tagName = nameWithoutNS$1(type);
+    this.tagNameNS = type;
+  }
+
+  matchElement (el) {
+    return (el.tagName === this.tagNameNS)
+  }
+
+  export (node, el) {
+    el.tagName = this.tagNameNS;
+    el.attr(node.attributes);
+  }
+}
+
+class ElementNodeConverter extends XMLNodeConverter {
+  import (el, node, converter) {
+    let it = converter.getChildNodeIterator(el);
+    let childNodeIds = [];
+    while (it.hasNext()) {
+      const childEl = it.next();
+      if (childEl.isElementNode()) {
+        let childNode = converter.convertElement(childEl);
+        childNodeIds.push(childNode.id);
+      }
+    }
+    node._childNodes = childNodeIds;
+  }
+
+  export (node, el, converter) {
+    el.tagName = this.tagNameNS;
+    el.attr(node.attributes);
+    node.getChildren().forEach(childNode => {
+      let childEl = converter.convertNode(childNode);
+      el.appendChild(childEl);
+    });
+  }
+}
+
+class XMLExternalNode extends XMLDocumentNode {
+  get _elementType () { return 'external' }
+
+  static isBlock () { return true }
+}
+
+XMLExternalNode.schema = {
+  
+  type: 'external',
+  xml: { type: 'string', default: '' }
+};
+
+class ExternalNodeConverter extends XMLNodeConverter {
+  import (el, node) {
+    node.xml = el.innerHTML;
+  }
+
+  export (node, el) {
+    el.tagName = this.tagNameNS;
+    el.setAttributes(node.attributes);
+    el.innerHTML = node.xml;
+  }
+}
+
+class XMLInlineElementNode extends AnnotationMixin(XMLDocumentNode) {
+  
+  get parentNode () {
+    const path = this.start.path;
+    if (path[0]) {
+      const doc = this.getDocument();
+      return doc.get(path[0])
+    }
+    return this._parentNode
+  }
+
+  set parentNode (parent) {
+    const path = this.start.path;
+    if (path[0]) {
+      throw new Error('parent of inline-element is implicitly given')
+    }
+    this._parentNode = parent;
+  }
+
+  getChildAt (idx) {
+    return getChildAt(this, idx)
+  }
+
+  appendChild (child) {
+    return appendChild(this, child)
+  }
+
+  removeChild (child) {
+    return removeChild(this, child)
+  }
+
+  insertBefore (newChild, ref) {
+    return insertBefore(this, newChild, ref)
+  }
+
+  insertAt (pos, child) {
+    return insertAt(this, pos, child)
+  }
+
+  removeAt (pos) {
+    return removeAt(this, pos)
+  }
+
+  getInnerXML () {
+    return this.getChildren().map(child => {
+      return child.toXML().outerHTML
+    }).join('')
+  }
+
+  static isInlineNode () { return true }
+
+  get _elementType () { return 'inline-element' }
+
+  
+  
+  get _isInlineNode () { return true }
+}
+
+XMLInlineElementNode.schema = {
+  
+  type: 'inline-element',
+  _childNodes: { type: ['array', 'id'], default: [], owned: true }
+};
+
+const START$1 = DFA.START;
+const END$1 = DFA.END;
+const EPSILON$1 = DFA.EPSILON;
+
+
+class DFABuilder {
+  constructor (transitions) {
+    this.transitions = transitions;
+  }
+
+  addTransition (from, to, tokens) {
+    if (!this.transitions) this.transitions = {};
+    if (!isArray(tokens)) tokens = [tokens];
+    tokens.forEach(token => _addTransition(this.transitions, from, to, token));
+    return this
+  }
+
+  
+  append (other) {
+    if (this.transitions && other.transitions) {
+      let t1 = cloneDeep(this.transitions);
+      let t2 = cloneDeep(other.transitions);
+      
+      
+      let firstIsOptional = Boolean(t1[START$1][EPSILON$1]);
+      let secondIsOptional = Boolean(t2[START$1][EPSILON$1]);
+
+      if (firstIsOptional) {
+        
+        
+        delete t1[START$1][EPSILON$1];
+      }
+      
+      
+      let newState = uuid();
+      
+      
+      forEach(t1, (T) => {
+        forEach(T, (to, token) => {
+          if (to === END$1) {
+            T[token] = newState;
+          }
+        });
+      });
+      
+      
+      if (firstIsOptional) {
+        forEach(t2[START$1], (to, token) => {
+          _addTransition(t1, START$1, to, token);
+        });
+      }
+      
+      
+      t2[newState] = t2[START$1];
+      forEach(t2, (T) => {
+        forEach(T, (to, token) => {
+          if (to === START$1) {
+            T[token] = newState;
+          }
+        });
+      });
+      delete t2[START$1];
+      
+      forEach(t2, (T, from) => {
+        forEach(T, (to, token) => {
+          _addTransition(t1, from, to, token);
+        });
+      });
+      
+      
+      if (firstIsOptional && secondIsOptional) {
+        _addTransition(t1, START$1, END$1, EPSILON$1);
+      }
+      this.transitions = t1;
+    } else if (other.transitions) {
+      this.transitions = cloneDeep(other.transitions);
+    }
+    return this
+  }
+
+  
+  merge (other) {
+    if (this.transitions && other.transitions) {
+      let t1 = this.transitions;
+      let t2 = other.transitions;
+      forEach(t2, (T, from) => {
+        forEach(T, (to, token) => {
+          _addTransition(t1, from, to, token);
+        });
+      });
+    } else if (other.transitions) {
+      this.transitions = cloneDeep(other.transitions);
+    }
+    return this
+  }
+
+  
+  optional () {
+    let dfa = new DFABuilder(cloneDeep(this.transitions));
+    if (this.transitions) {
+      dfa.addTransition(START$1, END$1, EPSILON$1);
+    }
+    return dfa
+  }
+
+  
+  kleene () {
+    let dfa = this.plus();
+    return dfa.optional()
+  }
+
+  
+  plus () {
+    let dfa;
+    if (this.transitions) {
+      let t1 = cloneDeep(this.transitions);
+      
+      
+      
+      
+      const isOptional = Boolean(t1[START$1][EPSILON$1]);
+      delete t1[START$1][EPSILON$1];
+      
+      
+      let newState = uuid();
+      forEach(t1, (T) => {
+        forEach(T, (to, token) => {
+          if (to === END$1) {
+            T[token] = newState;
+          }
+        });
+      });
+      
+      _addTransition(t1, newState, END$1, EPSILON$1);
+      
+      forEach(t1[START$1], (to, token) => {
+        _addTransition(t1, newState, to, token);
+      });
+      
+      if (isOptional) {
+        _addTransition(t1, START$1, END$1, EPSILON$1);
+      }
+      dfa = new DFABuilder(t1);
+    } else {
+      dfa = new DFABuilder(cloneDeep(this.transitions));
+    }
+    return dfa
+  }
+
+  toJSON () {
+    return cloneDeep(this.transitions)
+  }
+
+  
+  copy () {
+    let t = cloneDeep(this.transitions);
+    if (this.transitions) {
+      let states = Object.keys(t);
+      let map = { START: START$1, END: END$1 };
+      states.forEach((id) => {
+        if (id === START$1 || id === END$1) return
+        map[id] = uuid();
+      });
+      forEach(t, (T, from) => {
+        if (from !== START$1 && from !== END$1) {
+          t[map[from]] = T;
+          delete t[from];
+        }
+        forEach(T, (to, token) => {
+          if (to !== START$1 && to !== END$1) {
+            T[token] = map[to];
+          }
+        });
+      });
+    }
+    return new DFABuilder(t)
+  }
+}
+
+DFABuilder.singleToken = function (token) {
+  let dfa = new DFABuilder();
+  dfa.addTransition(START$1, END$1, token);
+  return dfa
+};
+
+function _addTransition (transitions, from, to, token) {
+  let T = transitions[from];
+  if (!T) {
+    transitions[from] = T = {};
+  }
+  if (token === EPSILON$1 && from === START$1 && to !== END$1) {
+    throw new Error('The only EPSILON transition from START must be START->END')
+  }
+  if (T[token] && T[token] !== to) {
+    console.error('Token %s already used. Ignoring this transition.', token);
+    return
+    
+  }
+  T[token] = to;
+}
+
+const { START: START$2, END: END$2, TEXT: TEXT$3, EPSILON: EPSILON$2 } = DFA;
+
+
+
+class Expression {
+  constructor (name, root) {
+    this.name = name;
+    this.root = root;
+
+    this._initialize();
+  }
+
+  _initialize () {
+    this._compile();
+  }
+
+  toString () {
+    return this.root.toString()
+  }
+
+  copy () {
+    return this.root.copy()
+  }
+
+  toJSON () {
+    return {
+      name: this.name,
+      content: this.root.toJSON()
+    }
+  }
+
+  isAllowed (tagName) {
+    return Boolean(this._allowedChildren[tagName])
+  }
+
+  
+  _normalize () {
+    this.root._normalize();
+  }
+
+  
+  _compile () {
+    
+    this.root._compile();
+  }
+
+  _describeError (state, token) {
+    let msg = [];
+    if (token !== TEXT$3) {
+      if (!this.isAllowed(token)) {
+        msg.push(`<${token}> is not valid in <${this.name}>\nSchema: ${this.toString()}`);
+      } else {
+        
+        msg.push(`<${token}> is not allowed at the current position in <${this.name}>.\n${this.toString()}`);
+        
+        
+        
+      }
+    } else {
+      msg.push(`TEXT is not allowed at the current position: ${state.trace.join(',')}\n${this.toString()}`);
+    }
+    return msg.join('')
+  }
+}
+
+Expression.fromJSON = function (data) {
+  const name = data.name;
+  const root = _fromJSON(data.content);
+  return createExpression(name, root)
+};
+
+function createExpression (name, root) {
+  if (root instanceof Interleave) {
+    return new InterleaveExpr(name, root)
+  } else {
+    return new DFAExpr(name, root)
+  }
+}
+
+class DFAExpr extends Expression {
+  
+  getInitialState () {
+    return {
+      dfaState: START$2,
+      errors: [],
+      trace: []
+    }
+  }
+
+  canConsume (state, token) {
+    return this.dfa.canConsume(state.dfaState, token)
+  }
+
+  consume (state, token) {
+    const dfa = this.dfa;
+    let oldState = state.dfaState;
+    let newState = dfa.consume(oldState, token);
+    state.dfaState = newState;
+    if (newState === -1) {
+      state.errors.push({
+        msg: this._describeError(state, token),
+        
+        
+        el: state.el
+      });
+      return false
+    } else {
+      state.trace.push(token);
+      return true
+    }
+  }
+
+  isFinished (state) {
+    return this.dfa.isFinished(state.dfaState)
+  }
+
+  _initialize () {
+    super._initialize();
+
+    this._computeAllowedChildren();
+  }
+
+  _compile () {
+    super._compile();
+    this.dfa = new DFA(this.root.dfa.transitions);
+  }
+
+  _computeAllowedChildren () {
+    this._allowedChildren = _collectAllTokensFromDFA(this.dfa);
+  }
+
+  _findInsertPos (el, newTag, mode) {
+    const root = this.root;
+    if (root instanceof Sequence) {
+      return this._findInsertPosInSequence(el, newTag, mode)
+    } else if (root instanceof Plus || root instanceof Kleene) {
+      if (mode === 'first') {
+        return 0
+      } else {
+        return el.childNodes.length
+      }
+    }
+  }
+
+  _isValid (_tokens) {
+    let state = this.getInitialState();
+    for (let i = 0; i < _tokens.length; i++) {
+      const token = _tokens[i];
+      
+      
+      
+      if (!token) continue
+      if (!this.consume(state, token)) {
+        return false
+      }
+    }
+    return this.isFinished(state)
+  }
+
+  _findInsertPosInSequence (el, newTag, mode) {
+    const childNodes = el.getChildNodes();
+    
+    
+    
+    const tokens = [];
+    childNodes.forEach((child) => {
+      
+      
+      
+      const tagName = child.tagName;
+      if (!tagName) {
+        if (child._isDOMElement && child.isTextNode() && !_isTextNodeEmpty(child)) {
+          tokens.push(TEXT$3);
+        } else {
+          tokens.push(null);
+        }
+      } else {
+        tokens.push(tagName);
+      }
+    });
+    const L = tokens.length;
+    const self = this;
+    function _isValid (pos) {
+      let _tokens = tokens.slice(0);
+      _tokens.splice(pos, 0, newTag);
+      return self._isValid(_tokens)
+    }
+    if (mode === 'first') {
+      for (let pos = 0; pos <= L; pos++) {
+        if (_isValid(pos)) {
+          return pos
+        }
+      }
+    } else {
+      for (let pos = L; pos >= 0; pos--) {
+        if (_isValid(pos)) {
+          return pos
+        }
+      }
+    }
+    return -1
+  }
+}
+
+function _collectAllTokensFromDFA (dfa) {
+  
+  const children = {};
+  if (dfa.transitions) {
+    forEach(dfa.transitions, (T) => {
+      Object.keys(T).forEach((tagName) => {
+        if (tagName === EPSILON$2) return
+        children[tagName] = true;
+      });
+    });
+  }
+  return children
+}
+
+class InterleaveExpr extends Expression {
+  getInitialState () {
+    const dfas = this.dfas;
+    const dfaStates = new Array(dfas.length);
+    dfaStates.fill(START$2);
+    return {
+      dfaStates,
+      errors: [],
+      trace: [],
+      
+      lastDFA: 0
+    }
+  }
+
+  canConsume (state, token) {
+    return (this._findNextDFA(state, token) >= 0)
+  }
+
+  consume (state, token) {
+    const idx = this._findNextDFA(state, token);
+    if (idx < 0) {
+      state.errors.push({
+        msg: this._describeError(state, token)
+      });
+      return false
+    } else {
+      const dfa = this.dfas[idx];
+      const oldState = state.dfaStates[idx];
+      const newState = dfa.consume(oldState, token);
+      state.dfaStates[idx] = newState;
+      state.trace.push(token);
+      return true
+    }
+  }
+
+  isFinished (state) {
+    const dfas = this.dfas;
+    for (let i = 0; i < dfas.length; i++) {
+      const dfa = dfas[i];
+      const dfaState = state.dfaStates[i];
+      if (!dfa.isFinished(dfaState)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  _initialize () {
+    super._initialize();
+
+    this._computeAllowedChildren();
+  }
+
+  _compile () {
+    super._compile();
+
+    this.blocks = this.root.blocks;
+    this.dfas = this.blocks.map(b => new DFA(b.dfa.transitions));
+  }
+
+  _computeAllowedChildren () {
+    this._allowedChildren = Object.assign(...this.blocks.map((block) => {
+      return _collectAllTokensFromDFA(block.dfa)
+    }));
+  }
+
+  _findNextDFA (state, token) {
+    console.assert(state.dfaStates.length === this.dfas.length);
+    const dfas = this.dfas;
+    for (let i = 0; i < state.dfaStates.length; i++) {
+      const dfa = dfas[i];
+      const dfaState = state.dfaStates[i];
+      if (dfa.canConsume(dfaState, token)) {
+        return i
+      }
+    }
+    return -1
+  }
+
+  _findInsertPos(el, newTag, mode) { 
+    
+    return el.childNodes.length
+  }
+}
+
+class Token {
+  constructor (name) {
+    this.name = name;
+  }
+
+  toString () {
+    return this.name
+  }
+
+  toJSON () {
+    return this.name
+  }
+
+  copy () {
+    return new Token(this.name)
+  }
+
+  _normalize () {}
+
+  _compile () {
+    this.dfa = DFABuilder.singleToken(this.name);
+  }
+}
+
+Token.fromJSON = function (data) {
+  return new Token(data)
+};
+
+
+class Choice {
+  constructor (blocks) {
+    this.blocks = blocks;
+  }
+
+  copy () {
+    return new Choice(this.blocks.map(b => b.copy()))
+  }
+
+  toJSON () {
+    return {
+      type: '|',
+      blocks: this.blocks.map(b => b.toJSON())
+    }
+  }
+
+  _normalize () {
+    const blocks = this.blocks;
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      let block = blocks[i];
+      block._normalize();
+      
+      if (block instanceof Choice) {
+        blocks.splice(i, 1, ...(block.blocks));
+      }
+    }
+  }
+
+  _compile () {
+    let dfa = new DFABuilder();
+    this.blocks.forEach((block) => {
+      if (block instanceof Token) {
+        dfa.addTransition(START$2, END$2, block.name);
+      } else if (block instanceof Interleave) {
+        throw new Error('Nested interleave blocks are not supported.')
+      } else {
+        if (!block.dfa) {
+          block._compile();
+        }
+        dfa.merge(block.dfa);
+      }
+    });
+    this.dfa = dfa;
+    return dfa
+  }
+
+  toString () {
+    return '(' + this.blocks.map(b => b.toString()).join('|') + ')'
+  }
+}
+
+Choice.fromJSON = function (data) {
+  return new Choice(data.blocks.map((block) => {
+    return _fromJSON(block)
+  }))
+};
+
+
+class Sequence {
+  constructor (blocks) {
+    this.blocks = blocks;
+  }
+
+  copy () {
+    return new Sequence(this.blocks.map(b => b.copy()))
+  }
+
+  toJSON () {
+    return {
+      type: ',',
+      blocks: this.blocks.map(b => b.toJSON())
+    }
+  }
+
+  _compile () {
+    let dfa = new DFABuilder();
+    this.blocks.forEach((block) => {
+      if (block instanceof Token) {
+        dfa.append(DFABuilder.singleToken(block.name));
+      } else if (block instanceof Interleave) {
+        throw new Error('Nested interleave blocks are not supported.')
+      } else {
+        if (!block.dfa) {
+          block._compile();
+        }
+        dfa.append(block.dfa);
+      }
+    });
+    this.dfa = dfa;
+    return dfa
+  }
+
+  _normalize () {
+    const blocks = this.blocks;
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      let block = blocks[i];
+      block._normalize();
+      
+      if (block instanceof Sequence) {
+        blocks.splice(i, 1, ...(block.blocks));
+      }
+    }
+  }
+
+  toString () {
+    return '(' + this.blocks.map(b => b.toString()).join(',') + ')'
+  }
+}
+
+Sequence.fromJSON = function (data) {
+  return new Sequence(data.blocks.map((block) => {
+    return _fromJSON(block)
+  }))
+};
+
+
+class Interleave {
+  constructor (blocks) {
+    this.blocks = blocks;
+  }
+
+  copy () {
+    return new Interleave(this.blocks.map(b => b.copy()))
+  }
+
+  toString () {
+    return '(' + this.blocks.map(b => b.toString()).join(', ') + ')[unordered]'
+  }
+
+  toJSON () {
+    return {
+      type: '~',
+      blocks: this.blocks.map(b => b.toJSON())
+    }
+  }
+
+  _normalize () {
+    
+  }
+
+  _compile () {
+    this.blocks.forEach(block => block._compile());
+  }
+}
+
+Interleave.fromJSON = function (data) {
+  return new Interleave(data.blocks.map((block) => {
+    return _fromJSON(block)
+  }))
+};
+
+
+class Optional {
+  constructor (block) {
+    this.block = block;
+  }
+
+  copy () {
+    return new Optional(this.block.copy())
+  }
+
+  toJSON () {
+    return {
+      type: '?',
+      block: this.block.toJSON()
+    }
+  }
+
+  _compile () {
+    const block = this.block;
+    if (block instanceof Interleave) {
+      throw new Error('Nested interleave blocks are not supported.')
+    }
+    if (!block.dfa) {
+      block._compile();
+    }
+    this.dfa = block.dfa.optional();
+    return this.dfa
+  }
+
+  _normalize () {
+    const block = this.block;
+    block._normalize();
+    if (block instanceof Optional) {
+      this.block = block.block;
+    } else if (block instanceof Kleene) {
+      console.error('FIXME -  <optional> is useless here', this.toString());
+    }
+  }
+
+  toString () {
+    return this.block.toString() + '?'
+  }
+}
+
+Optional.fromJSON = function (data) {
+  return new Optional(_fromJSON(data.block))
+};
+
+
+class Kleene {
+  constructor (block) {
+    this.block = block;
+  }
+
+  copy () {
+    return new Kleene(this.block.copy())
+  }
+
+  toJSON () {
+    return {
+      type: '*',
+      block: this.block.toJSON()
+    }
+  }
+
+  _compile () {
+    const block = this.block;
+    if (block instanceof Interleave) {
+      throw new Error('Nested interleave blocks are not supported.')
+    }
+    if (!block.dfa) {
+      block._compile();
+    }
+    this.dfa = block.dfa.kleene();
+    return this.dfa
+  }
+
+  _normalize () {
+    const block = this.block;
+    block._normalize();
+    if (block instanceof Optional || block instanceof Kleene) {
+      this.block = block.block;
+    } else if (block instanceof Plus) {
+      throw new Error('This does not make sense:' + this.toString())
+    }
+  }
+
+  toString () {
+    return this.block.toString() + '*'
+  }
+}
+
+Kleene.fromJSON = function (data) {
+  return new Kleene(_fromJSON(data.block))
+};
+
+
+class Plus {
+  constructor (block) {
+    this.block = block;
+  }
+
+  copy () {
+    return new Plus(this.block.copy())
+  }
+
+  toJSON () {
+    return {
+      type: '+',
+      block: this.block.toJSON()
+    }
+  }
+
+  _compile () {
+    const block = this.block;
+    if (block instanceof Interleave) {
+      throw new Error('Nested interleave blocks are not supported.')
+    }
+    if (!block.dfa) {
+      block._compile();
+    }
+    this.dfa = block.dfa.plus();
+    return this.dfa
+  }
+
+  _normalize () {
+    const block = this.block;
+    block._normalize();
+    if (block instanceof Optional || block instanceof Kleene) {
+      throw new Error('This does not make sense:' + this.toString())
+    } else if (block instanceof Plus) {
+      this.block = block.block;
+    }
+  }
+
+  toString () {
+    return this.block.toString() + '+'
+  }
+}
+
+Plus.fromJSON = function (data) {
+  return new Plus(_fromJSON(data.block))
+};
+
+function _fromJSON (data) {
+  switch (data.type) {
+    case ',':
+      return Sequence.fromJSON(data)
+    case '~':
+      return Interleave.fromJSON(data)
+    case '|':
+      return Choice.fromJSON(data)
+    case '?':
+      return Optional.fromJSON(data)
+    case '+':
+      return Plus.fromJSON(data)
+    case '*':
+      return Kleene.fromJSON(data)
+    default:
+      if (isString(data)) {
+        return new Token(data)
+      }
+      throw new Error('Unsupported data.')
+  }
+}
+
+const { TEXT: TEXT$4 } = DFA;
+
+class XMLSchema {
+  constructor (elementSchemas, startElement) {
+    if (!elementSchemas[startElement]) {
+      throw new Error('startElement must be a valid element.')
+    }
+    this._elementSchemas = {};
+    this.startElement = startElement;
+    
+    forEach(elementSchemas, (spec, name) => {
+      this._elementSchemas[name] = new ElementSchema(spec.name, spec.type, spec.attributes, spec.expr);
+    });
+  }
+
+  getIdAttribute () {
+    return 'id'
+  }
+
+  getTagNames () {
+    return Object.keys(this._elementSchemas)
+  }
+
+  getElementSchema (name) {
+    return this._elementSchemas[name]
+  }
+
+  getStartElement () {
+    return this.startElement
+  }
+
+  toJSON () {
+    let result = {
+      start: this.getStartElement(),
+      elements: {}
+    };
+    forEach(this._elementSchemas, (schema, name) => {
+      result.elements[name] = schema.toJSON();
+    });
+    return result
+  }
+
+  
+  toMD () {
+    let result = [];
+    let elementNames = Object.keys(this._elementSchemas);
+    elementNames.sort();
+    elementNames.forEach((name) => {
+      let elementSchema = this._elementSchemas[name];
+      result.push(`# <${elementSchema.name}>`);
+      result.push('');
+      result.push(`type: ${elementSchema.type}`);
+      result.push('attributes: ' + map(elementSchema.attributes, (_, name) => { return name }).join(', '));
+      result.push('children:');
+      result.push('  ' + elementSchema.expr.toString());
+      result.push('');
+    });
+    return result.join('\n')
+  }
+
+  validateElement (el) {
+    let tagName = el.tagName;
+    let elementSchema = this.getElementSchema(tagName);
+    return _validateElement(elementSchema, el)
+  }
+}
+
+XMLSchema.fromJSON = function (data) {
+  let elementSchemas = {};
+  forEach(data.elements, (elData) => {
+    let elSchema = ElementSchema.fromJSON(elData);
+    elementSchemas[elSchema.name] = elSchema;
+  });
+  return new XMLSchema(elementSchemas, data.start)
+};
+
+class ElementSchema {
+  constructor (name, type, attributes, expr) {
+    this.name = name;
+    this.type = type;
+    this.attributes = attributes;
+    this.expr = expr;
+
+    if (!name) {
+      throw new Error("'name' is mandatory")
+    }
+    if (!type) {
+      throw new Error("'type' is mandatory")
+    }
+    if (!attributes) {
+      throw new Error("'attributes' is mandatory")
+    }
+    if (!expr) {
+      throw new Error("'expr' is mandatory")
+    }
+  }
+
+  toJSON () {
+    return {
+      name: this.name,
+      type: this.type,
+      attributes: this.attributes,
+      elements: this.expr.toJSON()
+    }
+  }
+
+  isAllowed (tagName) {
+    return this.expr.isAllowed(tagName)
+  }
+
+  isTextAllowed () {
+    return this.expr.isAllowed(TEXT$4)
+  }
+
+  printStructure () {
+    return `${this.name} ::= ${this.expr.toString()}`
+  }
+
+  findFirstValidPos (el, newTag) {
+    return this.expr._findInsertPos(el, newTag, 'first')
+  }
+
+  findLastValidPos (el, newTag) {
+    return this.expr._findInsertPos(el, newTag, 'last')
+  }
+}
+
+ElementSchema.fromJSON = function (data) {
+  return new ElementSchema(
+    data.name,
+    data.type,
+    data.attributes,
+    Expression.fromJSON(data.elements)
+  )
+};
+
+function _validateElement (elementSchema, el) {
+  let errors = [];
+  let valid = true;
+  { 
+    const res = _checkAttributes(elementSchema, el);
+    if (!res.ok) {
+      errors = errors.concat(res.errors);
+      valid = false;
+    }
+  }
+  
+  if (elementSchema.type === 'external' || elementSchema.type === 'not-implemented') ; else {
+    
+    let res;
+    if (el._isXMLTextElement) {
+      res = _checkChildren(elementSchema, el.toXML());
+    } else {
+      res = _checkChildren(elementSchema, el);
+    }
+    if (!res.ok) {
+      errors = errors.concat(res.errors);
+      valid = false;
+    }
+  }
+  return {
+    errors,
+    ok: valid
+  }
+}
+
+function _checkAttributes(elementSchema, el) { 
+  return { ok: true }
+}
+
+function _checkChildren (elementSchema, el) {
+  
+  
+  if (elementSchema.type === 'external' || elementSchema.type === 'not-implemented') {
+    return true
+  }
+  const expr = elementSchema.expr;
+  const state = expr.getInitialState();
+  const iterator = el.getChildNodeIterator();
+  let valid = true;
+  while (valid && iterator.hasNext()) {
+    const childEl = iterator.next();
+    let token;
+    if (childEl.isTextNode()) {
+      
+      if (elementSchema.type !== 'text' && _isTextNodeEmpty(childEl)) {
+        continue
+      }
+      token = TEXT$4;
+    } else if (childEl.isElementNode()) {
+      token = childEl.tagName;
+    } else {
+      continue
+    }
+    if (!expr.consume(state, token)) {
+      valid = false;
+    }
+  }
+  
+  if (state.errors.length > 0) {
+    state.errors.forEach((err) => {
+      err.el = el;
+    });
+  }
+  if (valid && !expr.isFinished(state)) {
+    state.errors.push({
+      msg: `<${el.tagName}> is incomplete.\nSchema: ${expr.toString()}`,
+      el
+    });
+    valid = false;
+  }
+  if (valid) {
+    state.ok = true;
+  }
+  return state
+}
+
+class XMLTextElement extends TextNodeMixin(XMLDocumentNode) {
+  getPath () {
+    return [this.id, 'content']
+  }
+
+  getText () {
+    return this.content
+  }
+
+  
+  getChildren () {
+    const annos = this.getAnnotations();
+    
+    annos.sort(_byStartOffset);
+    return annos
+  }
+
+  setText (text) {
+    const doc = this.getDocument();
+    const path = this.getPath();
+    const oldText = this.getText();
+    
+    if (oldText.length > 0) {
+      doc.update(path, { type: 'delete', start: 0, end: oldText.length });
+    }
+    doc.update(path, { type: 'insert', start: 0, text });
+    return this
+  }
+
+  
+
+  getTextContent () {
+    return this.getText()
+  }
+
+  setTextContent (text) {
+    return this.setText(text)
+  }
+
+  get textContent () {
+    return this.getText()
+  }
+
+  set textContent (text) {
+    this.setText(text);
+  }
+
+  appendChild(child) { 
+    
+    
+    
+    
+    
+    
+    
+    throw new Error('This is not implemented yet.')
+  }
+
+  removeChild(child) { 
+    
+    throw new Error('This is not implemented yet.')
+  }
+
+  
+  isElementNode () {
+    return true
+  }
+
+  text () {
+    return DOMElement.prototype.text.apply(this, arguments)
+  }
+
+  get _isXMLTextElement () { return true }
+
+  get _elementType () { return 'text' }
+
+  static isText () { return true }
+
+  static isBlock () { return true }
+}
+
+XMLTextElement.schema = {
+  
+  type: 'text',
+  content: 'text'
+};
+
+function _byStartOffset (a, b) {
+  return a.start.offset - b.start.offset
+}
+
+class XMLTextElementConverter extends XMLNodeConverter {
+  import (el, node, converter) {
+    node.content = converter.annotatedText(el, [node.id, 'content'], { preserveWhitespace: true });
+  }
+
+  export (node, el, converter) {
+    el.tagName = this.tagNameNS;
+    el.attr(node.attributes);
+    el.append(converter.annotatedText([node.id, 'content']));
+  }
+}
+
+const { TEXT: TEXT$5 } = DFA;
+
+function analyze (elementSchemas) {
+  forEach(elementSchemas, elementSchema => {
+    Object.assign(elementSchema, {
+      children: {},
+      parents: {},
+      siblings: {},
+      usedInlineBy: {},
+      usedStructuredBy: {}
+    });
+  });
+  forEach(elementSchemas, elementSchema => {
+    _analyzeElementSchema(elementSchema, elementSchemas);
+  });
+}
+
+
+function _analyzeElementSchema (elementSchema, elementSchemas) {
+  const expr = elementSchema.expr;
+  const name = elementSchema.name;
+  if (!expr) return
+  let _siblings = [];
+  if (expr instanceof DFAExpr) {
+    if (expr.dfa) {
+      _siblings = expr.dfa._tokensByPath();
+    }
+  } else if (expr instanceof InterleaveExpr) {
+    expr.dfas.forEach((dfa) => {
+      if (dfa) {
+        _siblings = _siblings.concat(dfa._tokensByPath());
+      }
+    });
+  }
+  if (_siblings.length === 0) {
+    
+    
+    if (elementSchema.type === 'implicit') elementSchema.type = 'element';
+  }
+
+  let hasText = false;
+  let hasElements = false;
+  _siblings.forEach((tagNames) => {
+    
+    let _hasText = tagNames.indexOf(TEXT$5) >= 0;
+    let _hasElements = (!_hasText && tagNames.length > 0);
+    if (_hasText) {
+      hasText = true;
+    }
+    if (_hasElements) {
+      hasElements = true;
+    }
+    tagNames.forEach((tagName) => {
+      const childSchema = elementSchemas[tagName];
+      if (!childSchema) return
+      childSchema.parents[name] = true;
+      elementSchema.children[tagName] = true;
+      
+      elementSchema.siblings[name] = tagNames;
+      if (_hasElements) childSchema.usedStructuredBy[name] = true;
+      if (_hasText) childSchema.usedInlineBy[name] = true;
+    });
+  });
+  
+  if (hasElements) elementSchema.isStructured = true;
+  if (hasText) elementSchema.isText = true;
+  if (elementSchema.type === 'implicit') {
+    if (hasText) {
+      elementSchema.type = 'text';
+    } else {
+      elementSchema.type = 'element';
+    }
+  }
 }
 
 function checkSchema (xmlSchema) {
@@ -41968,7 +42140,8 @@ function checkSchema (xmlSchema) {
         issues = issues.concat(_checkAnchor(elementSchema));
         break
       }
-      case 'external': {
+      case 'external':
+      case 'not-implemented': {
         break
       }
       default:
@@ -42117,85 +42290,6 @@ function _loadRNG (fs, searchDirs, entry) {
   return rng
 }
 
-const { TEXT: TEXT$5 } = DFA;
-
-function analyze (elementSchemas) {
-  forEach(elementSchemas, (elementSchema) => {
-    Object.assign(elementSchema, {
-      children: {},
-      parents: {},
-      siblings: {},
-      usedInlineBy: {},
-      usedStructuredBy: {}
-    });
-  });
-  forEach(elementSchemas, (elementSchema) => {
-    _analyzeElementSchema(elementSchema, elementSchemas);
-  });
-}
-
-
-function _analyzeElementSchema (elementSchema, elementSchemas) {
-  const expr = elementSchema.expr;
-  const name = elementSchema.name;
-  if (!expr) return
-  let _siblings = [];
-  if (expr instanceof DFAExpr) {
-    if (expr.dfa) {
-      _siblings = expr.dfa._tokensByPath();
-    }
-  } else if (expr instanceof InterleaveExpr) {
-    expr.dfas.forEach((dfa) => {
-      if (dfa) {
-        _siblings = _siblings.concat(dfa._tokensByPath());
-      }
-    });
-  }
-  if (_siblings.length === 0) {
-    
-    
-    if (elementSchema.type === 'implicit') elementSchema.type = 'element';
-  }
-
-  let hasText = false;
-  let hasElements = false;
-  _siblings.forEach((tagNames) => {
-    
-    let _hasText = tagNames.indexOf(TEXT$5) >= 0;
-    let _hasElements = (!_hasText && tagNames.length > 0);
-    if (_hasText) {
-      hasText = true;
-    }
-    if (_hasElements) {
-      hasElements = true;
-    }
-    tagNames.forEach((tagName) => {
-      const childSchema = elementSchemas[tagName];
-      if (!childSchema) return
-      childSchema.parents[name] = true;
-      elementSchema.children[tagName] = true;
-      
-      elementSchema.siblings[name] = tagNames;
-      if (_hasElements) childSchema.usedStructuredBy[name] = true;
-      if (_hasText) childSchema.usedInlineBy[name] = true;
-    });
-  });
-  
-  if (hasElements) {
-    elementSchema.isStructured = true;
-  }
-  if (hasText) {
-    elementSchema.isText = true;
-  }
-  if (elementSchema.type === 'implicit') {
-    if (hasText) {
-      elementSchema.type = 'text';
-    } else {
-      elementSchema.type = 'element';
-    }
-  }
-}
-
 const TEXT$6 = DFA.TEXT;
 
 
@@ -42229,7 +42323,7 @@ function compileRNG (fs, searchDirs, entry) {
 function _registerDefinitions (grammar) {
   let defs = {};
   
-  grammar.children.forEach((child) => {
+  grammar.children.forEach(child => {
     const tagName = nameWithoutNS$1(child.tagName);
     if (tagName === 'define') {
       _processDefine(child, defs);
@@ -42248,35 +42342,60 @@ function _processDefine (el, defs) {
       defs[name] = el;
     }
   } else {
-    if (defs[name]) {
-      console.info(`Overwriting definition ${name}`);
-    }
+    if (defs[name]) ;
     defs[name] = el;
   }
 }
 
 
-
-function _transformRNG (grammar) { 
+function _transformRNG (grammar) {
+  const $$ = grammar.createElement.bind(grammar);
   
+  grammar.findAll('removed').forEach(el => {
+    let name = el.attr('name');
+    grammar.findAll(`element[name="${name}"]`).forEach(el => {
+      
+      el.remove();
+    });
+    grammar.findAll(`ref[name="${name}"]`).forEach(el => {
+      
+      el.remove();
+    });
+  });
+
   const elements = {};
   const defs = grammar.defs;
   const elementDefinitions = grammar.findAll('define > element');
   const doc = DefaultDOMElement.createDocument('xml');
   const newGrammar = doc.createElement('grammar');
-  elementDefinitions.forEach((el) => {
+
+  
+  
+  const notImplemented = grammar.findAll('not-implemented').reduce((s, el) => {
+    let name = el.attr('name');
+    if (name) s.add(name);
+    return s
+  }, new Set());
+
+  
+  elementDefinitions.forEach(el => {
     const name = el.attr('name');
     if (!name) throw new Error("'name' is mandatory.")
-    const transformed = _transformElementDefinition(doc, name, el, defs);
+    let transformed;
+    if (notImplemented.has(name)) {
+      transformed = $$('element').attr('name', name).attr('type', 'not-implemented');
+    } else {
+      transformed = _transformElementDefinition(doc, name, el, defs);
+    }
     elements[name] = transformed;
     newGrammar.appendChild(transformed);
   });
 
   
   const elementTypes = grammar.findAll('elementType');
-  elementTypes.forEach((typeEl) => {
+  elementTypes.forEach(typeEl => {
     const name = typeEl.attr('name');
-    const type = typeEl.attr('s:type') || typeEl.attr('type');
+    let type = typeEl.attr('s:type') || typeEl.attr('type');
     if (!name || !type) throw new Error('Attributes name and type are mandatory.')
     const element = elements[name];
     if (!element) throw new Error(`Unknown element ${name}.`)
@@ -42314,9 +42433,7 @@ function _transformElementDefinition (doc, name, orig, defs) {
   el.appendChild(children);
 
   
-
-  let hasPruned = true;
-  while (hasPruned) {
+  while (true) {
     
     let nestedChoice = children.find('choice > choice');
     if (nestedChoice) {
@@ -42330,17 +42447,35 @@ function _transformElementDefinition (doc, name, orig, defs) {
       parentChoice.removeChild(nestedChoice);
       continue
     }
-    
-    let choices = children.findAll('choice');
-    for (let i = 0; i < choices.length; i++) {
-      let choice = choices[i];
-      let children = choice.children;
-      if (children.length === 1) {
-        choice.parentNode.replaceChild(choice, children[0]);
-      }
-      continue
+    break
+  }
+
+  
+  let choices = children.findAll('choice');
+  for (let i = 0; i < choices.length; i++) {
+    let choice = choices[i];
+    let children = choice.children;
+    if (children.length === 1) {
+      choice.parentNode.replaceChild(choice, children[0]);
     }
-    hasPruned = false;
+  }
+
+  let optionalTextEls = children.findAll('optional > text, zeroOrMore > text');
+  for (let i = 0; i < optionalTextEls.length; i++) {
+    let textEl = optionalTextEls[i];
+    let optionalEl = textEl.parentNode;
+    if (optionalEl.getChildCount() === 1) {
+      optionalEl.parentNode.replaceChild(optionalEl, textEl);
+    }
+  }
+
+  
+  let groupEls = children.findAll('optional, zeroOrMore, oneOrMore');
+  for (let i = 0; i < groupEls.length; i++) {
+    let groupEl = groupEls[i];
+    if (groupEl.getChildCount() === 0) {
+      groupEl.remove();
+    }
   }
 
   return el
@@ -42414,7 +42549,7 @@ function _extractStart (grammar) {
 function _compile (grammar) {
   const schemas = {};
   const elements = grammar.children.filter(el => el.tagName === 'element');
-  elements.forEach((element) => {
+  elements.forEach(element => {
     const name = element.attr('name');
     const attributes = _collectAttributes(element.find('attributes'));
     const children = element.find('children');
@@ -42440,6 +42575,7 @@ function _compile (grammar) {
 }
 
 function _processChildren (el, grammar) {
+  if (!el) return new Sequence([])
   let blocks = _processBlocks(el.children, grammar);
   if (blocks.length === 1) {
     return blocks[0]
@@ -42542,6 +42678,7 @@ function _processReference (ref, grammar) {
 }
 
 function _collectAttributes (el, grammar, attributes = {}) {
+  if (!el) return {}
   
   
   let children = el.children;
@@ -42576,12 +42713,118 @@ function _transformAttribute (el) {
   }
 }
 
+function registerSchema (config, xmlSchema, DocumentClass, options = {}) {
+  const schemaName = xmlSchema.getName();
+  let defaultTextType;
+  
+  
+  if (xmlSchema.getDefaultTextType) {
+    defaultTextType = xmlSchema.getDefaultTextType();
+  }
+  
+  config.defineSchema({
+    name: schemaName,
+    version: xmlSchema.getVersion(),
+    defaultTextType: defaultTextType,
+    DocumentClass: DocumentClass,
+    
+    xmlSchema: xmlSchema
+  });
+  const tagNames = xmlSchema.getTagNames();
+  
+  tagNames.forEach((tagName) => {
+    const elementSchema = xmlSchema.getElementSchema(tagName);
+    const name = elementSchema.name;
+    let NodeClass, ConverterClass;
+    switch (elementSchema.type) {
+      case 'element': {
+        NodeClass = XMLElementNode;
+        ConverterClass = ElementNodeConverter;
+        break
+      }
+      case 'hybrid': {
+        throw new Error('Mixed element types are not supported yet.')
+      }
+      case 'text': {
+        NodeClass = XMLTextElement;
+        ConverterClass = XMLTextElementConverter;
+        break
+      }
+      case 'annotation': {
+        NodeClass = XMLAnnotationNode;
+        ConverterClass = XMLNodeConverter;
+        break
+      }
+      case 'anchor': {
+        NodeClass = XMLAnchorNode;
+        ConverterClass = XMLNodeConverter;
+        break
+      }
+      case 'inline-element': {
+        NodeClass = XMLInlineElementNode;
+        
+        ConverterClass = ElementNodeConverter;
+        break
+      }
+      case 'external':
+      case 'not-implemented': {
+        NodeClass = XMLExternalNode;
+        ConverterClass = ExternalNodeConverter;
+        break
+      }
+      case 'container': {
+        NodeClass = XMLContainerNode;
+        ConverterClass = ElementNodeConverter;
+        break
+      }
+      default:
+        throw new Error('Illegal state')
+    }
+    
+    class Node extends NodeClass {}
+    Node.type = name;
+
+    
+    const attributes = elementSchema.attributes;
+    forEach(attributes, (spec, name) => {
+      _defineAttribute(Node, name, spec);
+    });
+
+    config.addNode(Node);
+    let converter = new ConverterClass(name);
+    config.addConverter(schemaName, converter);
+
+    let ImporterClass = options.ImporterClass || XMLDocumentImporter;
+    config.addImporter(schemaName, ImporterClass);
+  });
+}
+
+const BUILTIN_ATTRS = ['id', 'type', 'attributes', '_childNodes', '_content'];
+
+function _defineAttribute (Node, attributeName) {
+  let name = attributeName.replace(':', '_');
+  name = camelCase(name);
+  if (BUILTIN_ATTRS.indexOf(name) >= 0) {
+    
+    return
+  }
+  Object.defineProperty(Node.prototype, name, {
+    get () {
+      return this.getAttribute(attributeName)
+    },
+    set (val) {
+      this.setAttribute(attributeName, val);
+      return this
+    }
+  });
+}
+
 const DISABLED = Object.freeze({
   disabled: true
 });
 
 
-class SchemaDrivenCommandManager extends CommandManager {
+class SchemaDrivenCommandManager extends DeprecatedCommandManager {
   _initialize () {
     
     
@@ -42761,7 +43004,19 @@ function prettyPrintXML (xml) {
     dom = xml;
   }
   const result = [];
-  dom.childNodes.forEach((el) => {
+  
+  
+  
+  
+  
+  let childNodes = dom.getChildNodes();
+  if (dom.isDocumentNode()) {
+    let xml = dom.empty().serialize();
+    if (/<\?\s*xml/.exec(xml)) {
+      result.push(xml);
+    }
+  }
+  childNodes.forEach(el => {
     _prettyPrint(result, el, 0);
   });
   return result.join('\n')
@@ -42791,7 +43046,7 @@ function _prettyPrint (result, el, level) {
         result.push(indent + tagStr.join(' ') + ' />');
       }
     }
-  } else {
+  } else if (level === 0 && el.isTextNode()) ; else {
     result.push(indent + el.outerHTML);
   }
 }
@@ -42825,171 +43080,10 @@ var ButtonPackage = {
   Button
 }
 
-class ContextMenu extends ToolPanel {
-  didMount () {
-    super.didMount();
-    if (!this.context.scrollPane) {
-      throw new Error('Requires a scrollPane context')
-    }
-    this.context.scrollPane.on('context-menu:opened', this._onContextMenuOpened, this);
-  }
-
-  dispose () {
-    super.dispose();
-    this.context.scrollPane.off(this);
-  }
-
-  render ($$) {
-    let el = $$('div').addClass('sc-context-menu sm-hidden');
-    el.addClass('sm-theme-' + this.getTheme());
-    el.append(
-      $$('div').addClass('se-active-tools').append(
-        this.renderEntries($$)
-      ).ref('entriesContainer')
-    );
-    return el
-  }
-
-  show (hints) {
-    this.el.removeClass('sm-hidden');
-    this._position(hints);
-  }
-
-  hide () {
-    this.el.addClass('sm-hidden');
-  }
-
-  
-  _onContextMenuOpened (hints) {
-    let mouseBounds = hints.mouseBounds;
-    this.el.removeClass('sm-hidden');
-    let contextMenuWidth = this.el.htmlProp('offsetWidth');
-
-    
-    this.el.css('top', mouseBounds.top);
-    let leftPos = mouseBounds.left;
-    
-    leftPos = Math.max(leftPos, 0);
-    
-    let maxLeftPos = mouseBounds.left + mouseBounds.right - contextMenuWidth;
-    leftPos = Math.min(leftPos, maxLeftPos);
-    this.el.css('left', leftPos);
-  }
-
-  getTheme () {
-    return this.props.theme || 'dark'
-  }
-}
-
 var ContextMenuPackage = {
   name: 'context-menu',
   configure: function (config) {
-    config.addComponent('context-menu', ContextMenu);
-  }
-}
-
-class Grid extends Component {
-  render ($$) {
-    let el = $$('div').addClass('sc-grid');
-    if (this.props.mobile) {
-      el.addClass('sm-mobile');
-    }
-    el.append(this.props.children);
-    return el
-  }
-}
-
-
-class Row extends Component {
-  render ($$) {
-    let el = $$('div').addClass('se-row');
-    el.append(this.props.children);
-    return el
-  }
-}
-
-
-class Cell extends Component {
-  render ($$) {
-    let el = $$('div').addClass('se-cell');
-    el.addClass('sm-column-' + this.props.columns);
-    el.append(this.props.children);
-    return el
-  }
-}
-
-Grid.Row = Row;
-Grid.Cell = Cell;
-
-var GridPackage = {
-  name: 'grid',
-  configure: function (config) {
-    config.addComponent('grid', Grid);
-  },
-  Grid
-}
-
-class Gutter extends ToolPanel {
-  render ($$) {
-    let el = $$('div').addClass(this.getClassNames());
-    el.addClass('sm-hidden');
-    el.addClass('sm-theme-' + this.getTheme());
-    let activeToolGroups = this.state.activeToolGroups;
-    let activeToolsEl = $$('div').addClass('se-active-tools');
-
-    activeToolGroups.forEach((toolGroup) => {
-      let toolGroupProps = Object.assign({}, toolGroup, {
-        toolStyle: this.getToolStyle(),
-        showIcons: true
-      });
-      activeToolsEl.append(
-        $$(toolGroup.Class, toolGroupProps)
-      );
-    });
-
-    el.append(activeToolsEl);
-    return el
-  }
-
-  
-  getToolStyle () {
-    return 'outline-dark'
-  }
-
-  show (hints) {
-    this.el.removeClass('sm-hidden');
-    this._position(hints);
-  }
-
-  hide () {
-    this.el.addClass('sm-hidden');
-  }
-
-  _position (hints) {
-    if (hints) {
-      
-      this.el.css('top', hints.rectangle.top + hints.rectangle.height - hints.rectangle.height / 2);
-      this.el.css('left', 0);
-    }
-  }
-
-  getClassNames () {
-    return 'sc-gutter'
-  }
-
-  getTheme () {
-    return 'dark'
-  }
-
-  getActiveToolGroupNames () {
-    return ['gutter']
-  }
-}
-
-var GutterPackage = {
-  name: 'gutter',
-  configure: function (config) {
-    config.addComponent('gutter', Gutter);
+    config.addComponent('context-menu', DeprecatedContextMenu);
   }
 }
 
@@ -43002,6 +43096,7 @@ class Input extends Component {
       type: this.props.type,
       placeholder: this.props.placeholder
     }).addClass('sc-input')
+      .val(val)
       .on('keydown', this._onKeydown);
 
     if (this.props.path) {
@@ -43059,14 +43154,6 @@ var InputPackage = {
   Input
 }
 
-var LayoutPackage = {
-  name: 'layout',
-  configure: function (config) {
-    config.addComponent('layout', Layout);
-  },
-  Layout
-}
-
 class Modal extends Component {
   render ($$) {
     let el = $$('div').addClass('sc-modal');
@@ -43106,268 +43193,32 @@ var ModalPackage = {
 var OverlayPackage = {
   name: 'overlay',
   configure: function (config) {
-    config.addComponent('overlay', Overlay);
-  }
-}
-
-class Dropzones extends Component {
-  didMount () {
-    this.context.dragManager.on('drag:started', this.onDragStarted, this);
-    this.context.dragManager.on('drag:finished', this.onDragFinished, this);
-  }
-
-  render ($$) {
-    let el = $$('div').addClass('sc-dropzones');
-
-    if (this.state.dropzones) {
-      el.on('dragenter', this.onDrag)
-        .on('dragover', this.onDrag);
-
-      
-      forEach(this.state.dropzones, (dropzones, surfaceId) => {
-        dropzones.forEach((dropzone, index) => {
-          let dropType = dropzone.type;
-          let dropzoneEl;
-          if (dropType === 'place') {
-            dropzoneEl = $$('div').addClass('se-dropzone')
-              .attr({
-                'data-dropzone-index': index,
-                'data-dropzone-surface': surfaceId
-              }).append(
-                $$('div').addClass('se-drop-teaser').css({
-                  top: dropzone.teaserPos
-                })
-              );
-          } else if (dropType === 'custom') {
-            dropzoneEl = $$('div').addClass('se-custom-dropzone').attr({
-              'data-dropzone-index': index,
-              'data-dropzone-surface': surfaceId
-            }).append(
-              
-              
-              $$('div').addClass('se-message').append(dropzone.message)
-            );
-          }
-          if (dropzoneEl) {
-            let shield = $$('div').addClass('se-drop-shield')
-              .on('dragenter', this.onDragEnter)
-              .on('dragleave', this.onDragLeave)
-              .on('drop', this.onDrop)
-              .on('mouseenter', this.onDragEnter)
-              .on('mouseleave', this.onDragLeave)
-              .on('mouseup', this.onDrop);
-            dropzoneEl.append(shield);
-            dropzoneEl.css({
-              position: 'absolute',
-              top: dropzone.top,
-              left: dropzone.left,
-              width: dropzone.width,
-              height: dropzone.height
-            });
-            el.append(dropzoneEl);
-          }
-        });
-      });
-    } else {
-      el.addClass('sm-hidden');
-    }
-    return el
-  }
-
-  
-  onDragStarted (dragState) {
-    let dropzones = this._computeDropzones(dragState);
-    setTimeout(() => {
-      this.setState({
-        dropzones: dropzones
-      });
-    }, 250);
-  }
-
-  
-  onDragFinished () {
-    this.setState({});
-  }
-
-  onDragEnter (e) {
-    
-    e.target.parentNode.classList.add('sm-over');
-  }
-
-  onDragLeave (e) {
-    
-    e.target.parentNode.classList.remove('sm-over');
-  }
-
-  
-  onDrag(e) { 
-    
-    e.preventDefault();
-  }
-
-  onDrop (e) {
-    
-    
-    e.__reserved__ = true;
-    e.preventDefault();
-    e.stopPropagation();
-    let dropzoneIndex = e.target.parentNode.dataset.dropzoneIndex;
-    let dropzoneSurface = e.target.parentNode.dataset.dropzoneSurface;
-    let dropzone = this.state.dropzones[dropzoneSurface][dropzoneIndex];
-    let dropParams = dropzone.dropParams;
-    let dropType = dropzone.type;
-    
-    let targetSurface = this.context.surfaceManager.getSurface(dropzoneSurface);
-    
-    let component = dropzone.component;
-    let dropzoneComponent = dropzone.dropzoneComponent;
-    
-    let dragManager = this.context.dragManager;
-    dragManager.extendDragState({
-      targetSurface,
-      dropType,
-      dropParams,
-      component,
-      dropzoneComponent
-    });
-    dragManager._onDragEnd(e);
-  }
-
-  
-  _getBoundingRect (comp) {
-    let scrollPane = comp.context.scrollPane;
-    let contentElement = scrollPane.getContentElement();
-    let rect = getRelativeBoundingRect(comp.el, contentElement);
-    return rect
-  }
-
-  _computeDropzones (dragState) {
-    let scrollPaneName = this.context.scrollPane.getName();
-    let surfaces = dragState.scrollPanes[scrollPaneName].surfaces;
-    let scopedDropzones = {};
-
-    forEach(surfaces, (surface) => {
-      let components = surface.childNodes;
-
-      
-      let numDropzones = components.length + 1;
-      let dropzones = [];
-
-      for (let i = 0; i < numDropzones; i++) {
-        if (i === 0) {
-          
-          let firstComp = this._getBoundingRect(components[0]);
-          dropzones.push({
-            type: 'place',
-            left: firstComp.left,
-            top: firstComp.top,
-            width: firstComp.width,
-            height: firstComp.height / 2,
-            teaserPos: 0,
-            dropParams: {
-              insertPos: i
-            }
-          });
-        } else if (i === numDropzones - 1) {
-          
-          let lastComp = this._getBoundingRect(components[i - 1]);
-          dropzones.push({
-            type: 'place',
-            left: lastComp.left,
-            top: lastComp.top + lastComp.height / 2,
-            width: lastComp.width,
-            height: lastComp.height / 2,
-            teaserPos: lastComp.height / 2,
-            dropParams: {
-              insertPos: i
-            }
-          });
-        } else {
-          
-          let upperComp = this._getBoundingRect(components[i - 1]);
-          let lowerComp = this._getBoundingRect(components[i]);
-          let topBound = upperComp.top + upperComp.height / 2;
-          let bottomBound = lowerComp.top + lowerComp.height / 2;
-
-          dropzones.push({
-            type: 'place',
-            left: upperComp.left,
-            top: topBound,
-            width: upperComp.width,
-            height: bottomBound - topBound,
-            teaserPos: (upperComp.top + upperComp.height + lowerComp.top) / 2 - topBound,
-            dropParams: {
-              insertPos: i
-            }
-          });
-        }
-
-        if (i < numDropzones - 1) {
-          let comp = components[i];
-          
-          if (comp._isIsolatedNodeComponent) {
-            comp = comp.getContent();
-          }
-          
-          if (comp.getDropzoneSpecs) {
-            let dropzoneSpecs = comp.getDropzoneSpecs();
-            dropzoneSpecs.forEach((dropzoneSpec) => {
-              let dropzoneComp = dropzoneSpec.component;
-              let rect = this._getBoundingRect(dropzoneComp);
-              dropzones.push({
-                type: 'custom',
-                component: comp,
-                dropzoneComponent: dropzoneComp,
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height,
-                message: dropzoneSpec.message,
-                dropParams: dropzoneSpec.dropParams
-              });
-            });
-          }
-        }
-      }
-      scopedDropzones[surface.getName()] = dropzones;
-    });
-    return scopedDropzones
-  }
-
-  _renderDropTeaser (hints) {
-    if (hints.visible) {
-      this.el.removeClass('sm-hidden');
-      this.el.css('top', hints.rect.top);
-      this.el.css('left', hints.rect.left);
-      this.el.css('right', hints.rect.right);
-    } else {
-      this.el.addClass('sm-hidden');
-    }
+    config.addComponent('overlay', DeprecatedOverlay);
   }
 }
 
 var DropzonesPackage = {
   name: 'dropzones',
   configure: function (config) {
-    config.addComponent('dropzones', Dropzones);
+    config.addComponent('dropzones', DeprecatedDropzones);
   },
-  Dropzones
+  Dropzones: DeprecatedDropzones
 }
 
 var ScrollbarPackage = {
   name: 'scrollbar',
   configure: function (config) {
-    config.addComponent('scrollbar', Scrollbar);
+    config.addComponent('scrollbar', DeprecatedScrollbar);
   },
-  Scrollbar
+  Scrollbar: DeprecatedScrollbar
 }
 
 var ScrollPanePackage = {
   name: 'scroll-pane',
   configure: function (config) {
-    config.addComponent('scroll-pane', ScrollPane);
+    config.addComponent('scroll-pane', DeprecatedScrollPane);
   },
-  ScrollPane
+  ScrollPane: DeprecatedScrollPane
 }
 
 class BodyScrollPane extends AbstractScrollPane {
@@ -43523,120 +43374,15 @@ var FilePackage = {
   }
 }
 
-class Undo extends Command {
-  getCommandState (params) {
-    let editorSession = params.editorSession;
-    return {
-      disabled: !editorSession.canUndo(),
-      active: false
-    }
-  }
-
-  execute (params) {
-    let editorSession = params.editorSession;
-    if (editorSession.canUndo()) {
-      editorSession.undo();
-    }
-    return true
-  }
-}
-
-class Redo extends Command {
-  getCommandState (params) {
-    let editorSession = params.editorSession;
-    return {
-      disabled: !editorSession.canRedo(),
-      active: false
-    }
-  }
-
-  execute (params) {
-    let editorSession = params.editorSession;
-    if (editorSession.canRedo()) {
-      editorSession.redo();
-      return true
-    } else {
-      return false
-    }
-  }
-}
-
-class SelectAll extends Command {
-  getCommandState (params) {
-    let editorSession = params.editorSession;
-    let isBlurred = editorSession.isBlurred();
-    let surface = params.surface || editorSession.getFocusedSurface();
-    let sel = editorSession.getSelection();
-    
-    let disabled = (
-      isBlurred ||
-      !sel || sel.isNull() ||
-      !surface ||
-      !(surface._isContainerEditor || surface._isTextPropertyEditor)
-    );
-    return { disabled }
-  }
-
-  execute (params) {
-    let editorSession = params.editorSession;
-    let doc = editorSession.getDocument();
-    let surface = params.surface || editorSession.getFocusedSurface();
-    if (surface) {
-      let sel;
-      
-      if (surface._isContainerEditor) {
-        let container = surface.getContainer();
-        let nodeIds = container.getContent();
-        if (nodeIds.length === 0) return false
-        let firstNodeId = nodeIds[0];
-        let lastNodeId = last$1(nodeIds);
-        sel = editorSession.createSelection({
-          type: 'container',
-          startPath: [firstNodeId],
-          startOffset: 0,
-          endPath: [lastNodeId],
-          endOffset: 1,
-          containerId: container.id,
-          surfaceId: surface.id
-        });
-      } else if (surface._isTextPropertyEditor) {
-        let path = surface.getPath();
-        let text = doc.get(path);
-        sel = editorSession.createSelection({
-          type: 'property',
-          path: path,
-          startOffset: 0,
-          endOffset: text.length,
-          surfaceId: surface.id
-        });
-      }
-      editorSession.setSelection(sel);
-      return true
-    }
-    return false
-  }
-}
-
-class ToolSeparator extends Component {
-  render ($$) {
-    let el = $$('div').addClass('sc-tool-separator');
-    return el
-  }
-
-  hasEnabledTools () {
-    return false
-  }
-}
-
 var ToolPanelPackage = {
   name: 'tool-panel',
   configure (config) {
-    config.addComponent('tool-panel', ToolPanel);
-    config.addComponent('tool-dropdown', ToolDropdown);
-    config.addComponent('tool-group', ToolGroup);
-    config.addComponent('menu-group', MenuGroup);
-    config.addComponent('tool-prompt', ToolPrompt);
-    config.addComponent('tool-separator', ToolSeparator);
+    config.addComponent('tool-panel', DeprecatedToolPanel);
+    config.addComponent('tool-dropdown', DeprecatedToolDropdown);
+    config.addComponent('tool-group', DeprecatedToolGroup);
+    config.addComponent('menu-group', DeprecatedMenuGroup);
+    config.addComponent('tool-prompt', DeprecatedToolPrompt);
+    config.addComponent('tool-separator', DeprecatedToolSeparator);
   }
 }
 
@@ -43649,15 +43395,12 @@ var BasePackage = {
     config.import(SplitPanePackage);
     config.import(TabbedPanePackage);
     config.import(ScrollbarPackage);
-    config.import(GridPackage);
     config.import(ModalPackage);
     config.import(InputPackage);
     config.import(ButtonPackage);
-    config.import(LayoutPackage);
     config.import(ContextMenuPackage);
     config.import(OverlayPackage);
     config.import(DropzonesPackage);
-    config.import(GutterPackage);
     config.import(ToolPanelPackage);
 
     
@@ -43707,6 +43450,10 @@ var BasePackage = {
       en: 'Insert Container',
       de: 'Container einfügen'
     });
+
+    config.addComponent('isolated-node', IsolatedNodeComponent);
+    config.addComponent('inline-node', IsolatedInlineNodeComponent);
+    config.addComponent('annotation', AnnotationComponent);
 
     config.addKeyboardShortcut('CommandOrControl+Z', { command: 'undo' });
     config.addKeyboardShortcut('CommandOrControl+Shift+Z', { command: 'redo' });
@@ -43904,8 +43651,12 @@ var EmphasisPackage = {
 class FindAndReplaceCommand extends Command {
   getCommandState ({editorSession}) {
     let findAndReplaceManager = editorSession.getManager('find-and-replace');
-    let findAndReplaceState = findAndReplaceManager.getCommandState();
-    return findAndReplaceState
+    if (findAndReplaceManager) {
+      let findAndReplaceState = findAndReplaceManager.getCommandState();
+      return findAndReplaceState
+    } else {
+      return { disabled: true }
+    }
   }
 
   execute () {
@@ -43914,9 +43665,12 @@ class FindAndReplaceCommand extends Command {
 }
 
 class ToggleFindAndReplaceCommand extends Command {
-  getCommandState () {
-    return {
-      disabled: false
+  getCommandState ({editorSession}) {
+    let findAndReplaceManager = editorSession.getManager('find-and-replace');
+    if (findAndReplaceManager) {
+      return { disabled: false }
+    } else {
+      return { disabled: true }
     }
   }
 
@@ -43929,12 +43683,16 @@ class ToggleFindAndReplaceCommand extends Command {
   }
 }
 
-class ToggleFindAndReplaceCommand$1 extends Command {
+class CloseFindAndReplaceCommand extends Command {
   getCommandState ({editorSession}) {
     let findAndReplaceManager = editorSession.getManager('find-and-replace');
-    let state = findAndReplaceManager.getCommandState();
-    return {
-      disabled: state.disabled
+    if (findAndReplaceManager) {
+      let state = findAndReplaceManager.getCommandState();
+      return {
+        disabled: state.disabled
+      }
+    } else {
+      return { disabled: true }
     }
   }
 
@@ -43947,59 +43705,35 @@ class ToggleFindAndReplaceCommand$1 extends Command {
   }
 }
 
-class FindNextCommand extends Command {
-  getCommandState () {
-    return {
-      disabled: false
-    }
-  }
-
+class FindNextCommand extends ToggleFindAndReplaceCommand {
   execute ({editorSession}) {
     let findAndReplaceManager = editorSession.getManager('find-and-replace');
     findAndReplaceManager.findNext();
   }
 }
 
-class FindPreviousCommand extends Command {
-  getCommandState ({editorSession}) {
-    let findAndReplaceManager = editorSession.getManager('find-and-replace');
-    let findAndReplaceState = findAndReplaceManager.getCommandState();
-    return findAndReplaceState
-  }
-
+class FindPreviousCommand extends FindAndReplaceCommand {
   execute ({editorSession}) {
     let findAndReplaceManager = editorSession.getManager('find-and-replace');
     findAndReplaceManager.findPrevious();
   }
 }
 
-class ReplaceNextCommand extends Command {
-  getCommandState ({editorSession}) {
-    let findAndReplaceManager = editorSession.getManager('find-and-replace');
-    let findAndReplaceState = findAndReplaceManager.getCommandState();
-    return findAndReplaceState
-  }
-
+class ReplaceNextCommand extends FindAndReplaceCommand {
   execute ({editorSession}) {
     let findAndReplaceManager = editorSession.getManager('find-and-replace');
     findAndReplaceManager.replaceNext();
   }
 }
 
-class ReplaceAllCommand extends Command {
-  getCommandState ({editorSession}) {
-    let findAndReplaceManager = editorSession.getManager('find-and-replace');
-    let findAndReplaceState = findAndReplaceManager.getCommandState();
-    return findAndReplaceState
-  }
-
+class ReplaceAllCommand extends FindAndReplaceCommand {
   execute ({editorSession}) {
     let findAndReplaceManager = editorSession.getManager('find-and-replace');
     findAndReplaceManager.replaceAll();
   }
 }
 
-class FindAndReplaceTool extends ToggleTool {
+class FindAndReplaceTool extends DeprecatedToggleTool {
   didMount () {
     this.context.editorSession.onPosition(this._onPosition, this);
   }
@@ -44532,7 +44266,7 @@ var FindAndReplacePackage = {
     config.addCommand('toggle-find-and-replace', ToggleFindAndReplaceCommand, {
       commandGroup: 'find-and-replace'
     });
-    config.addCommand('close-find-and-replace', ToggleFindAndReplaceCommand$1, {
+    config.addCommand('close-find-and-replace', CloseFindAndReplaceCommand, {
       commandGroup: 'find-and-replace'
     });
     config.addCommand('find-next', FindNextCommand, {
@@ -44849,7 +44583,7 @@ class InsertImageCommand extends InsertNodeCommand {
   }
 }
 
-class InsertImageTool extends ToggleTool {
+class InsertImageTool extends DeprecatedToggleTool {
   getClassNames () {
     return 'sc-insert-image-tool'
   }
@@ -44924,97 +44658,18 @@ var ImagePackage = {
   DropImage: DropImage
 }
 
-class InlineWrapper extends InlineNode {
-  getWrappedNode () {
-    return this.getDocument().get(this.wrappedNode)
-  }
+class Link extends PropertyAnnotation {
+  
+  static get fragmentation () { return Fragmenter.SHOULD_NOT_SPLIT }
+
+  static get autoExpandRight () { return false }
 }
-
-InlineWrapper.schema = {
-  type: 'inline-wrapper',
-  wrappedNode: 'id'
-};
-
-class InlineWrapperComponent extends InlineNodeComponent {
-  getClassNames () {
-    
-    return 'sc-inline-wrapper sc-inline-node'
-  }
-
-  renderContent ($$) {
-    let node = this.props.node;
-    let doc = node.getDocument();
-
-    let wrappedNode = doc.get(node.wrappedNode);
-    let el = $$('span').addClass('sc-inline-wrapper');
-    if (wrappedNode) {
-      let componentRegistry = this.context.componentRegistry;
-      let ComponentClass = componentRegistry.get(wrappedNode.type);
-      if (ComponentClass) {
-        el.append($$(ComponentClass, {
-          disabled: this.props.disabled,
-          node: wrappedNode
-        }).ref('wrappedNode'));
-      } else {
-        console.error('No component registered for node type' + wrappedNode.type);
-      }
-    } else {
-      console.error('Could not find wrapped node: ' + node.wrappedNode);
-    }
-    return el
-  }
-}
-
-var InlineWrapperConverter = {
-  type: 'inline-wrapper',
-
-  matchElement: function (el, converter) {
-    var blockConverter = converter._getConverterForElement(el, 'block');
-    return Boolean(blockConverter)
-  },
-
-  import: function (el, node, converter) {
-    
-    node.id = converter.nextId('inline-wrapper');
-    var state = converter.state;
-    state.popElementContext();
-    state.pushElementContext(state.getCurrentElementContext().tagName);
-    node.wrappedNode = converter.convertElement(el).id;
-  },
-
-  export: function (node, el, converter) {
-    return converter.convertNode(node.wrappedNode)
-  }
-}
-
-var InlineWrapperPackage = {
-  name: 'inline-wrapper',
-  configure: function (config, options) {
-    config.addNode(InlineWrapper);
-    config.addComponent(InlineWrapper.type, InlineWrapperComponent);
-    if (options.converters) {
-      options.converters.forEach(function (name) {
-        config.addConverter(name, InlineWrapperConverter);
-      });
-    }
-  },
-  InlineWrapper: InlineWrapper,
-  InlineWrapperComponent: InlineWrapperComponent,
-  InlineWrapperConverter: InlineWrapperConverter
-}
-
-class Link extends PropertyAnnotation {}
 
 Link.schema = {
   type: 'link',
   title: { type: 'string', optional: true },
   url: { type: 'string', 'default': '' }
 };
-
-
-Link.fragmentation = Fragmenter.SHOULD_NOT_SPLIT;
-
-Link.autoExpandRight = false;
 
 class LinkComponent extends AnnotationComponent {
   didMount (...args) {
@@ -45080,7 +44735,7 @@ var LinkHTMLConverter = {
 
 }
 
-class EditLinkTool extends ToggleTool {
+class EditLinkTool extends DeprecatedToggleTool {
   getUrlPath () {
     let propPath = this.constructor.urlPropertyPath;
     return [this.getNodeId()].concat(propPath)
@@ -45254,10 +44909,6 @@ ListNode.schema = {
 };
 
 class ListItem extends TextNode {
-  isListItem () {
-    return true
-  }
-
   getLevel () {
     return this.level
   }
@@ -45267,11 +44918,14 @@ class ListItem extends TextNode {
       this.getDocument().set([this.id, 'level'], newLevel);
     }
   }
+
+  static isListItem () {
+    return true
+  }
 }
 
-ListItem.type = 'list-item';
-
 ListItem.schema = {
+  type: 'list-item',
   level: { type: 'number', default: 1 }
 };
 
@@ -45282,7 +44936,10 @@ class ListItemComponent extends Component {
 
     let el = $$('li').addClass('sc-list-item');
     el.append(
-      $$(TextPropertyComponent, { path }).ref('text')
+      $$(TextPropertyComponent, {
+        path,
+        doc: node.getDocument()
+      }).ref('text')
     );
     
     if (this.props.children) {
@@ -45308,10 +44965,10 @@ class ListComponent extends NodeComponent {
     el.addClass('sc-list').attr('data-id', node.id);
     return el
   }
+
+  
+  get _isCustomNodeComponent () { return true }
 }
-
-
-ListComponent.prototype._isCustomNodeComponent = true;
 
 class ListHTMLConverter {
   get type () { return 'list' }
@@ -45399,9 +45056,9 @@ var ListItemHTMLConverter = {
 
 class ToggleListCommand extends Command {
   getCommandState (params) {
-    let editorSession = this._getEditorSession(params);
+    let editorSession = params.editorSession;
     let doc = editorSession.getDocument();
-    let sel = this._getSelection(params);
+    let sel = editorSession.getSelection();
     if (sel && sel.isPropertySelection()) {
       let path = sel.path;
       let node = doc.get(path[0]);
@@ -45420,7 +45077,7 @@ class ToggleListCommand extends Command {
             listId,
             level
           }
-        } else if (node.isText() && node.isBlock) {
+        } else if (node.isText() && node.isBlock()) {
           return {
             disabled: false,
             action: 'switchTextType'
@@ -45466,9 +45123,9 @@ class ToggleListCommand extends Command {
 
 class IndentListCommand extends Command {
   getCommandState (params) {
-    let editorSession = this._getEditorSession(params);
+    let editorSession = params.editorSession;
     let doc = editorSession.getDocument();
-    let sel = this._getSelection(params);
+    let sel = editorSession.getSelection();
     if (sel && sel.isPropertySelection()) {
       let path = sel.path;
       let node = doc.get(path[0]);
@@ -46234,7 +45891,7 @@ class ProseArticle extends Document {
   }
 }
 
-class ProseEditor extends AbstractEditor {
+class ProseEditor extends DeprecatedAbstractEditor {
   render ($$) {
     let SplitPane = this.componentRegistry.get('split-pane');
     let el = $$('div').addClass('sc-prose-editor');
@@ -46266,7 +45923,7 @@ class ProseEditor extends AbstractEditor {
         toolbar,
         $$(SplitPane, {splitType: 'horizontal', sizeB: 'inherit'}).append(
           contentPanel,
-          $$(WorkflowPane, {
+          $$(DeprecatedWorkflowPane, {
             toolPanel: configurator.getToolPanel('workflow')
           })
         )
@@ -46278,7 +45935,7 @@ class ProseEditor extends AbstractEditor {
   _renderToolbar ($$) {
     let configurator = this.getConfigurator();
     return $$('div').addClass('se-toolbar-wrapper').append(
-      $$(Toolbar, {
+      $$(DeprecatedToolbar, {
         toolPanel: configurator.getToolPanel('toolbar')
       }).ref('toolbar')
     )
@@ -46378,7 +46035,7 @@ var ProseEditorPackage = {
   ProseArticle
 }
 
-class CorrectionTool extends ToggleTool {
+class CorrectionTool extends DeprecatedToggleTool {
   render ($$) {
     let node = this.props.node;
     let Button = this.getComponent('button');
@@ -46563,7 +46220,7 @@ const { UndoCommand, RedoCommand, SelectAllCommand } = BasePackage;
 
 
 
-class TextInput extends AbstractEditor {
+class TextInput extends DeprecatedAbstractEditor {
   constructor (parent, props = {}) {
     super(parent, _createEditorSession(props));
 
@@ -46622,7 +46279,7 @@ class TextInput extends AbstractEditor {
 }
 
 function _createEditorSession (props) {
-  let config = new Configurator();
+  let config = new DeprecatedConfigurator();
   config.addNode(TextNode);
   config.addCommand('undo', UndoCommand);
   config.addCommand('redo', RedoCommand);
@@ -46647,7 +46304,7 @@ function _createEditorSession (props) {
   if (props.content) {
     doc.set(['input', 'content'], props.content);
   }
-  let editorSession = new EditorSession(doc, {
+  let editorSession = new DeprecatedEditorSession(doc, {
     configurator: config
   });
   return {
@@ -46730,9 +46387,9 @@ var TextInputPackage = {
 var ToolbarPackage = {
   name: 'toolbar',
   configure (config) {
-    config.addComponent('toolbar', Toolbar);
+    config.addComponent('toolbar', DeprecatedToolbar);
   },
-  Toolbar
+  Toolbar: DeprecatedToolbar
 }
 
 class TextAlignCommand extends Command {
@@ -46742,7 +46399,7 @@ class TextAlignCommand extends Command {
     let doc = params.editorSession.getDocument();
     let commandState = { disabled: true };
 
-    if (sel.isPropertySelection() && !selectionState.isInlineNodeSelection()) {
+    if (sel.isPropertySelection() && !selectionState.isInlineNodeSelection) {
       let path = sel.getPath();
       let node = doc.get(path[0]);
       if (node && node.isText() && node.isBlock()) {
@@ -46820,13 +46477,6 @@ exports.CollabEngine = CollabEngine;
 exports.CollabSession = CollabSession;
 exports.Server = Server;
 exports.SnapshotStore = SnapshotStore;
-exports.DocumentArchive = DocumentArchive;
-exports.VfsLoader = VfsLoader;
-exports.ManifestLoader = ManifestLoader;
-exports.PersistedDocumentArchive = PersistedDocumentArchive;
-exports.HttpStorageClient = HttpStorageClient;
-exports.InMemoryDarBuffer = InMemoryDarBuffer;
-exports.VfsStorageClient = VfsStorageClient;
 exports.DOMElement = DOMElement;
 exports.DOMEventListener = DOMEventListener;
 exports.DefaultDOMElement = DefaultDOMElement;
@@ -46871,7 +46521,6 @@ exports.DocumentSchema = DocumentSchema;
 exports.DOMExporter = DOMExporter;
 exports.DOMImporter = DOMImporter;
 exports.Editing = Editing;
-exports.EditingBehavior = EditingBehavior;
 exports.EditingInterface = EditingInterface;
 exports.FileNode = FileNode;
 exports.FileProxy = FileProxy;
@@ -46879,6 +46528,7 @@ exports.Fragmenter = Fragmenter;
 exports.getChangeFromDocument = getChangeFromDocument;
 exports.HTMLExporter = HTMLExporter;
 exports.HTMLImporter = HTMLImporter;
+exports.importNodeIntoDocument = importNodeIntoDocument;
 exports.IncrementalData = IncrementalData;
 exports.InlineNode = InlineNode;
 exports.JSONConverter = JSONConverter;
@@ -46899,7 +46549,6 @@ exports.PropertySelection = PropertySelection;
 exports.Range = Range;
 exports.Schema = Schema;
 exports.Selection = Selection;
-exports.SelectionState = SelectionState;
 exports.TextBlock = TextBlock;
 exports.TextNode = TextNode;
 exports.TextNodeMixin = TextNodeMixin;
@@ -46908,74 +46557,54 @@ exports.Transaction = Transaction;
 exports.XMLExporter = XMLExporter;
 exports.XMLImporter = XMLImporter;
 exports.AbstractClipboard = AbstractClipboard;
-exports.AbstractEditor = AbstractEditor;
 exports.AbstractIsolatedNodeComponent = AbstractIsolatedNodeComponent;
 exports.AbstractScrollPane = AbstractScrollPane;
+exports.AbstractGlobalEventHandler = AbstractGlobalEventHandler;
+exports.AbstractKeyboardManager = AbstractKeyboardManager;
 exports.AnnotatedTextComponent = AnnotatedTextComponent;
 exports.AnnotationCommand = AnnotationCommand;
 exports.AnnotationComponent = AnnotationComponent;
 exports.BlockNodeComponent = BlockNodeComponent;
+exports.Button = Button;
 exports.Clipboard = Clipboard;
 exports.Command = Command;
-exports.CommandManager = CommandManager;
 exports.Component = Component;
 exports.ComponentRegistry = ComponentRegistry;
-exports.Configurator = Configurator;
 exports.ContainerEditor = ContainerEditor;
-exports.CursorComponent = CursorComponent;
 exports.CustomSurface = CustomSurface;
 exports.DefaultLabelProvider = DefaultLabelProvider;
 exports.DOMSelection = DOMSelection;
 exports.DragAndDropHandler = DragAndDropHandler;
-exports.DragManager = DragManager;
 exports.EditAnnotationCommand = EditAnnotationCommand;
 exports.EditInlineNodeCommand = EditInlineNodeCommand;
-exports.EditorSession = EditorSession;
-exports.ExecuteCommandHandler = ExecuteCommandHandler;
-exports.FileManager = FileManager;
 exports.FontAwesomeIcon = FontAwesomeIcon;
 exports.FontAwesomeIconProvider = FontAwesomeIconProvider;
-exports.GlobalEventHandler = GlobalEventHandler;
+exports.HandlerParams = HandlerParams;
 exports.Highlights = Highlights;
-exports.InlineNodeComponent = InlineNodeComponent;
 exports.InsertInlineNodeCommand = InsertInlineNodeCommand;
 exports.InsertNodeCommand = InsertNodeCommand;
 exports.IsolatedNodeComponent = IsolatedNodeComponent;
-exports.KeyboardManager = KeyboardManager;
-exports.MacroManager = MacroManager;
-exports.MarkersManager = MarkersManager;
-exports.MenuItem = MenuItem;
+exports.IsolatedInlineNodeComponent = IsolatedInlineNodeComponent;
 exports.NodeComponent = NodeComponent;
-exports.Overlay = Overlay;
 exports.RenderingEngine = RenderingEngine;
-exports.ResourceManager = ResourceManager;
-exports.ResponsiveApplication = ResponsiveApplication;
 exports.Router = Router;
 exports.SelectionFragmentComponent = SelectionFragmentComponent;
 exports.Surface = Surface;
-exports.SurfaceManager = SurfaceManager;
 exports.SwitchTextTypeCommand = SwitchTextTypeCommand;
 exports.TextBlockComponent = TextBlockComponent;
 exports.TextPropertyComponent = TextPropertyComponent;
 exports.TextPropertyEditor = TextPropertyEditor;
-exports.ToggleTool = ToggleTool;
-exports.ToolDropdown = ToolDropdown;
-exports.ToolGroup = ToolGroup;
-exports.MenuGroup = MenuGroup;
-exports.ToolPrompt = ToolPrompt;
-exports.ToolPanel = ToolPanel;
 exports.Tooltip = Tooltip;
 exports.UnsupportedNodeComponent = UnsupportedNodeComponent;
 exports.VirtualElement = VirtualElement;
-exports.WorkflowPane = WorkflowPane;
-exports.Button = Button;
-exports.Layout = Layout;
-exports.ScrollPane = ScrollPane;
 exports.SplitPane = SplitPane;
-exports.Toolbar = Toolbar;
-exports.Tool = ToggleTool;
+exports.UndoCommand = Undo;
+exports.RedoCommand = Redo;
+exports.SelectAllCommand = SelectAll;
+exports.InlineNodeComponent = IsolatedInlineNodeComponent;
 exports.findParentComponent = findParentComponent;
 exports.async = async;
+exports.tableHelpers = tableHelpers;
 exports.ArrayIterator = ArrayIterator;
 exports.ArrayTree = ArrayTree;
 exports.array2table = array2table;
@@ -46997,7 +46626,7 @@ exports.findIndex = findIndex$1;
 exports.flatten = flatten;
 exports.flattenOften = flattenOften;
 exports.forEach = forEach;
-exports.getRangeFromMatrix = getRangeFromMatrix;
+exports.getRangeFromMatrix = getRangeFromMatrix$1;
 exports.getRelativeBoundingRect = getRelativeBoundingRect;
 exports.getRelativeMouseBounds = getRelativeMouseBounds;
 exports.inBrowser = inBrowser;
@@ -47013,17 +46642,19 @@ exports.isNumber = isNumber;
 exports.isObject = isObject;
 exports.isPlainObject = isPlainObject;
 exports.isString = isString;
+exports.keys = keys$1;
 exports.last = last$1;
 exports.levenshtein = levenshtein;
 exports.makeMap = array2table;
 exports.map = map;
 exports.merge = merge$1;
+exports.parseKeyCombo = parseKeyCombo;
+exports.parseKeyEvent = parseKeyEvent;
 exports.PathObject = PathObject;
 exports.percentage = percentage;
 exports.platform = platform;
 exports.pluck = pluck;
 exports.printStacktrace = printStacktrace;
-exports.Registry = Registry;
 exports.request = request;
 exports.renderListNode = renderListNode;
 exports.sendRequest = sendRequest;
@@ -47037,14 +46668,12 @@ exports.uniq = uniq;
 exports.uuid = uuid;
 exports.without = without;
 exports.orderBy = orderBy;
-exports.keys = keys$1;
-exports.parseKeyEvent = parseKeyEvent;
 exports.getDOMRangeFromEvent = getDOMRangeFromEvent;
-exports.getSelectionRect = getSelectionRect;
 exports.getRelativeRect = getRelativeRect;
+exports.getSelectionRect = getSelectionRect;
 exports.isMouseInsideDOMSelection = isMouseInsideDOMSelection;
-exports.setDOMSelection = setDOMSelection;
 exports.getQueryStringParam = getQueryStringParam;
+exports.setDOMSelection = setDOMSelection;
 exports.XMLAnchorNode = XMLAnchorNode;
 exports.XMLAnnotationNode = XMLAnnotationNode;
 exports.XMLContainerNode = XMLContainerNode;
@@ -47055,9 +46684,12 @@ exports.XMLElementNode = XMLElementNode;
 exports.XMLElementNodeConverter = ElementNodeConverter;
 exports.XMLExternalNode = XMLExternalNode;
 exports.XMLExternalNodeConverter = ExternalNodeConverter;
+exports.XMLInlineElementNode = XMLInlineElementNode;
+exports.XMLNodeConverter = XMLNodeConverter;
 exports.XMLSchema = XMLSchema;
 exports.XMLTextElement = XMLTextElement;
 exports.XMLTextElementConverter = XMLTextElementConverter;
+exports._analyzeElementSchemas = analyze;
 exports.checkSchema = checkSchema;
 exports.compileRNG = compileRNG;
 exports.registerSchema = registerSchema;
@@ -47077,13 +46709,9 @@ exports.DropzonesPackage = DropzonesPackage;
 exports.EmphasisPackage = EmphasisPackage;
 exports.FilePackage = FilePackage;
 exports.FindAndReplacePackage = FindAndReplacePackage;
-exports.GridPackage = GridPackage;
-exports.GutterPackage = GutterPackage;
 exports.HeadingPackage = HeadingPackage;
 exports.ImagePackage = ImagePackage;
-exports.InlineWrapperPackage = InlineWrapperPackage;
 exports.InputPackage = InputPackage;
-exports.LayoutPackage = LayoutPackage;
 exports.LinkPackage = LinkPackage;
 exports.ListPackage = ListPackage;
 exports.ModalPackage = ModalPackage;
@@ -47104,6 +46732,38 @@ exports.TabbedPanePackage = TabbedPanePackage;
 exports.TablePackage = TablePackage;
 exports.TextInputPackage = TextInputPackage;
 exports.ToolbarPackage = ToolbarPackage;
+exports.ToolPanelPackage = ToolPanelPackage;
 exports.TextAlignPackage = TextAlignPackage;
+exports.AbstractEditor = DeprecatedAbstractEditor;
+exports.CommandManager = DeprecatedCommandManager;
+exports.Configurator = DeprecatedConfigurator;
+exports.ContextMenu = DeprecatedContextMenu;
+exports.DragManager = DeprecatedDragManager;
+exports.Dropzones = DeprecatedDropzones;
+exports.EditorSession = DeprecatedEditorSession;
+exports.FileManager = DeprecatedFileManager;
+exports.GlobalEventHandler = DeprecatedGlobalEventHandler;
+exports.KeyboardManager = DeprecatedKeyboardManager;
+exports.MacroManager = DeprecatedMacroManager;
+exports.MarkersManager = DeprecatedMarkersManager;
+exports.Menu = DeprecatedMenu;
+exports.MenuGroup = DeprecatedMenuGroup;
+exports.MenuItem = DeprecatedMenuItem;
+exports.Overlay = DeprecatedOverlay;
+exports.Registry = DeprecatedRegistry;
+exports.ResourceManager = DeprecatedResourceManager;
+exports.ResponsiveApplication = DeprecatedResponsiveApplication;
+exports.Scrollbar = DeprecatedScrollbar;
+exports.ScrollPane = DeprecatedScrollPane;
+exports.SelectionState = DeprecatedSelectionState;
+exports.Tool = DeprecatedToggleTool;
+exports.ToggleTool = DeprecatedToggleTool;
+exports.Toolbar = DeprecatedToolbar;
+exports.ToolDropdown = DeprecatedToolDropdown;
+exports.ToolGroup = DeprecatedToolGroup;
+exports.ToolPanel = DeprecatedToolPanel;
+exports.ToolPrompt = DeprecatedToolPrompt;
+exports.ToolSeparator = DeprecatedToolSeparator;
+exports.WorkflowPane = DeprecatedWorkflowPane;
 
 //# sourceMappingURL=./substance.cjs.js.map

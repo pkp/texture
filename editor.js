@@ -1,113 +1,63 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('substance'), require('substance-texture')) :
-	typeof define === 'function' && define.amd ? define(['substance', 'substance-texture'], factory) :
-			(factory(global.window.substance,global.window.texture));
-}(this, (function (substance,substanceTexture) {
-	window.addEventListener('load', () => {
-		substance.substanceGlobals.DEBUG_RENDERING = substance.platform.devtools;
-		let app = OJSTextureEditor.mount({}, window.document.body);
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('substance'), require('substance-texture')) :
+        typeof define === 'function' && define.amd ? define(['substance', 'substance-texture'], factory) :
+            (factory(global.substance, global.texture));
+}(this, (function (substance, substanceTexture) {
+    'use strict';
 
-		// put the archive and some more things into global scope, for debugging
-		setTimeout(() => {
-			window.app = app;
-		}, 500);
-	});
+    window.addEventListener('load', () => {
+        substance.substanceGlobals.DEBUG_RENDERING = substance.platform.devtools;
+        setTimeout(() => {
+            let props = {
+                storageType: 'remote',
+                storageUrl: document.querySelector('meta[name=jobId').getAttribute('content'),
+                archiveId: ""
+            }
+            let app = OJSTextureEditor.mount(props, window.document.body);
+            setTimeout(() => {
+                window.app = app;
+            }, 500);
+        });
+    });
 
-	// This uses a monkey-patched VfsStorageClient that checks immediately
-	// if the stored data could be loaded again, or if there is a bug in
-	// Textures exporter
-	class OJSTextureEditor extends substanceTexture.TextureWebApp {
-		didMount() {
-			this._init();
-			substance.DefaultDOMElement.getBrowserWindow().on('keydown', this._keyDown, this);
-		}
-		
-		dispose() {
-			substance.DefaultDOMElement.getBrowserWindow().off(this);
-		}
-		
-		getInitialState() {
-			return {
-				archive: undefined,
-				error: undefined
-			}
-		}
-		
-		_init() {
-			let storageUrl = document.querySelector('meta[name=jobId').getAttribute('content');
-			let storage = new substance.HttpStorageClient(storageUrl);
-			let buffer = new substance.InMemoryDarBuffer();
-			let archive = new substanceTexture.TextureArchive(storage, buffer);
-			window.archive = archive
-			window.buffer = buffer
+    class OJSTextureStorage extends substanceTexture.HttpStorageClient {
+        write(archiveId, data, cb) {
+            let url = this.apiUrl;
+            if (archiveId) {
+                url = url + '/' + archiveId;
+            }
+            return substance.sendRequest({
+                method: 'PUT',
+                url,
+                data: data
+            }).then(response => {
+                cb(null, response);
+            }).catch(err => {
+                cb(err);
+            })
+        }
 
-			let promise = archive.load('')
-			.then(() => {
-				setTimeout(() => {
-					this.setState({archive});
-				}, 0);
-			});
+    }
 
-			if (!substance.platform.devtools) {
-				promise.catch(error => {
-					console.error(error);
-					this.setState({error});
-				});
-			}
-		}
-		
-		_keyDown(event) {
-			if ( event.key === 'Dead' ) return
-			// Handle custom keyboard shortcuts globally
-			let archive = this.state.archive;
-			if (archive) {
-				let manuscriptSession = archive.getEditorSession('manuscript');
-				let handled = manuscriptSession.keyboardManager.onKeydown(event);
-				if (!handled) {
-					let key = substance.parseKeyEvent(event);
-					// CommandOrControl+S
-					if (key === 'META+83' || key === 'CTRL+83') {
-						this._save();
-						event.preventDefault();
-					}
-				}
-			}
-		}
-		
-		_save() {
-			this.state.archive.save().then(() => {
-				console.info('successfully saved');
-			}).catch(err => {
-				console.error(err);
-			});
-		}
-		
-		render($$) {
-			let el = $$('div').addClass('sc-app');
-			let archive = this.state.archive;
-			let err = this.state.error;
+    class OJSTextureEditor extends substanceTexture.TextureWebApp {
+        save() {
+            this.state.archive.save().then(() => {
+                console.log('successfully saved');
+            }).catch(err => {
+                console.error(err);
+            });
+        }
 
-			if (archive) {
-				el.append(
-					$$(substanceTexture.Texture, {archive})
-				);
-			} else if (err) {
-				if (err.type === 'jats-import-error') {
-					el.append(
-							$$(substanceTexture.JATSImportDialog, { errors: err.detail })
-					);
-				} else {
-					el.append(
-						'ERROR:',
-						err.message
-					);
-				}
-			} else {
-			// LOADING...
-			}
-			return el
-		}
-	}
+        _getStorage(storageType) {
+            let storage = super._getStorage(storageType);
+            return new OJSTextureStorage(this.props.storageUrl);
+        }
+
+        _getArticleConfig() {
+            return substanceTexture.EditorPackage
+        }
+    }
+
 })));
 
 //# sourceMappingURL=./editor.js.map
