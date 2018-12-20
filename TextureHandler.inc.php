@@ -104,6 +104,28 @@
 				exit;
 			}
 			
+			if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
+				$postData = file_get_contents('php://input');
+				$media = (array)json_decode($postData);
+				if (!empty($media)) {
+					$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+					$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
+						ASSOC_TYPE_SUBMISSION_FILE,
+						$submissionFile->getFileId(),
+						$submissionFile->getSubmissionId(),
+						SUBMISSION_FILE_DEPENDENT
+					);
+					foreach ($dependentFiles as $dependentFile) {
+						if ($dependentFile->getOriginalFileName() === $media['fileName']) {
+							$fileId = $dependentFile->getFileId();
+							$submissionId = (int)$request->getUserVar('submissionId');
+							$fileStage = $dependentFile->getFileStage();
+							$submissionFileDao->deleteLatestRevisionById($fileId, $fileStage = $fileStage, $submissionId);
+							break;
+						}
+					}
+				}
+			}
 			
 			if ($_SERVER["REQUEST_METHOD"] === "GET") {
 				$assets = array();
@@ -138,7 +160,6 @@
 				$postData = file_get_contents('php://input');
 				
 				if (!empty($postData)) {
-					
 					$submissionDao = Application::getSubmissionDAO();
 					$submissionId = (int)$request->getUserVar('submissionId');
 					$submission = $submissionDao->getById($submissionId);
@@ -146,13 +167,29 @@
 					$resources = (array)json_decode($postData)->archive->resources;
 					$media = (array)json_decode($postData)->media;
 					
-					
 					if (!empty($media)) {
-						$genreId = 10;
-						$fileStage = 17;
-						$user = $request->getUser();
+						$journal = $request->getJournal();
+						$genreDao = DAORegistry::getDAO('GenreDAO');
+						$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
+						$genreId = null;
+						while ($candidateGenre = $genres->next()) {
+							if ($candidateGenre->getKey() == 'IMAGE') {
+								// This is the default "image" genre. The best case scenario is that this exists, so let's use it.
+								$genreId = $candidateGenre->getId();
+								break;
+							}
+							if ($candidateGenre->getCategory() == GENRE_CATEGORY_ARTWORK) {
+								// If we don't find the IMAGE genre, then we'll fall back on something else designated as artwork.
+								$genreId = $candidateGenre;
+							}
+						}
+						if (!$genreId) {
+							// Could not identify the genre -- it's an error condition
+							return new JSONMessage(false);
+						}
 						
-						$insertedSubmissionFile = $this->_createDependentFile($fileStage, $genreId, $media, $submission, $submissionFile, $user);
+						$user = $request->getUser();
+						$insertedSubmissionFile = $this->_createDependentFile($genreId, $media, $submission, $submissionFile, $user);
 						
 						
 					} elseif (!empty($resources) && isset($resources['manuscript.xml']) && is_object($resources['manuscript.xml'])) {
@@ -179,39 +216,6 @@
 			}
 		}
 		
-		/**
-		 * Helper function to manually parse raw multipart/form-data associated to
-		 * texture PUT request on save
-		 */
-		protected function _parseRawHttpRequest()
-		{
-			$formData = array();
-			// read incoming data
-			$input = file_get_contents('php://input');
-			// grab multipart boundary from content type header
-			preg_match('/boundary=(.*)$/', $_SERVER['CONTENT_TYPE'], $matches);
-			$boundary = $matches[1];
-			// split content by boundary and get rid of last -- element
-			$a_blocks = preg_split("/-+$boundary/", $input);
-			array_pop($a_blocks);
-			// loop data blocks
-			foreach ($a_blocks as $id => $block) {
-				if (empty($block))
-					continue;
-				// you'll have to var_dump $block to understand this and maybe replace \n or \r with a visibile char
-				// parse uploaded files
-				if (strpos($block, 'application/octet-stream') !== FALSE) {
-					// match "name", then everything after "stream" (optional) except for prepending newlines
-					preg_match("/name=\"([^\"]*)\".*stream[\n|\r]+([^\n\r].*)?$/s", $block, $matches);
-				} // parse all other fields
-				else {
-					// match "name" and optional value in between newline sequences
-					preg_match('/name=\"([^\"]*)\"[\n|\r]+([^\n\r].*)?\r$/s', $block, $matches);
-				}
-				$formData[$matches[1]] = $matches[2];
-			}
-			return $formData;
-		}
 		
 		/**
 		 * Build media info
@@ -372,7 +376,6 @@
 		
 		/**
 		 * creates dependent file
-		 * @param $fileStage int
 		 * @param $genreId intr
 		 * @param $mediaData string
 		 * @param $submission Article
@@ -380,7 +383,7 @@
 		 * @param $user User
 		 * @return SubmissionArtworkFile
 		 */
-		protected function _createDependentFile($fileStage, $genreId, $mediaData, $submission, $submissionFile, $user)
+		protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user)
 		{
 			$mediaBlob = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $mediaData["data"]));
 			$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
@@ -391,13 +394,12 @@
 			$newMediaFile->setSubmissionId($submission->getId());
 			$newMediaFile->setSubmissionLocale($submission->getLocale());
 			$newMediaFile->setGenreId($genreId);
-			$newMediaFile->setFileStage($fileStage);
+			$newMediaFile->setFileStage(SUBMISSION_FILE_DEPENDENT);
 			$newMediaFile->setDateUploaded(Core::getCurrentDate());
 			$newMediaFile->setDateModified(Core::getCurrentDate());
 			$newMediaFile->setUploaderUserId($user->getId());
 			$newMediaFile->setFileSize(filesize($tmpfname));
 			$newMediaFile->setFileType($mediaData["fileType"]);
-			$newMediaFile->setFileType(SUBMISSION_FILE_DEPENDENT);
 			$newMediaFile->setAssocId($submissionFile->getFileId());
 			$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
 			$newMediaFile->setOriginalFileName($mediaData["fileName"]);
@@ -406,7 +408,7 @@
 		}
 		
 		/**
-		 * Update cmanuscript XML file
+		 * Update manuscript XML file
 		 * @param $fileStage int
 		 * @param $genreId int
 		 * @param $resources  array
