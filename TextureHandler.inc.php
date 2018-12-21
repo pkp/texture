@@ -15,16 +15,14 @@
 
 import('classes.handler.Handler');
 
-class TextureHandler extends Handler
-{
+class TextureHandler extends Handler {
 	/** @var MarkupPlugin The Texture plugin */
 	protected $_plugin;
 
 	/**
 	 * Constructor
 	 */
-	function __construct()
-	{
+	function __construct() {
 		parent::__construct();
 		$this->_plugin = PluginRegistry::getPlugin('generic', TEXTURE_PLUGIN_NAME);
 		$this->addRoleAssignment(
@@ -36,8 +34,7 @@ class TextureHandler extends Handler
 	/**
 	 * @copydoc PKPHandler::authorize()
 	 */
-	function authorize($request, &$args, $roleAssignments)
-	{
+	function authorize($request, &$args, $roleAssignments) {
 		import('lib.pkp.classes.security.authorization.SubmissionFileAccessPolicy');
 		$this->addPolicy(new SubmissionFileAccessPolicy($request, $args, $roleAssignments, SUBMISSION_FILE_ACCESS_READ));
 		return parent::authorize($request, $args, $roleAssignments);
@@ -51,8 +48,7 @@ class TextureHandler extends Handler
 	 *
 	 * @return string
 	 */
-	public function editor($args, $request)
-	{
+	public function editor($args, $request) {
 		$stageId = (int)$request->getUserVar('stageId');
 
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
@@ -90,8 +86,7 @@ class TextureHandler extends Handler
 	 *
 	 * @return string
 	 */
-	public function json($args, $request)
-	{
+	public function json($args, $request) {
 
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
 
@@ -120,7 +115,17 @@ class TextureHandler extends Handler
 						$fileId = $dependentFile->getFileId();
 						$submissionId = (int)$request->getUserVar('submissionId');
 						$fileStage = $dependentFile->getFileStage();
-						$submissionFileDao->deleteLatestRevisionById($fileId, $fileStage = $fileStage, $submissionId);
+						$fileRevision = $submissionFileDao->deleteLatestRevisionById($fileId, $fileStage, $submissionId);
+						if ($fileRevision > 0) {
+							return new JSONMessage(true, array(
+								'submissionId' => $submissionId,
+								'fileId' => $submissionId,
+								'fileRevision' => $fileRevision,
+								'delete_stauts' => true
+							));
+						} else {
+							return new JSONMessage(false);
+						}
 						break;
 					}
 				}
@@ -150,7 +155,7 @@ class TextureHandler extends Handler
 				),
 			);
 			$mediaBlob = array(
-				'version' => 'AE2F112D',
+				'version' => $submissionFile->getSourceRevision(),
 				'resources' => array_merge($resources, $mediaInfos)
 			);
 			header('Content-Type: application/json');
@@ -224,8 +229,7 @@ class TextureHandler extends Handler
 	 * @param $assets array
 	 * @return array
 	 */
-	protected function _buildMediaInfo($request, $assets)
-	{
+	protected function _buildMediaInfo($request, $assets) {
 		$infos = array();
 		$mediaDir = 'texture/media';
 		$context = $request->getContext();
@@ -273,8 +277,7 @@ class TextureHandler extends Handler
 	 * @param $document string raw XML
 	 * @param $assets array list of figure metadata
 	 */
-	protected function _buildManifestXMLFromDocument($manuscriptXml, &$assets)
-	{
+	protected function _buildManifestXMLFromDocument($manuscriptXml, &$assets) {
 		$dom = new DOMDocument();
 		if (!$dom->loadXML($manuscriptXml)) {
 			fatalError("Unable to load XML document content in DOM in order to generate manifest XML.");
@@ -333,8 +336,7 @@ class TextureHandler extends Handler
 	 *
 	 * @return void
 	 */
-	public function media($args, $request)
-	{
+	public function media($args, $request) {
 		$user = $request->getUser();
 		$context = $request->getContext();
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
@@ -383,8 +385,7 @@ class TextureHandler extends Handler
 	 * @param $user User
 	 * @return SubmissionArtworkFile
 	 */
-	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user)
-	{
+	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user) {
 		$mediaBlob = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $mediaData["data"]));
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $mediaBlob);
@@ -417,8 +418,7 @@ class TextureHandler extends Handler
 	 * @param $user User
 	 * @return SubmissionFile
 	 */
-	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user)
-	{
+	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user) {
 		$manuscriptXml = $resources['manuscript.xml']->data;
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $manuscriptXml);
