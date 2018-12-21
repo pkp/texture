@@ -108,7 +108,7 @@ class TexturePlugin extends GenericPlugin {
 		$templateMgr = $params[0];
 		$resourceName = $params[1];
 		if ($resourceName == 'controllers/grid/gridRow.tpl') {
-			$row = $templateMgr->get_template_vars('row');
+			$row = $templateMgr->getTemplateVars('row');
 			$data = $row->getData();
 			if (is_array($data) && (isset($data['submissionFile']))) {
 				$submissionFile = $data['submissionFile'];
