@@ -49,7 +49,7 @@ class TextureHandler extends Handler {
 	 * @return string
 	 */
 	public function editor($args, $request) {
-		$stageId = (int) $request->getUserVar('stageId');
+		$stageId = (int)$request->getUserVar('stageId');
 
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
 		if (!$submissionFile) {
@@ -57,7 +57,7 @@ class TextureHandler extends Handler {
 		}
 
 		$fileId = $submissionFile->getFileId();
-		$editorTemplateFile = method_exists($this->_plugin, 'getTemplateResource')?$this->_plugin->getTemplateResource('editor.tpl'):($this->_plugin->getTemplateResourceName() . ':templates/editor.tpl');
+		$editorTemplateFile = method_exists($this->_plugin, 'getTemplateResource') ? $this->_plugin->getTemplateResource('editor.tpl') : ($this->_plugin->getTemplateResourceName() . ':templates/editor.tpl');
 		$router = $request->getRouter();
 		$documentUrl = $router->url($request, null, 'texture', 'json', null,
 			array(
@@ -67,7 +67,7 @@ class TextureHandler extends Handler {
 			)
 		);
 
-		AppLocale::requireComponents(LOCALE_COMPONENT_APP_COMMON,  LOCALE_COMPONENT_PKP_MANAGER);
+		AppLocale::requireComponents(LOCALE_COMPONENT_APP_COMMON, LOCALE_COMPONENT_PKP_MANAGER);
 		$templateMgr = TemplateManager::getManager($request);
 		$templateMgr->assign(array(
 			'documentUrl' => $documentUrl,
@@ -76,6 +76,7 @@ class TextureHandler extends Handler {
 		));
 		return $templateMgr->fetch($editorTemplateFile);
 	}
+
 
 	/**
 	 * fetch json archive
@@ -86,133 +87,140 @@ class TextureHandler extends Handler {
 	 * @return string
 	 */
 	public function json($args, $request) {
-		$user = $request->getUser();
-		$context = $request->getContext();
+
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
+
 		if (!$submissionFile) {
 			fatalError('Invalid request');
 		}
 
-		$fileId = $submissionFile->getFileId();
-		$stageId = (int) $request->getUserVar('stageId');
-
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		if (empty($submissionFile)) {
 			echo __('plugins.generic.texture.archive.noArticle'); // TODO custom message
 			exit;
 		}
 
-		$filePath = $submissionFile->getFilePath();
-		//$postData = $this->_parseRawHttpRequest();
-		$postData = file_get_contents('php://input');
-		if (!empty($postData)) {
-			//$archive = json_decode($postData['_archive']);
-			$resources = (array)json_decode($postData)->resources;
-			if (isset($resources['manuscript.xml']) && is_object($resources['manuscript.xml'])) {
-				$manuscriptXml = $resources['manuscript.xml']->data;
-				// save xml to temp file
-				$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
-				file_put_contents($tmpfname, $manuscriptXml);
-				// temp file to submission file
-				$submissionDao = Application::getSubmissionDAO();
-				$submissionId = $submissionFile->getSubmissionId();
-				$submission = $submissionDao->getById($submissionId);
-				$genreId = $submissionFile->getGenreId();
-				$fileSize = filesize($tmpfname);
-
+		if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
+			$postData = file_get_contents('php://input');
+			$media = (array)json_decode($postData);
+			if (!empty($media)) {
 				$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-				$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
-				$newSubmissionFile->setSubmissionId($submission->getId());
-				$newSubmissionFile->setSubmissionLocale($submission->getLocale());
-				$newSubmissionFile->setGenreId($genreId);
-				$newSubmissionFile->setFileStage($submissionFile->getFileStage());
-				$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
-				$newSubmissionFile->setDateModified(Core::getCurrentDate());
-				$newSubmissionFile->setOriginalFileName($submissionFile->getOriginalFileName());
-				$newSubmissionFile->setUploaderUserId($user->getId());
-				$newSubmissionFile->setFileSize($fileSize);
-				$newSubmissionFile->setFileType($submissionFile->getFileType());
-				$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
-				$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
-				$newSubmissionFile->setFileId($submissionFile->getFileId());
-				$newSubmissionFile->setRevision($submissionFile->getRevision()+1);
-				$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
+				$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
+					ASSOC_TYPE_SUBMISSION_FILE,
+					$submissionFile->getFileId(),
+					$submissionFile->getSubmissionId(),
+					SUBMISSION_FILE_DEPENDENT
+				);
+				foreach ($dependentFiles as $dependentFile) {
+					if ($dependentFile->getOriginalFileName() === $media['fileName']) {
+						$fileId = $dependentFile->getFileId();
+						$submissionId = (int)$request->getUserVar('submissionId');
+						$fileStage = $dependentFile->getFileStage();
+						$fileRevision = $submissionFileDao->deleteLatestRevisionById($fileId, $fileStage, $submissionId);
+						if ($fileRevision > 0) {
+							return new JSONMessage(true, array(
+								'submissionId' => $submissionId,
+								'fileId' => $submissionId,
+								'fileRevision' => $fileRevision,
+								'delete_stauts' => true
+							));
+						} else {
+							return new JSONMessage(false);
+						}
+						break;
+					}
+				}
+			}
+		}
 
+		if ($_SERVER["REQUEST_METHOD"] === "GET") {
+			$assets = array();
+			$filePath = $submissionFile->getFilePath();
+			$manuscriptXml = file_get_contents($filePath);
+			$manifestXml = $this->_buildManifestXMLFromDocument($manuscriptXml, $assets);
+			$mediaInfos = $this->_buildMediaInfo($request, $assets);
+			$resources = array(
+				'manifest.xml' => array(
+					'encoding' => 'utf8',
+					'data' => $manifestXml,
+					'size' => strlen($manifestXml),
+					'createdAt' => 0,
+					'updatedAt' => 0,
+				),
+				'manuscript.xml' => array(
+					'encoding' => 'utf8',
+					'data' => $manuscriptXml,
+					'size' => filesize($document->path),
+					'createdAt' => 0,
+					'updatedAt' => 0,
+				),
+			);
+			$mediaBlob = array(
+				'version' => $submissionFile->getSourceRevision(),
+				'resources' => array_merge($resources, $mediaInfos)
+			);
+			header('Content-Type: application/json');
+			return json_encode($mediaBlob, JSON_UNESCAPED_SLASHES);
+		} elseif ($_SERVER["REQUEST_METHOD"] === "PUT") {
+
+			$postData = file_get_contents('php://input');
+
+			if (!empty($postData)) {
+				$submissionDao = Application::getSubmissionDAO();
+				$submissionId = (int)$request->getUserVar('submissionId');
+				$submission = $submissionDao->getById($submissionId);
+
+				$resources = (array)json_decode($postData)->archive->resources;
+				$media = (array)json_decode($postData)->media;
+
+				if (!empty($media)) {
+					$journal = $request->getJournal();
+					$genreDao = DAORegistry::getDAO('GenreDAO');
+					$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
+					$genreId = null;
+					while ($candidateGenre = $genres->next()) {
+						if ($candidateGenre->getKey() == 'IMAGE') {
+							// This is the default "image" genre. The best case scenario is that this exists, so let's use it.
+							$genreId = $candidateGenre->getId();
+							break;
+						}
+						if ($candidateGenre->getCategory() == GENRE_CATEGORY_ARTWORK) {
+							// If we don't find the IMAGE genre, then we'll fall back on something else designated as artwork.
+							$genreId = $candidateGenre;
+						}
+					}
+					if (!$genreId) {
+						// Could not identify the genre -- it's an error condition
+						return new JSONMessage(false);
+					}
+
+					$user = $request->getUser();
+					$insertedSubmissionFile = $this->_createDependentFile($genreId, $media, $submission, $submissionFile, $user);
+
+
+				} elseif (!empty($resources) && isset($resources['manuscript.xml']) && is_object($resources['manuscript.xml'])) {
+					$genreId = $submissionFile->getGenreId();
+					$fileStage = $submissionFile->getFileStage();
+					$user = $request->getUser();
+
+					$insertedSubmissionFile = $this->_updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user);
+
+				} else {
+					return new JSONMessage(false);
+				}
 
 				return new JSONMessage(true, array(
 					'submissionId' => $insertedSubmissionFile->getSubmissionId(),
 					'fileId' => $insertedSubmissionFile->getFileIdAndRevision(),
 					'fileStage' => $insertedSubmissionFile->getFileStage(),
 				));
+
 			}
-			return new JSONMessage(false);
+
 		} else {
-			$assets = array();
-			$manuscriptXml = file_get_contents($filePath);
-			$manifestXml = $this->_buildManifestXMLFromDocument($manuscriptXml, $assets);
-			// media url
-			$mediaInfos = $this->_buildMediaInfo($request, $assets);
-			$resources = array(
-				'manifest.xml'      => array(
-					'encoding'      => 'utf8',
-					'data'          => $manifestXml,
-					'size'          => strlen($manifestXml),
-					'createdAt'     => 0,
-					'updatedAt'     => 0,
-				),
-				'manuscript.xml'  => array(
-					'encoding'      => 'utf8',
-					'data'          => $manuscriptXml,
-					'size'          => filesize($document->path),
-					'createdAt'     => 0,
-					'updatedAt'     => 0,
-				),
-			);
-			$data = array(
-				'version'       => 'AE2F112D',
-				'resources'     => array_merge($resources, $mediaInfos)
-			);
-			header('Content-Type: application/json');
-			return json_encode($data, JSON_UNESCAPED_SLASHES);
+			return new JSONMessage(false);
 		}
 	}
 
-	/**
-	 * Helper function to manually parse raw multipart/form-data associated to
-	 * texture PUT request on save
-	 */
-	protected function _parseRawHttpRequest() {
-		$formData = array();
-		// read incoming data
-		$input = file_get_contents('php://input');
-		// grab multipart boundary from content type header
-		preg_match('/boundary=(.*)$/', $_SERVER['CONTENT_TYPE'], $matches);
-		$boundary = $matches[1];
-		// split content by boundary and get rid of last -- element
-		$a_blocks = preg_split("/-+$boundary/", $input);
-		array_pop($a_blocks);
-		// loop data blocks
-		foreach ($a_blocks as $id => $block)
-		{
-			if (empty($block))
-				continue;
-			// you'll have to var_dump $block to understand this and maybe replace \n or \r with a visibile char
-			// parse uploaded files
-			if (strpos($block, 'application/octet-stream') !== FALSE)
-			{
-				// match "name", then everything after "stream" (optional) except for prepending newlines
-				preg_match("/name=\"([^\"]*)\".*stream[\n|\r]+([^\n\r].*)?$/s", $block, $matches);
-			}
-			// parse all other fields
-			else
-			{
-				// match "name" and optional value in between newline sequences
-				preg_match('/name=\"([^\"]*)\"[\n|\r]+([^\n\r].*)?\r$/s', $block, $matches);
-			}
-			$formData[$matches[1]] = $matches[2];
-		}
-		return $formData;
-	}
 
 	/**
 	 * Build media info
@@ -253,9 +261,9 @@ class TextureHandler extends Handler {
 				'fileName' => $path,
 			));
 			$infos[$asset['path']] = array(
-				'encoding'  => 'url',
-				'data'      => $url,
-				'size'      => filesize($filePath),
+				'encoding' => 'url',
+				'data' => $url,
+				'size' => filesize($filePath),
 				'createdAt' => filemtime($filePath),
 				'updatedAt' => filectime($filePath),
 			);
@@ -279,7 +287,7 @@ class TextureHandler extends Handler {
 		$assets = array();
 		$figElements = $dom->getElementsByTagName('fig');
 		foreach ($figElements as $figure) {
-			$pos = $k+1;
+			$pos = $k + 1;
 			$figItem = $figElements->item($k);
 			$graphic = $figItem->getElementsByTagName('graphic');
 
@@ -292,8 +300,7 @@ class TextureHandler extends Handler {
 			$figId = null;
 			if ($figItem->hasAttribute('id')) {
 				$figId = $figItem->getAttribute('id');
-			}
-			else {
+			} else {
 				$figId = "ojs-fig-{$pos}";
 			}
 
@@ -302,9 +309,9 @@ class TextureHandler extends Handler {
 
 			// save assets
 			$assets[] = array(
-				'id'    => $figId,
-				'type'  => 'image/jpg',
-				'path'  => $figGraphPath,
+				'id' => $figId,
+				'type' => 'image/jpg',
+				'path' => $figGraphPath,
 			);
 
 			$k++;
@@ -364,8 +371,79 @@ class TextureHandler extends Handler {
 		}
 
 		$filePath = $mediaSubmissionFile->getFilePath();
-		header('Content-Type:'.$mediaSubmissionFile->getFileType());
+		header('Content-Type:' . $mediaSubmissionFile->getFileType());
 		header('Content-Length: ' . $mediaSubmissionFile->getFileSize());
 		readfile($filePath);
+	}
+
+	/**
+	 * creates dependent file
+	 * @param $genreId intr
+	 * @param $mediaData string
+	 * @param $submission Article
+	 * @param $submissionFile SubmissionFie
+	 * @param $user User
+	 * @return SubmissionArtworkFile
+	 */
+	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user) {
+		$mediaBlob = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $mediaData["data"]));
+		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
+		file_put_contents($tmpfname, $mediaBlob);
+
+		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+		$newMediaFile = $submissionFileDao->newDataObjectByGenreId($genreId);
+		$newMediaFile->setSubmissionId($submission->getId());
+		$newMediaFile->setSubmissionLocale($submission->getLocale());
+		$newMediaFile->setGenreId($genreId);
+		$newMediaFile->setFileStage(SUBMISSION_FILE_DEPENDENT);
+		$newMediaFile->setDateUploaded(Core::getCurrentDate());
+		$newMediaFile->setDateModified(Core::getCurrentDate());
+		$newMediaFile->setUploaderUserId($user->getId());
+		$newMediaFile->setFileSize(filesize($tmpfname));
+		$newMediaFile->setFileType($mediaData["fileType"]);
+		$newMediaFile->setAssocId($submissionFile->getFileId());
+		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
+		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
+
+		return $submissionFileDao->insertObject($newMediaFile, $tmpfname);
+	}
+
+	/**
+	 * Update manuscript XML file
+	 * @param $fileStage int
+	 * @param $genreId int
+	 * @param $resources  array
+	 * @param $submission Article
+	 * @param $submissionFile SubmissionFile
+	 * @param $user User
+	 * @return SubmissionFile
+	 */
+	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user) {
+		$manuscriptXml = $resources['manuscript.xml']->data;
+		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
+		file_put_contents($tmpfname, $manuscriptXml);
+
+
+		$fileSize = filesize($tmpfname);
+
+		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+		$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
+
+		$newSubmissionFile->setSubmissionId($submission->getId());
+		$newSubmissionFile->setSubmissionLocale($submission->getLocale());
+		$newSubmissionFile->setGenreId($genreId);
+		$newSubmissionFile->setFileStage($fileStage);
+		$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
+		$newSubmissionFile->setDateModified(Core::getCurrentDate());
+		$newSubmissionFile->setOriginalFileName($submissionFile->getOriginalFileName());
+		$newSubmissionFile->setUploaderUserId($user->getId());
+		$newSubmissionFile->setFileSize($fileSize);
+		$newSubmissionFile->setFileType($submissionFile->getFileType());
+		$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
+		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
+		$newSubmissionFile->setFileId($submissionFile->getFileId());
+		$newSubmissionFile->setRevision($submissionFile->getRevision() + 1);
+
+		return $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
 	}
 }

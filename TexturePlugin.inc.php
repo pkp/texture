@@ -23,15 +23,15 @@ class TexturePlugin extends GenericPlugin {
 	function getDisplayName() {
 		return __('plugins.generic.texture.displayName');
 	}
-	
+
 	/**
 	 * @copydoc Plugin::getDescription()
 	 */
 	function getDescription() {
 		return __('plugins.generic.texture.description');
 	}
-	
-	
+
+
 	/**
 	 * Register the plugin
 	 *
@@ -53,7 +53,7 @@ class TexturePlugin extends GenericPlugin {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Get texture editor URL
 	 * @param $request PKPRequest
@@ -71,7 +71,7 @@ class TexturePlugin extends GenericPlugin {
 	function getPluginUrl($request) {
 		return $request->getBaseUrl() . '/' . $this->getPluginPath();
 	}
-	
+
 	/**
 	 * @see PKPPageRouter::route()
 	 */
@@ -123,10 +123,10 @@ class TexturePlugin extends GenericPlugin {
 					$row->addAction(new LinkAction(
 						'editor',
 						new OpenWindowAction(
-							$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'editor', null, 
+							$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'editor', null,
 								array(
-									'submissionId' => $submissionFile->getSubmissionId(), 
-									'fileId' => $submissionFile->getFileId(), 
+									'submissionId' => $submissionFile->getSubmissionId(),
+									'fileId' => $submissionFile->getFileId(),
 									'stageId' => $stageId
 								)
 							)
