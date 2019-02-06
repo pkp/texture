@@ -150,7 +150,7 @@ class TextureHandler extends Handler {
 				'manuscript.xml' => array(
 					'encoding' => 'utf8',
 					'data' => $manuscriptXmlDom->saveXML(),
-					'size' => filesize($filePath    ),
+					'size' => filesize($filePath),
 					'createdAt' => 0,
 					'updatedAt' => 0,
 				),
@@ -453,11 +453,12 @@ class TextureHandler extends Handler {
 	 * @return DOMDocument
 	 */
 	private function _removeElements($manuscriptXml) {
+		$elementsPath = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
+
 		$manuscriptXmlDom = new DOMDocument;
 		$manuscriptXmlDom->loadXML($manuscriptXml);
 		$xpath = new DOMXpath($manuscriptXmlDom);
 
-		$elementsPath = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
 		foreach ($elementsPath as $elementPath) {
 			$elements = $xpath->query($elementPath);
 			foreach ($elements as $element) {
