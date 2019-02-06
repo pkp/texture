@@ -137,7 +137,10 @@ class TextureHandler extends Handler {
 			$filePath = $submissionFile->getFilePath();
 			$manuscriptXml = file_get_contents($filePath);
 			$manifestXml = $this->_buildManifestXMLFromDocument($manuscriptXml, $assets);
-			$mediaInfos = $this->_buildMediaInfo($request, $assets);
+
+            $manuscriptXmlDom = $this->_removeElements($manuscriptXml);
+
+            $mediaInfos = $this->_buildMediaInfo($request, $assets);
 			$resources = array(
 				'manifest.xml' => array(
 					'encoding' => 'utf8',
@@ -148,8 +151,8 @@ class TextureHandler extends Handler {
 				),
 				'manuscript.xml' => array(
 					'encoding' => 'utf8',
-					'data' => $manuscriptXml,
-					'size' => filesize($document->path),
+					'data' => $manuscriptXmlDom->saveXML(),
+					'size' => filesize($filePath    ),
 					'createdAt' => 0,
 					'updatedAt' => 0,
 				),
@@ -446,4 +449,23 @@ class TextureHandler extends Handler {
 
 		return $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
 	}
+
+    /**
+     * @param $manuscriptXml
+     * @return DOMDocument
+     */
+    private function _removeElements($manuscriptXml) {
+        $manuscriptXmlDom = new DOMDocument;
+        $manuscriptXmlDom->loadXML($manuscriptXml);
+        $xpath = new DOMXpath($manuscriptXmlDom);
+
+        $elementsPath = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
+        foreach ($elementsPath as $elementPath) {
+            $elements = $xpath->query($elementPath);
+            foreach ($elements as $element) {
+                $element->parentNode->removeChild($element);
+            }
+        }
+        return $manuscriptXmlDom;
+    }
 }
