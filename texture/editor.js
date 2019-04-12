@@ -5,9 +5,10 @@
 }(this, (function (substance,substanceTexture) { 'use strict';
 
   window.addEventListener('load', () => {
-    substance.substanceGlobals.DEBUG_RENDERING = substance.platform.devtools;
+    substance.substanceGlobals.DEBUG_RENDERING = true;
     setTimeout(() => {
       let app = DevWebApp.mount({
+        debug: true,
         archiveId: substance.getQueryStringParam('archive') || 'kitchen-sink',
         storageType: substance.getQueryStringParam('storage') || 'vfs',
         storageUrl: substance.getQueryStringParam('storageUrl') || '/archives'

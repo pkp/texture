@@ -167,8 +167,12 @@
 .katex .texttt {
   font-family: KaTeX_Typewriter;
 }
-.katex .mathit {
+.katex .mathdefault {
   font-family: KaTeX_Math;
+  font-style: italic;
+}
+.katex .mathit {
+  font-family: KaTeX_Main;
   font-style: italic;
 }
 .katex .mathrm {
@@ -216,10 +220,6 @@
 .katex .mathitsf,
 .katex .textitsf {
   font-family: KaTeX_SansSerif;
-  font-style: italic;
-}
-.katex .mainit {
-  font-family: KaTeX_Main;
   font-style: italic;
 }
 .katex .mainrm {
@@ -998,6 +998,7 @@
 }
 .katex-display > .katex > .katex-html {
   display: block;
+  position: relative;
 }
 .katex-display > .katex > .katex-html > .tag {
   position: absolute;

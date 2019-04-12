@@ -1,0 +1,731 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving DTD v1.0 20120330//EN" "JATS-journalarchiving.dtd">
+<article xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ali="http://www.niso.org/schemas/ali/1.0" article-type="research-article">
+  <front>
+    <article-meta>
+      <article-categories>
+        <subj-group xml:lang="en">
+          <subject content-type="display-channel">Research Article</subject>
+          <subject content-type="heading">Computational and Systems Biology</subject>
+        </subj-group>
+        <subj-group xml:lang="es">
+          <subject content-type="display-channel">Artículo de investigación</subject>
+          <subject content-type="heading">Biología computacional y de sistemas</subject>
+        </subj-group>
+      </article-categories>
+      <title-group>
+        <article-title>Kitchen Sink</article-title>
+        <subtitle>A word processor for structured content</subtitle>
+        <trans-title-group xml:lang="es">
+          <trans-title id="trans-title-1">Objeto de visión a acción manual en <italic id="italic-1">cortezas parietales</italic>, premotoras y motoras de macaco</trans-title>
+        </trans-title-group>
+      </title-group>
+      <contrib-group content-type="author">
+        <contrib id="author-1" contrib-type="person" equal-contrib="yes" corresp="yes" deceased="no">
+          <name>
+            <surname>Doe</surname>
+            <given-names>John</given-names>
+          </name>
+          <email>john.doe@university</email>
+          <xref ref-type="aff" rid="aff1" />
+          <xref ref-type="aff" rid="aff2" />
+        </contrib>
+        <contrib id="author-2" contrib-type="person" equal-contrib="no" corresp="no" deceased="no">
+          <name>
+            <surname>Mustermann</surname>
+            <given-names>Hansjörg</given-names>
+          </name>
+          <xref ref-type="aff" rid="aff1" />
+          <xref ref-type="aff" rid="aff3" />
+          <xref ref-type="aff" rid="aff5" />
+        </contrib>
+        <contrib id="group-1" contrib-type="group" equal-contrib="yes" corresp="no">
+          <collab>
+            <named-content content-type="name">The Mouse Genome Sequencing Consortium</named-content>
+            <email>mouse-project@example.com</email>
+            <xref ref-type="aff" rid="aff2" />
+            <xref ref-type="award" rid="fund1" />
+            <contrib-group contrib-type="group-member">
+              <contrib id="author-3" contrib-type="person" equal-contrib="no" corresp="no" deceased="no">
+                <name>
+                  <surname>Kelly</surname>
+                  <given-names>Laura A.</given-names>
+                </name>
+                <xref ref-type="aff" rid="aff2" />
+              </contrib>
+              <contrib id="author-4" contrib-type="person" equal-contrib="no" corresp="no" deceased="no">
+                <name>
+                  <surname>Randall</surname>
+                  <given-names>Daniel Lee</given-names>
+                  <suffix>Jr.</suffix>
+                </name>
+                <string-name content-type="alias">Dan Randall</string-name>
+                <bio>
+                  <p id="bio1_p1">This is a bio example.</p>
+                  <p id="bio1_p2">With multiparagraphs.</p>
+                </bio>
+                <xref ref-type="aff" rid="aff3" />
+              </contrib>
+            </contrib-group>
+          </collab>
+        </contrib>
+      </contrib-group>
+      <contrib-group content-type="editor">
+        <contrib id="editor-1" contrib-type="person" equal-contrib="no" corresp="no" deceased="no">
+          <name>
+            <surname>Kastner</surname>
+            <given-names>Sabine</given-names>
+          </name>
+          <xref ref-type="aff" rid="aff1" />
+        </contrib>
+      </contrib-group>
+      <aff id="aff1">
+        <institution content-type="orgname">German Primate Center GmbH</institution>
+        <institution content-type="orgdiv1">Neurobiology Laboratory</institution>
+        <city>Göttingen</city>
+        <country>Germany</country>
+      </aff>
+      <aff id="aff2">
+        <institution content-type="orgname">The Rockefeller University</institution>
+        <institution content-type="orgdiv1">Laboratory of Neural Systems</institution>
+        <city>New York</city>
+        <country>United States</country>
+      </aff>
+      <aff id="aff3">
+        <institution content-type="orgname">University of Göttingen</institution>
+        <institution content-type="orgdiv1">Department of Biology</institution>
+        <city>Göttingen</city>
+        <country>Germany</country>
+      </aff>
+      <aff id="aff4">
+        <institution content-type="orgname">Princeton University</institution>
+        <city>Princeton</city>
+        <country>United States</country>
+      </aff>
+      <aff id="aff5">
+        <institution content-type="orgname">The Rockefeller University</institution>
+        <institution content-type="orgdiv1">Another Laboratory</institution>
+        <city>New York</city>
+        <country>United States</country>
+      </aff>
+      <pub-date date-type="pub" iso-8601-date="1999-01-29">
+        <day>29</day>
+        <month>01</month>
+        <year>1999</year>
+      </pub-date>
+      <volume>318</volume>
+      <issue>7187</issue>
+      <issue-title>Des zones d’incertitudes en traduction</issue-title>
+      <fpage>837</fpage>
+      <lpage>841</lpage>
+      <page-range>837-841</page-range>
+      <history>
+        <date date-type="accepted" iso-8601-date="1998-06-06">
+          <day>06</day>
+          <month>06</month>
+          <year>1998</year>
+        </date>
+        <date date-type="received" iso-8601-date="1998-01-05">
+          <day>05</day>
+          <month>01</month>
+          <year>1998</year>
+        </date>
+        <date date-type="rev-recd" iso-8601-date="1998-05-24">
+          <day>24</day>
+          <month>05</month>
+          <year>1998</year>
+        </date>
+        <date date-type="rev-request" iso-8601-date="1998-03-14">
+          <day>14</day>
+          <month>03</month>
+          <year>1998</year>
+        </date>
+      </history>
+      <permissions id="permission-1">
+        <copyright-statement>© 2018 Substance Consortium</copyright-statement>
+        <copyright-year>2018</copyright-year>
+        <copyright-holder>Substance Consortium</copyright-holder>
+        <license>
+          <ali:license_ref>http://creativecommons.org/licenses/by/4.0/</ali:license_ref>
+          <license-p>This is an open access article distributed under the terms of the Creative Commons Attribution License, which permits unrestricted use, distribution, reproduction and adaptation in any medium and for any purpose provided that it is properly attributed. For attribution, the original author(s), title, publication source (PeerJ) and either DOI or URL of the article must be cited.</license-p>
+        </license>
+      </permissions>
+      <abstract>
+        <p id="p-1">Please note, this article uses content from different open access articles (eLife) for demoing purposes.</p>
+      </abstract>
+      <trans-abstract id="trans-abstract-1" xml:lang="es">
+        <p id="p-1-1">Tenga en cuenta que este artículo utiliza contenido de diferentes artículos de acceso abierto (eLife) con fines de demostración. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi id nibh id ipsum ultrices vehicula in et ante.</p>
+      </trans-abstract>
+      <kwd-group xml:lang="en">
+        <kwd content-type="author-keyword">optogenetics</kwd>
+        <kwd content-type="author-keyword">two-photon</kwd>
+        <kwd content-type="author-keyword">calcium imaging</kwd>
+        <kwd content-type="research-organism">Mouse</kwd>
+      </kwd-group>
+      <kwd-group xml:lang="es">
+        <kwd content-type="author-keyword">nada</kwd>
+        <kwd content-type="author-keyword">si</kwd>
+      </kwd-group>
+      <funding-group>
+        <award-group id="fund1">
+          <funding-source>
+            <institution-wrap>
+              <institution-id institution-id-type="FundRef">https://dx.doi.org/10.13039/100000011</institution-id>
+              <institution>Howard Hughes Medical Institute</institution>
+            </institution-wrap>
+          </funding-source>
+          <award-id>F32 GM089018</award-id>
+        </award-group>
+      </funding-group>
+    </article-meta>
+  </front>
+  <body id="body">
+    <sec id="sec-1">
+      <title>Inline content</title>
+      <p id="p-2">Lorem <xref id="xref-1" ref-type="bibr" rid="r7">[1]</xref> ipsum <xref id="xref-2" ref-type="bibr" rid="r1">[2]</xref> dolor <ext-link id="ext-link-1" ext-link-type="uri" xlink:href="http://substance.io">sit amet</ext-link>. Formatting <bold id="p-2-bold-1">bold</bold>,<italic id="p2-italic-1">italic</italic>, <sub id="p2-sub-1">sub</sub>,<sup id="p2-sup-1">sup</sup>, <monospace id="p2-monospace-1">monospace</monospace>, <sc id="p2-sc-1">small caps</sc>, <underline id="p2-underline-1">underline</underline>, <overline id="p2-overline-1">overline</overline>, <strike id="p2-strike-1">strike through</strike>.</p>
+      <p id="p-8">Aenean facilisis diam nec neque accumsan, eu faucibus est efficitur <xref id="xref-6" ref-type="table" rid="table1">Table 1</xref>.</p>
+      <p id="p-9">The Dow Jones Industrial Average for February 7, 2006 <inline-graphic id="inline-graphic-1" mimetype="image" mime-subtype="svg" xlink:href="fig3.svg"/>.</p>
+      <p id="p-81">Math as part of the text <inline-formula id="inline-formula-1" content-type="math/tex"><tex-math><![CDATA[\sqrt(13)]]></tex-math></inline-formula>. You can also set a reference to block formula, like this: <xref id="xref-7" ref-type="disp-formula" rid="disp-formula-1">(1)</xref>.</p>
+    </sec>
+    <sec id="sec-2">
+      <title>Block level content</title>
+      <disp-quote id="disp-quote-1">
+        <p id="p-7">Curabitur vehicula mattis sodales. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.</p>
+      </disp-quote>
+      <preformat id="_preformat-1" preformat-type="code"><![CDATA[import java.io._
+class Reader(fname: String) {
+private val in =
+  new BufferedReader(new FileReader(fname))
+
+@throws(classOf[IOException])
+def read() = in.read()
+}]]></preformat>
+      <disp-formula id="disp-formula-1" content-type="math/tex">
+        <label>(1)</label>
+        <tex-math><![CDATA[
+1+\frac{q^2}{(1-q)}+\frac{q^6}{(1-q)(1-q^2)}+\cdots=
+\prod_{j=0}^{\infty}\frac{1}{(1-q^{5j+2})(1-q^{5j+3})},
+\quad\quad \text{for }\lvert q\rvert<1.]]></tex-math>
+      </disp-formula>
+      <list list-type="bullet" id="list-1">
+        <list-item>
+          <p>Item 1</p>
+          <list list-type="order">
+            <list-item>
+              <p>Item 2</p>
+            </list-item>
+            <list-item>
+              <p>Item 3</p>
+            </list-item>
+          </list>
+        </list-item>
+        <list-item>
+          <p>Item 4</p>
+          <list list-type="order">
+            <list-item>
+              <p>Item 5</p>
+            </list-item>
+            <list-item>
+              <p>Item 6</p>
+              <list list-type="bullet">
+                <list-item>
+                  <p>Item 7</p>
+                </list-item>
+                <list-item>
+                  <p>Item 8</p>
+                </list-item>
+              </list>
+            </list-item>
+          </list>
+        </list-item>
+        <list-item>
+          <p>Item 9</p>
+        </list-item>
+      </list>
+      <disp-formula id="disp-formula-2" content-type="math/tex">
+        <label>(2)</label>
+        <tex-math><![CDATA[
+\sum_{i = 1}^{ \left[ \frac{n}{2} \right] }
+\binom{ x_{i, i + 1}^{i^{2}} }
+{ \left[ \frac{i + 3}{3} \right] }
+\frac{ \sqrt{ \mu(i)^{ \frac{3}{2}} (i^{2} - 1) } }
+{ \sqrt[3]{\rho(i) - 2} + \sqrt[3]{\rho(i) - 1} }
+]]></tex-math>
+      </disp-formula>
+      <sec id="sec-2-1">
+        <title>Tables</title>
+        <table-wrap id="table1">
+          <label>Table 1</label>
+          <caption>
+            <title>Example Table</title>
+            <p id="table1_caption_p1">This is a table example.</p>
+          </caption>
+          <table id="t1">
+            <tbody>
+              <tr id="t1_1">
+                <th id="t1_1_1">A</th>
+                <th id="t1_1_2">B</th>
+                <th id="t1_1_3">C</th>
+                <th id="t1_1_4">D</th>
+              </tr>
+              <tr id="t1_2">
+                <td id="t1_2_1" colspan="2">1</td>
+                <td id="t1_2_3" rowspan="2" colspan="2">3</td>
+              </tr>
+              <tr id="t1_3">
+                <td id="t1_3_1">5</td>
+                <td id="t1_3_2" rowspan="2">Formatting in table cell <bold id="t1-bold-1">bold</bold>,<italic id="t1-italic-1">italic</italic>, <sub id="t1-sub-1">sub</sub>,<sup id="t1-sup-1">sup</sup>, <monospace id="t1-monospace-1">monospace</monospace></td>
+              </tr>
+              <tr id="t1_4">
+                <td id="t1_4_1">9</td>
+                <td id="t1_4_3">Hyper <ext-link id="t1-ext-link-1" ext-link-type="uri" xlink:href="http://substance.io">link</ext-link> in table cell.</td>
+                <td id="t1_4_4">Reference citation in table cell <xref id="t1-xref-1" ref-type="bibr" rid="r7">[1]</xref></td>
+              </tr>
+              <tr id="t1_5">
+                <td id="t1_5_1">Table footnote<xref id="t1-xref-2" ref-type="table-fn" rid="tfn1">*</xref></td>
+                <td id="t1_5_2">Another table footnote<xref id="t1-xref-3" ref-type="table-fn" rid="tfn2">†</xref></td>
+                <td id="t1_5_3">Table footnote with multiple targets<xref id="t1-xref-4" ref-type="table-fn" rid="tfn1 tfn2">*, †</xref></td>
+                <td id="t1_5_4">16</td>
+              </tr>
+            </tbody>
+          </table>
+          <table-wrap-foot>
+            <fn-group>
+              <fn id="tfn1">
+                <label>*</label>
+                <p id="tfn1-p1">This is a table-footnote.</p>
+              </fn>
+              <fn id="tfn2">
+                <label>†</label>
+                <p id="tfn2-p1">Another table-footnote.</p>
+              </fn>
+            </fn-group>
+          </table-wrap-foot>
+        </table-wrap>
+      </sec>
+      <sec id="sec-2-2">
+        <title>Figures</title>
+        <p id="p-3">Reference to simple figure <xref id="xref-3" ref-type="fig" rid="fig1">Figure 1</xref>. Reference to footnote <xref id="xref-4" ref-type="fn" rid="fn1">1</xref>. Citation with two references <xref id="xref-5" ref-type="bibr" rid="r1 r7">[1,2]</xref>.</p>
+        <fig id="fig1">
+          <label>Figure 1</label>
+          <caption>
+            <title>Figure with permissions.</title>
+            <p id="fig1-caption-p1">Legend.</p>
+          </caption>
+          <graphic id="graphic-1" mimetype="image" mime-subtype="jpeg" xlink:href="fig1.jpg" />
+          <permissions id="permission-2">
+            <copyright-statement>© 2014 Surname et al.</copyright-statement>
+            <copyright-year>2014</copyright-year>
+            <copyright-holder>Surname et al.</copyright-holder>
+            <license>
+              <ali:license_ref>http://creativecommons.org/licenses/by/4.0/</ali:license_ref>
+              <license-p>License text.</license-p>
+            </license>
+          </permissions>
+        </fig>
+        <p id="p-4">Lorem ipsum.</p>
+        <fig-group id="fig2">
+          <fig id="fig2a">
+            <label>Figure 2A</label>
+            <caption>
+              <title>First panel</title>
+              <p id="fig2a-caption-p1">First panel legend</p>
+            </caption>
+            <graphic id="fig2a-graphic" mimetype="image" mime-subtype="jpeg" xlink:href="fig2.jpg" />
+          </fig>
+          <fig id="fig2b">
+            <label>Figure 2B</label>
+            <caption>
+              <title>Second panel</title>
+              <p id="fig2b-caption-p1">Second panel caption</p>
+            </caption>
+            <graphic id="fig2b-graphic" mimetype="image" mime-subtype="jpeg" xlink:href="fig1.jpg" />
+          </fig>
+        </fig-group>
+        <p id="p-5">abc</p>
+        <fig id="fig3">
+          <label>Figure 3</label>
+          <caption>
+            <title>Figure with metadata.</title>
+            <p id="fig3-caption-p1">Legend.</p>
+          </caption>
+          <kwd-group>
+            <label>Field I</label>
+            <kwd>Value A</kwd>
+            <kwd>Value B</kwd>
+          </kwd-group>
+          <kwd-group>
+            <label>Field II</label>
+            <kwd>Value C</kwd>
+          </kwd-group>
+          <graphic id="fig3-graphic-1" mimetype="image" mime-subtype="jpeg" xlink:href="placeholder.png" />
+        </fig>
+      </sec>
+      <sec id="sec-2-3">
+        <title>Supplementary Files</title>
+        <supplementary-material id="sm1" mimetype="application" mime-subtype="zip" xlink:href="example.zip">
+          <label>Supplementary File 1</label>
+          <caption>
+            <p id="sm1-caption-p1">Description of Supplementary File</p>
+          </caption>
+        </supplementary-material>
+        <supplementary-material id="sm2" xlink:href="https://elifesciences.org/download/aHR0cHM6Ly9jZG4uZWxpZmVzY2llbmNlcy5vcmcvYXJ0aWNsZXMvNDExNjIvZWxpZmUtNDExNjItZmlnMi1kYXRhMS12MS54bHN4/elife-41162-fig2-data1-v1.xlsx?_hash=ft%2F74Gq%2FH3UikSNsi%2Fm1GbowiBFMCRqQ3c1bwBSK9ak%3D">
+          <label>Supplementary File 2</label>
+          <caption>
+            <p id="sm2-caption-p1">A remote file</p>
+          </caption>
+        </supplementary-material>
+      </sec>
+    </sec>
+    <sec id="sec-3">
+      <title>Sections and Subsections</title>
+      <sec id="sec-3-1">
+        <title>Section Level 2</title>
+        <sec id="sec-3-1-1">
+          <title>Section Level 3</title>
+        </sec>
+      </sec>
+      <sec id="sec-3-2">
+        <title>Section heading with <break id="br1"/>Line-Break</title>
+      </sec>
+    </sec>
+  </body>
+  <back>
+    <fn-group>
+      <fn id="fn1">
+        <label>1</label>
+        <p id="p-10">This is the first footnote.</p>
+      </fn>
+      <fn id="fn2">
+        <p id="p-11">This. is the second footnote.</p>
+      </fn>
+    </fn-group>
+    <ref-list>
+      <ref id="r1">
+        <element-citation publication-type="article">
+          <year>2017</year>
+          <pub-id pub-id-type="doi">10.1101/102392</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Alasoo</surname>
+              <given-names>K</given-names>
+            </name>
+            <name>
+              <surname>Rodrigues</surname>
+              <given-names>J</given-names>
+            </name>
+            <name>
+              <surname>Mukhopadhyay</surname>
+              <given-names>S</given-names>
+            </name>
+            <name>
+              <surname>Knights</surname>
+              <given-names>AJ</given-names>
+            </name>
+            <name>
+              <surname>Mann</surname>
+              <given-names>AL</given-names>
+            </name>
+            <name>
+              <surname>Kundu</surname>
+              <given-names>K</given-names>
+            </name>
+            <collab>
+              <named-content content-type="name">HIPSCI Consortium</named-content>
+            </collab>
+            <name>
+              <surname>Hale</surname>
+              <given-names>C</given-names>
+            </name>
+            <name>
+              <surname>Dougan</surname>
+              <given-names>G</given-names>
+            </name>
+            <name>
+              <surname>Gaffney</surname>
+              <given-names>DJ</given-names>
+            </name>
+          </person-group>
+          <source>bioRxiv</source>
+          <article-title>Shared genetic effects on chromatin and gene expression reveal widespread enhancer priming in immune response</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r2">
+        <element-citation publication-type="data">
+          <year>2016</year>
+          <pub-id pub-id-type="accession">GSE69545</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Allison</surname>
+              <given-names>KA</given-names>
+            </name>
+            <name>
+              <surname>Glass</surname>
+              <given-names>CK</given-names>
+            </name>
+          </person-group>
+          <source>NCBI Gene Expression Omnibus</source>
+          <data-title>Affinity and Dose of TCR Engagement Yield Proportional Enhancer and Gene Activity in CD4+ T Cells</data-title>
+        </element-citation>
+      </ref>
+      <ref id="r3">
+        <element-citation publication-type="journal">
+          <fpage>1141</fpage>
+          <lpage>1144</lpage>
+          <volume>282</volume>
+          <year>1998</year>
+          <pub-id pub-id-type="doi">10.1126/science.282.5391.1141</pub-id>
+          <pub-id pub-id-type="pmid">9804555</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Baukrowitz</surname>
+              <given-names>T</given-names>
+            </name>
+            <name>
+              <surname>Schulte</surname>
+              <given-names>U</given-names>
+            </name>
+            <name>
+              <surname>Oliver</surname>
+              <given-names>D</given-names>
+            </name>
+            <name>
+              <surname>Herlitze</surname>
+              <given-names>S</given-names>
+            </name>
+            <name>
+              <surname>Krauter</surname>
+              <given-names>T</given-names>
+            </name>
+            <name>
+              <surname>Tucker</surname>
+              <given-names>SJ</given-names>
+            </name>
+            <name>
+              <surname>Ruppersberg</surname>
+              <given-names>JP</given-names>
+            </name>
+            <name>
+              <surname>Fakler</surname>
+              <given-names>B</given-names>
+            </name>
+          </person-group>
+          <source>Science</source>
+          <article-title>PIP<sub id="sub-1">2</sub> and PIP as determinants for ATP inhibition of K<sub id="sub-2">ATP</sub> channels</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r4">
+        <element-citation publication-type="book">
+          <publisher-loc>New York</publisher-loc>
+          <publisher-name>Oxford University Press</publisher-name>
+          <year>2006</year>
+          <pub-id pub-id-type="isbn">978-0195301069</pub-id>
+          <pub-id pub-id-type="doi">10.1093/acprof:oso/9780195301069.001.0001</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Buzsaki</surname>
+              <given-names>G</given-names>
+            </name>
+          </person-group>
+          <source>Rhythms of the Brain</source>
+        </element-citation>
+      </ref>
+      <ref id="r5">
+        <element-citation publication-type="chapter">
+          <fpage>180</fpage>
+          <lpage>207</lpage>
+          <publisher-loc>Sunderland, MA</publisher-loc>
+          <publisher-name>Sinauer Associates</publisher-name>
+          <year>1989</year>
+          <pub-id pub-id-type="isbn">978-0878936588</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Coyne</surname>
+              <given-names>JA</given-names>
+            </name>
+            <name>
+              <surname>Orr</surname>
+              <given-names>HA</given-names>
+            </name>
+          </person-group>
+          <person-group person-group-type="editor">
+            <name>
+              <surname>Otte</surname>
+              <given-names>D</given-names>
+            </name>
+            <name>
+              <surname>Endler</surname>
+              <given-names>JA</given-names>
+            </name>
+          </person-group>
+          <source>Speciation and its consequences</source>
+          <chapter-title>Two rules of speciation</chapter-title>
+        </element-citation>
+      </ref>
+      <ref id="r6">
+        <element-citation publication-type="magazine">
+          <fpage>36</fpage>
+          <lpage>38</lpage>
+          <volume>Fall 2017</volume>
+          <year>2017</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Craig</surname>
+              <given-names>DJ</given-names>
+            </name>
+          </person-group>
+          <source>Columbia Magazine</source>
+          <article-title>A voice for women and girls</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r7">
+        <element-citation publication-type="webpage">
+          <uri>http://www.michaeleisen.org/blog/?p=1894</uri>
+          <year>2016</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Eisen</surname>
+              <given-names>M</given-names>
+            </name>
+          </person-group>
+          <source>it is NOT junk</source>
+          <article-title>The Imprinter of All Maladies</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r8">
+        <element-citation publication-type="confproc">
+          <conf-name>Proceedings of the 17th Annual Meeting of International Society for Magnetic Resonance in Medicine</conf-name>
+          <conf-loc>Hawaii, United States</conf-loc>
+          <year>2009</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Leemans</surname>
+              <given-names>A</given-names>
+            </name>
+            <name>
+              <surname>Jeurissen</surname>
+              <given-names>B</given-names>
+            </name>
+            <name>
+              <surname>Sijbers</surname>
+              <given-names>J</given-names>
+            </name>
+            <name>
+              <surname>Jones</surname>
+              <given-names>D</given-names>
+            </name>
+          </person-group>
+          <article-title>ExploreDTI: a graphical toolbox for processing, analyzing, and visualizing diffusion MR data</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r9">
+        <element-citation publication-type="report">
+          <publisher-loc>Monrovia, Liberia</publisher-loc>
+          <publisher-name>NMCP, LISGIS, and ICF International</publisher-name>
+          <year>2012</year>
+          <person-group person-group-type="author">
+            <collab>
+              <named-content content-type="name">National Malaria Control Program - Ministry of Health and Social Welfare</named-content>
+            </collab>
+            <collab>
+              <named-content content-type="name">Liberia Institute of Statistics and Geo-Information Services</named-content>
+            </collab>
+            <collab>
+              <named-content content-type="name">ICF International</named-content>
+            </collab>
+          </person-group>
+          <person-group person-group-type="sponsor">
+            <collab>
+              <named-content content-type="name">United States Agency for International Development</named-content>
+            </collab>
+            <collab>
+              <named-content content-type="name">President’s Malaria Initiative</named-content>
+            </collab>
+          </person-group>
+          <source>Liberia Malaria Indicator Survey 2011</source>
+        </element-citation>
+      </ref>
+      <ref id="r10">
+        <element-citation publication-type="patent">
+          <patent country="United States">US20100941530</patent>
+          <year>2011</year>
+          <person-group person-group-type="inventor">
+            <name>
+              <surname>Patterson</surname>
+              <given-names>JB</given-names>
+            </name>
+            <name>
+              <surname>Lonergan</surname>
+              <given-names>DG</given-names>
+            </name>
+            <name>
+              <surname>Flynn</surname>
+              <given-names>GA</given-names>
+            </name>
+            <name>
+              <surname>Qingpeng</surname>
+              <given-names>Z</given-names>
+            </name>
+            <name>
+              <surname>Pallai</surname>
+              <given-names>PV</given-names>
+            </name>
+          </person-group>
+          <source>United States patent</source>
+          <article-title>IRE-1alpha inhibitors</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r11">
+        <element-citation publication-type="newspaper">
+          <day>27</day>
+          <edition>International Edition</edition>
+          <fpage>21</fpage>
+          <month>4</month>
+          <part-title>Film</part-title>
+          <year>2018</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Rose</surname>
+              <given-names>Steve</given-names>
+            </name>
+          </person-group>
+          <source>The Guardian</source>
+          <article-title>What if superheroes aren’t really the good guys?</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r12">
+        <element-citation publication-type="thesis">
+          <publisher-loc>Nijmegen, The Netherlands</publisher-loc>
+          <publisher-name>Radboud University Nijmegen Medical Centre</publisher-name>
+          <year>2006</year>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Schneider</surname>
+              <given-names>P</given-names>
+            </name>
+          </person-group>
+          <article-title>PhD thesis: Submicroscopic <italic id="italic-2">Plasmodium falciparum</italic> gametocytaemia and the contribution to malaria transmission</article-title>
+        </element-citation>
+      </ref>
+      <ref id="r13">
+        <element-citation publication-type="software">
+          <publisher-name>Zenodo</publisher-name>
+          <version>2.0.1</version>
+          <year>2018</year>
+          <pub-id pub-id-type="doi">10.5281/zenodo.1203712</pub-id>
+          <person-group person-group-type="author">
+            <name>
+              <surname>Willner</surname>
+              <given-names>Sven</given-names>
+            </name>
+            <name>
+              <surname>Gieseke</surname>
+              <given-names>Robert</given-names>
+            </name>
+          </person-group>
+          <source>pyhector</source>
+        </element-citation>
+      </ref>
+    </ref-list>
+  </back>
+</article>
