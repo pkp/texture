@@ -89,6 +89,7 @@ class TextureHandler extends Handler {
 	public function json($args, $request) {
 
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
+		$image_types = array('gif', 'jpg', 'jpeg', 'png', 'jpe');
 
 		if (!$submissionFile) {
 			fatalError('Invalid request');
@@ -178,15 +179,19 @@ class TextureHandler extends Handler {
 					$genreDao = DAORegistry::getDAO('GenreDAO');
 					$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
 					$genreId = null;
+					$ext = preg_replace('#^image/#i', '', $media["fileType"]);
 					while ($candidateGenre = $genres->next()) {
-						if ($candidateGenre->getKey() == 'IMAGE') {
-							// This is the default "image" genre. The best case scenario is that this exists, so let's use it.
-							$genreId = $candidateGenre->getId();
-							break;
-						}
-						if ($candidateGenre->getCategory() == GENRE_CATEGORY_ARTWORK) {
-							// If we don't find the IMAGE genre, then we'll fall back on something else designated as artwork.
-							$genreId = $candidateGenre;
+						if (in_array($ext,$image_types)) {
+							if ($candidateGenre->getKey() == 'IMAGE') {
+								$genreId = $candidateGenre->getId();
+								break;
+							}
+						} else {
+							if ($candidateGenre->getKey() == 'MULTIMEDIA') {
+								$genreId = $candidateGenre->getId();
+								break;
+
+							}
 						}
 					}
 					if (!$genreId) {
@@ -387,7 +392,7 @@ class TextureHandler extends Handler {
 	 * @return SubmissionArtworkFile
 	 */
 	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user) {
-		$mediaBlob = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $mediaData["data"]));
+		$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $mediaData["data"]));
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $mediaBlob);
 

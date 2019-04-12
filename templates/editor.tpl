@@ -17,7 +17,7 @@
 		<link href="{$textureUrl|escape}/texture.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/texture-reset.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/substance/dist/substance.css" rel="stylesheet" type="text/css"/>
-		<link href="{$textureUrl|escape}/texture-pagestyle.css" rel="stylesheet" type="text/css"/>
+		<link href="{$textureUrl|escape}/texture-reset.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/katex/katex.min.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
 
