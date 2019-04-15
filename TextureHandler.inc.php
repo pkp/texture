@@ -89,7 +89,6 @@ class TextureHandler extends Handler {
 	public function json($args, $request) {
 
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$image_types = array('gif', 'jpg', 'jpeg', 'png', 'jpe');
 
 		if (!$submissionFile) {
 			fatalError('Invalid request');
@@ -175,13 +174,17 @@ class TextureHandler extends Handler {
 				$media = (array)json_decode($postData)->media;
 
 				if (!empty($media)) {
+					import('classes.file.PublicFileManager');
+					$publicFileManager = new PublicFileManager();
+
+
 					$journal = $request->getJournal();
 					$genreDao = DAORegistry::getDAO('GenreDAO');
 					$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
 					$genreId = null;
-					$ext = preg_replace('#^image/#i', '', $media["fileType"]);
+					$extension = $publicFileManager->getImageExtension($media["fileType"]);
 					while ($candidateGenre = $genres->next()) {
-						if (in_array($ext,$image_types)) {
+						if ($extension) {
 							if ($candidateGenre->getKey() == 'IMAGE') {
 								$genreId = $candidateGenre->getId();
 								break;

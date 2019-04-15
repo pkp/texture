@@ -26,7 +26,6 @@
 			if (archiveId) {
 				url = url + '/' + archiveId;
 			}
-			console.log('data', data);
 
 			function _createImages () {
 				substance.forEach(data.resources, (record, filePath) => {
@@ -69,25 +68,23 @@
 			function _deleteImage (op) {
 				if (op.type === 'delete') {
 					if (op.val) {
-						if (op.val.type === 'graphic') {
-							if (op.val.attributes) {
-								var mimetype = op.val.attributes['mimetype'];
-								if (mimetype === 'image') {
-									var fileName = op.val.attributes['xlink:href'];
-									if (fileName !== undefined) {
-										substance.sendRequest({
-											method: 'DELETE',
-											url,
-											data: {
-												'fileName': fileName,
-											},
-										}).then(response => {
-											cb(null, response);
-										}).catch(err => {
-											cb(err);
-										});
-									}
+						if (op.val.type === 'graphic' || op.val.type === 'supplementary-file') {
+							if (op.val) {
+								var fileName = op.val['href'];
+								if (fileName !== undefined) {
+									substance.sendRequest({
+										method: 'DELETE',
+										url,
+										data: {
+											'fileName': fileName,
+										},
+									}).then(response => {
+										cb(null, response);
+									}).catch(err => {
+										cb(err);
+									});
 								}
+
 							}
 						}
 					}
