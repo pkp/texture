@@ -661,10 +661,6 @@
     })
   }
 
-  function isPlainObject (o) {
-    return Boolean(o) && o.constructor === {}.constructor
-  }
-
   function isArray (a) {
     return Array.isArray(a)
   }
@@ -781,17 +777,6 @@
         platform.inNodeJS = true;
       }
     }
-
-    if (platform.inBrowser) {
-      let widthThreshold = window.outerWidth - window.innerWidth > 160;
-      let heightThreshold = window.outerHeight - window.innerHeight > 160;
-      let orientation = widthThreshold ? 'vertical' : 'horizontal';
-      if (!(heightThreshold && widthThreshold) &&
-        ((window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) || widthThreshold || heightThreshold)) {
-        platform.devtools = true;
-        platform.devtoolsOrientation = orientation;
-      }
-    }
   }
 
   detect();
@@ -826,6 +811,25 @@
     return arr.map(cloneDeep)
   }
 
+  function getKeyForPath (path) {
+    if (path._key === undefined) {
+      Object.defineProperty(path, '_key', {
+        value: path.join('.'),
+        writable: false,
+        enumerable: false
+      });
+    }
+    return path._key
+  }
+
+  function isPlainObject (o) {
+    return Boolean(o) && o.constructor === {}.constructor
+  }
+
+  function isString (s) {
+    return typeof s === 'string'
+  }
+
   function isNumber (n) {
     return typeof n === 'number'
   }
@@ -854,10 +858,6 @@
 
   function isNil (o) {
     return o === null || o === undefined
-  }
-
-  function isString (s) {
-    return typeof s === 'string'
   }
 
   var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
@@ -3365,6 +3365,72 @@
     return object;
   }
 
+  function basePickBy(object, paths, predicate) {
+    var index = -1,
+        length = paths.length,
+        result = {};
+
+    while (++index < length) {
+      var path = paths[index],
+          value = baseGet(object, path);
+
+      if (predicate(value, path)) {
+        baseSet(result, castPath(path, object), value);
+      }
+    }
+    return result;
+  }
+
+  function basePick(object, paths) {
+    return basePickBy(object, paths, function(value, path) {
+      return hasIn(object, path);
+    });
+  }
+
+  var spreadableSymbol = Symbol$1 ? Symbol$1.isConcatSpreadable : undefined;
+
+
+  function isFlattenable(value) {
+    return isArray$1(value) || isArguments(value) ||
+      !!(spreadableSymbol && value && value[spreadableSymbol]);
+  }
+
+  function baseFlatten(array, depth, predicate, isStrict, result) {
+    var index = -1,
+        length = array.length;
+
+    predicate || (predicate = isFlattenable);
+    result || (result = []);
+
+    while (++index < length) {
+      var value = array[index];
+      if (depth > 0 && predicate(value)) {
+        if (depth > 1) {
+          
+          baseFlatten(value, depth - 1, predicate, isStrict, result);
+        } else {
+          arrayPush(result, value);
+        }
+      } else if (!isStrict) {
+        result[result.length] = value;
+      }
+    }
+    return result;
+  }
+
+  function flatten(array) {
+    var length = array == null ? 0 : array.length;
+    return length ? baseFlatten(array, 1) : [];
+  }
+
+  function flatRest(func) {
+    return setToString(overRest(func, undefined, flatten), func + '');
+  }
+
+  var pick = flatRest(function(object, paths) {
+    return object == null ? {} : basePick(object, paths);
+  });
+
   function setWith(object, path, value, customizer) {
     customizer = typeof customizer == 'function' ? customizer : undefined;
     return object == null ? object : baseSet(object, path, value, customizer);
@@ -3712,7 +3778,8 @@
         return undefined
       }
       if (isString(path)) {
-        return this.getRoot()[path]
+        let id = path;
+        return this.getRoot()[id]
       }
       if (arguments.length > 1) {
         path = Array.prototype.slice(arguments, 0);
@@ -3728,7 +3795,8 @@
         throw new Error('Illegal argument: PathObject.set(>path<, value) - path is mandatory.')
       }
       if (isString(path)) {
-        this.getRoot()[path] = value;
+        let id = path;
+        this.getRoot()[id] = value;
       } else {
         setWith(this.getRoot(), path, value);
       }
@@ -3736,7 +3804,8 @@
 
     delete (path) {
       if (isString(path)) {
-        delete this.getRoot()[path];
+        let id = path;
+        delete this.getRoot()[id];
       } else if (path.length === 1) {
         delete this.getRoot()[path[0]];
       } else {
@@ -3989,10 +4058,6 @@
     if (options['no-conflict'] && _hasConflict(a, b)) {
       throw new Conflict(a, b)
     }
-    if (!options.inplace) {
-      a = a.clone();
-      b = b.clone();
-    }
     if (a.type === INSERT && b.type === INSERT) {
       transformInsertInsert(a, b);
     } else if (a.type === DELETE && b.type === DELETE) {
@@ -4165,52 +4230,61 @@
     }
   }
 
-  function transformDeleteDelete$1 (a, b) {
+  function transformDeleteDelete$1 (a, b, options = {}) {
     
     if (a.pos === b.pos) {
-      b.type = NOP;
-      a.type = NOP;
-      return
-    }
-    if (a.pos < b.pos) {
+      
+      
+      if (a.val !== b.val) {
+        console.error('FIXME: transforming array delete-delete at the same position but with different values.');
+      }
+      if (!options.rebase) {
+        b.type = NOP;
+        a.type = NOP;
+      }
+    } else if (a.pos < b.pos) {
       b.pos -= 1;
     } else {
       a.pos -= 1;
     }
   }
 
-  function transformInsertDelete$1 (a, b) {
+  function transformInsertDelete$1 (a, b, options = {}) {
     
     if (a.type === DELETE$1) {
-      var tmp = a;
-      a = b;
-      b = tmp;
+      ([a, b] = [b, a]);
     }
-    if (a.pos <= b.pos) {
-      b.pos += 1;
+    
+    
+    
+    
+    if (options.rebase) {
+      if (a.pos < b.pos) {
+        b.pos += 1;
+      } else if (a.pos > b.pos) {
+        a.pos -= 1;
+      }
     } else {
-      a.pos -= 1;
+      if (a.pos <= b.pos) {
+        b.pos += 1;
+      } else {
+        a.pos -= 1;
+      }
     }
   }
 
-  var transform$1 = function (a, b, options) {
-    options = options || {};
+  var transform$1 = function (a, b, options = {}) {
     
     
     if (options['no-conflict'] && hasConflict(a, b)) {
       throw new Conflict(a, b)
     }
-    
-    if (!options.inplace) {
-      a = a.clone();
-      b = b.clone();
-    }
     if (a.type === NOP || b.type === NOP) ; else if (a.type === INSERT$1 && b.type === INSERT$1) {
-      transformInsertInsert$1(a, b);
+      transformInsertInsert$1(a, b, options);
     } else if (a.type === DELETE$1 && b.type === DELETE$1) {
-      transformDeleteDelete$1(a, b);
+      transformDeleteDelete$1(a, b, options);
     } else {
-      transformInsertDelete$1(a, b);
+      transformInsertDelete$1(a, b, options);
     }
     return [a, b]
   };
@@ -4237,6 +4311,7 @@
 
     apply (coor) {
       coor.offset = coor.offset + this.val;
+      return coor
     }
 
     isShift () {
@@ -4311,20 +4386,16 @@
     static get SHIFT () { return SHIFT }
   }
 
-  function transformShiftShift (a, b) {
-    a.val += b.val;
-    b.val += a.val;
+  function transformShiftShift (a, b, options) {
+    if (options.rebase) ; else {
+      a.val += b.val;
+      b.val += a.val;
+    }
   }
 
-  function transform$2 (a, b, options) {
-    options = options || {};
-    
-    if (!options.inplace) {
-      a = a.clone();
-      b = b.clone();
-    }
+  function transform$2 (a, b, options = {}) {
     if (a.type === SHIFT && b.type === SHIFT) {
-      transformShiftShift(a, b);
+      transformShiftShift(a, b, options);
     } else {
       throw new Error('Illegal type')
     }
@@ -4370,7 +4441,7 @@
           } else if (data.diff._isCoordinateOperation) {
             this.propertyType = 'coordinate';
           } else {
-            throw new Error('Invalid data: diff must be a TextOperation or an ArrayOperation.')
+            throw new Error('Invalid data: unsupported operation type for incremental update.')
           }
         } else {
           throw new Error('Invalid data: diff is mandatory for update operation.')
@@ -4419,7 +4490,7 @@
             break
           }
           default:
-            throw new Error('Invalid state.')
+            throw new Error('Unsupported property type for incremental update: ' + this.propertyType)
         }
       } else if (this.type === SET) {
         
@@ -4479,17 +4550,7 @@
       } else if (this.type === DELETE$2) {
         result.type = CREATE;
       } else if (this.type === UPDATE) {
-        var invertedDiff;
-        if (this.diff._isTextOperation) {
-          invertedDiff = TextOperation.fromJSON(this.diff.toJSON()).invert();
-        } else if (this.diff._isArrayOperation) {
-          invertedDiff = ArrayOperation.fromJSON(this.diff.toJSON()).invert();
-        } else if (this.diff._isCoordinateOperation) {
-          invertedDiff = CoordinateOperation.fromJSON(this.diff.toJSON()).invert();
-        } else {
-          throw new Error('Illegal type')
-        }
-        result.diff = invertedDiff;
+        result.diff = this.diff.clone().invert();
       } else  {
         result.val = this.original;
         result.original = this.val;
@@ -4617,19 +4678,7 @@
     static fromJSON (data) {
       data = cloneDeep(data);
       if (data.type === 'update') {
-        switch (data.propertyType) {
-          case 'string':
-            data.diff = TextOperation.fromJSON(data.diff);
-            break
-          case 'array':
-            data.diff = ArrayOperation.fromJSON(data.diff);
-            break
-          case 'coordinate':
-            data.diff = CoordinateOperation.fromJSON(data.diff);
-            break
-          default:
-            throw new Error('Unsupported update diff:' + JSON.stringify(data.diff))
-        }
+        data.diff = _deserializeDiffOp(data.propertyType, data.diff);
       }
       let op = new ObjectOperation(data);
       return op
@@ -4655,49 +4704,50 @@
     return isEqual(a.path, b.path)
   }
 
-  function transformDeleteDelete$2 (a, b) {
+  function transformDeleteDelete$2 (a, b, options = {}) {
     
-    
-    a.type = NOP$1;
-    b.type = NOP$1;
-  }
-
-  function transformCreateCreate () {
-    throw new Error('Can not transform two concurring creates of the same property')
-  }
-
-  function transformDeleteCreate () {
-    throw new Error('Illegal state: can not create and delete a value at the same time.')
-  }
-
-  function transformDeleteUpdate (a, b, flipped) {
-    if (a.type !== DELETE$2) {
-      return transformDeleteUpdate(b, a, true)
-    }
-    var op;
-    switch (b.propertyType) {
-      case 'string':
-        op = TextOperation.fromJSON(b.diff);
-        break
-      case 'array':
-        op = ArrayOperation.fromJSON(b.diff);
-        break
-      case 'coordinate':
-        op = CoordinateOperation.fromJSON(b.diff);
-        break
-      default:
-        throw new Error('Illegal type')
-    }
-    
-    if (!flipped) {
+    if (!options.rebase) {
+      
+      
       a.type = NOP$1;
-      b.type = CREATE;
-      b.val = op.apply(a.val);
-    
-    } else {
-      a.val = op.apply(a.val);
       b.type = NOP$1;
     }
+  }
+
+  function transformCreateCreate (a, b, options = {}) {
+    if (!options.rebase) {
+      throw new Error('Can not transform two concurring creates of the same property')
+    }
+  }
+
+  function transformDeleteCreate (a, b, options = {}) {
+    if (!options.rebase) {
+      throw new Error('Illegal state: can not create and delete a value at the same time.')
+    }
+  }
+
+  function _transformDeleteUpdate (a, b, flipped, options = {}) {
+    
+    if (!options.rebase) {
+      if (a.type !== DELETE$2) {
+        return _transformDeleteUpdate(b, a, true, options)
+      }
+      let op = _deserializeDiffOp(b.propertyType, b.diff);
+      
+      if (!flipped) {
+        a.type = NOP$1;
+        b.type = CREATE;
+        b.val = op.apply(a.val);
+      
+      } else {
+        a.val = op.apply(a.val);
+        b.type = NOP$1;
+      }
+    }
+  }
+
+  function transformDeleteUpdate (a, b, options = {}) {
+    return _transformDeleteUpdate(a, b, false, options)
   }
 
   function transformCreateUpdate () {
@@ -4705,55 +4755,79 @@
     throw new Error('Can not transform a concurring create and update of the same property')
   }
 
-  function transformUpdateUpdate (a, b) {
+  function transformUpdateUpdate (a, b, options = {}) {
     
-    let opA, opB, t;
+    let opA = _deserializeDiffOp(a.propertyType, a.diff);
+    let opB = _deserializeDiffOp(b.propertyType, b.diff);
+    let t;
     switch (b.propertyType) {
       case 'string':
-        opA = TextOperation.fromJSON(a.diff);
-        opB = TextOperation.fromJSON(b.diff);
-        t = TextOperation.transform(opA, opB, {inplace: true});
+        t = TextOperation.transform(opA, opB, options);
         break
       case 'array':
-        opA = ArrayOperation.fromJSON(a.diff);
-        opB = ArrayOperation.fromJSON(b.diff);
-        t = ArrayOperation.transform(opA, opB, {inplace: true});
+        t = ArrayOperation.transform(opA, opB, options);
         break
       case 'coordinate':
-        opA = CoordinateOperation.fromJSON(a.diff);
-        opB = CoordinateOperation.fromJSON(b.diff);
-        t = CoordinateOperation.transform(opA, opB, {inplace: true});
+        t = CoordinateOperation.transform(opA, opB, options);
         break
       default:
-        throw new Error('Illegal type')
+        throw new Error('Unsupported property type for incremental update')
     }
     a.diff = t[0];
     b.diff = t[1];
   }
 
-  function transformCreateSet () {
-    throw new Error('Illegal state: can not create and set a value at the same time.')
-  }
-
-  function transformDeleteSet (a, b, flipped) {
-    if (a.type !== DELETE$2) return transformDeleteSet(b, a, true)
-    if (!flipped) {
-      a.type = NOP$1;
-      b.type = CREATE;
-      b.original = undefined;
-    } else {
-      a.val = b.val;
-      b.type = NOP$1;
+  function _deserializeDiffOp (propertyType, diff) {
+    if (diff._isOperation) return diff
+    switch (propertyType) {
+      case 'string':
+        return TextOperation.fromJSON(diff)
+      case 'array':
+        return ArrayOperation.fromJSON(diff)
+      case 'coordinate':
+        return CoordinateOperation.fromJSON(diff)
+      default:
+        throw new Error('Unsupported property type for incremental update.')
     }
   }
 
-  function transformUpdateSet () {
-    throw new Error('Unresolvable conflict: update + set.')
+  function transformCreateSet (a, b, options = {}) {
+    if (!options.rebase) {
+      throw new Error('Illegal state: can not create and set a value at the same time.')
+    }
   }
 
-  function transformSetSet (a, b) {
-    a.type = NOP$1;
-    b.original = a.val;
+  function _transformDeleteSet (a, b, flipped, options = {}) {
+    if (a.type !== DELETE$2) return _transformDeleteSet(b, a, true, options)
+    
+    if (!options.rebase) {
+      if (!flipped) {
+        a.type = NOP$1;
+        b.type = CREATE;
+        b.original = undefined;
+      } else {
+        a.val = b.val;
+        b.type = NOP$1;
+      }
+    }
+  }
+
+  function transformDeleteSet (a, b, options = {}) {
+    return _transformDeleteSet(a, b, false, options)
+  }
+
+  function transformUpdateSet (a, b, options = {}) {
+    if (!options.rebase) {
+      throw new Error('Unresolvable conflict: update + set.')
+    }
+  }
+
+  function transformSetSet (a, b, options = {}) {
+    
+    if (!options.rebase) {
+      a.type = NOP$1;
+      b.original = a.val;
+    }
   }
 
   const _NOP = 0;
@@ -4789,14 +4863,9 @@
     return t
   })();
 
-  function transform$3 (a, b, options) {
-    options = options || {};
+  function transform$3 (a, b, options = {}) {
     if (options['no-conflict'] && hasConflict$1(a, b)) {
       throw new Conflict(a, b)
-    }
-    if (!options.inplace) {
-      a = a.clone();
-      b = b.clone();
     }
     if (a.isNOP() || b.isNOP()) {
       return [a, b]
@@ -4804,7 +4873,7 @@
     var sameProp = isEqual(a.path, b.path);
     
     if (sameProp) {
-      __transform__[CODE[a.type] | CODE[b.type]](a, b);
+      __transform__[CODE[a.type] | CODE[b.type]](a, b, options);
     }
     return [a, b]
   }
@@ -5210,6 +5279,10 @@
       }
     }
 
+    clone () {
+      return new Coordinate(this.toJSON())
+    }
+
     toString () {
       return '(' + this.path.join('.') + ', ' + this.offset + ')'
     }
@@ -5226,13 +5299,18 @@
       return isArrayEqual(this.path, other.path)
     }
 
+    isEqual (other) {
+      if (!other) return false
+      return this.offset === other.offset && this.hasSamePath(other)
+    }
+
     
     get _isCoordinate () { return true }
   }
 
   class PropertySelection extends Selection {
     
-    constructor (path, startOffset, endOffset, reverse, containerId, surfaceId) {
+    constructor (path, startOffset, endOffset, reverse, containerPath, surfaceId) {
       super();
 
       if (arguments.length === 1) {
@@ -5241,7 +5319,7 @@
         startOffset = data.startOffset;
         endOffset = data.endOffset;
         reverse = data.reverse;
-        containerId = data.containerId;
+        containerPath = data.containerPath;
         surfaceId = data.surfaceId;
       }
 
@@ -5255,7 +5333,7 @@
       
       this.reverse = Boolean(reverse);
 
-      this.containerId = containerId;
+      this.containerPath = containerPath;
 
       
       this.surfaceId = surfaceId;
@@ -5266,12 +5344,10 @@
     }
 
     get startOffset () {
-      console.warn('DEPRECATED: Use sel.start.offset instead');
       return this.start.offset
     }
 
     get endOffset () {
-      console.warn('DEPRECATED: Use sel.end.offset instead');
       return this.end.offset
     }
 
@@ -5283,7 +5359,7 @@
         startOffset: this.start.offset,
         endOffset: this.end.offset,
         reverse: this.reverse,
-        containerId: this.containerId,
+        containerPath: this.containerPath,
         surfaceId: this.surfaceId
       }
     }
@@ -5437,7 +5513,7 @@
       if (!this.overlaps(other)) {
         return this
       }
-      var otherStartOffset, otherEndOffset;
+      let otherStartOffset, otherEndOffset;
       if (other.isPropertySelection()) {
         otherStartOffset = other.start.offset;
         otherEndOffset = other.end.offset;
@@ -5457,8 +5533,8 @@
         return this
       }
 
-      var newStartOffset;
-      var newEndOffset;
+      let newStartOffset;
+      let newEndOffset;
       if (this.start.offset > otherStartOffset && this.end.offset > otherEndOffset) {
         newStartOffset = otherEndOffset;
         newEndOffset = this.end.offset;
@@ -5490,7 +5566,7 @@
 
     
     createWithNewRange (startOffset, endOffset) {
-      var sel = new PropertySelection(this.path, startOffset, endOffset, false, this.containerId, this.surfaceId);
+      var sel = new PropertySelection(this.path, startOffset, endOffset, false, this.containerPath, this.surfaceId);
       var doc = this._internal.doc;
       if (doc) {
         sel.attach(doc);
@@ -5499,7 +5575,7 @@
     }
 
     _clone () {
-      return new PropertySelection(this.start.path, this.start.offset, this.end.offset, this.reverse, this.containerId, this.surfaceId)
+      return new PropertySelection(this.start.path, this.start.offset, this.end.offset, this.reverse, this.containerPath, this.surfaceId)
     }
   }
 
@@ -5507,13 +5583,59 @@
     return new PropertySelection(json)
   };
 
+  function compareCoordinates (doc, containerPath, coor1, coor2) {
+    
+    if (!coor1.hasSamePath(coor2)) {
+      let address1 = _getContainerAddress(doc, containerPath, coor1);
+      let address2 = _getContainerAddress(doc, containerPath, coor2);
+      let L = Math.min(address1.length, address2.length);
+      for (let level = 0; level < L; level++) {
+        let p1 = address1[level];
+        let p2 = address2[level];
+        if (p1 < p2) return -1
+        if (p1 > p2) return 1
+      }
+      if (address1.length === address2.length) {
+        return Math.sign(coor1.offset - coor2.offset)
+      } else {
+        
+        console.error('FIXME: unexpected case in compareCoordinates()');
+        return 0
+      }
+    } else {
+      return Math.sign(coor1.offset - coor2.offset)
+    }
+  }
+
+  function _getContainerAddress (doc, containerPath, coor) {
+    let containerId = containerPath[0];
+    let nodeId = coor.path[0];
+    let node = doc.get(nodeId);
+    let xpath = node.getXpath();
+    let address = [];
+    while (xpath) {
+      if (xpath.id === containerId) return address
+      address.unshift(xpath.pos || 0);
+      xpath = xpath.prev;
+    }
+  }
+
+  function isCoordinateBefore (doc, containerPath, coor1, coor2, strict) {
+    let cmp = compareCoordinates(doc, containerPath, coor1, coor2);
+    if (strict) {
+      return cmp < 0
+    } else {
+      return cmp <= 0
+    }
+  }
+
   class ContainerSelection extends Selection {
-    constructor (containerId, startPath, startOffset, endPath, endOffset, reverse, surfaceId) {
+    constructor (containerPath, startPath, startOffset, endPath, endOffset, reverse, surfaceId) {
       super();
 
       if (arguments.length === 1) {
         let data = arguments[0];
-        containerId = data.containerId;
+        containerPath = data.containerPath;
         startPath = data.startPath;
         startOffset = data.startOffset;
         endPath = data.endPath;
@@ -5523,8 +5645,8 @@
       }
 
       
-      this.containerId = containerId;
-      if (!this.containerId) throw new Error('Invalid arguments: `containerId` is mandatory')
+      this.containerPath = containerPath;
+      if (!this.containerPath) throw new Error('Invalid arguments: `containerPath` is mandatory')
 
       this.start = new Coordinate(startPath, startOffset);
       this.end = new Coordinate(isNil(endPath) ? startPath : endPath, isNil(endOffset) ? startOffset : endOffset);
@@ -5561,7 +5683,7 @@
     toJSON () {
       return {
         type: 'container',
-        containerId: this.containerId,
+        containerPath: this.containerPath,
         startPath: this.start.path,
         startOffset: this.start.offset,
         endPath: this.end.path,
@@ -5594,7 +5716,7 @@
     equals (other) {
       return (
         Selection.prototype.equals.call(this, other) &&
-        this.containerId === other.containerId &&
+        isArrayEqual(this.containerPath, other.containerPath) &&
         (this.start.equals(other.start) && this.end.equals(other.end))
       )
     }
@@ -5603,7 +5725,7 @@
       
       return [
         'ContainerSelection(',
-        this.containerId, ', ',
+        this.containerPath, ', ',
         JSON.stringify(this.start.path), ', ', this.start.offset,
         ' -> ',
         JSON.stringify(this.end.path), ', ', this.end.offset,
@@ -5613,69 +5735,52 @@
       ].join('')
     }
 
-    
-    getContainer () {
-      if (!this._internal.container) {
-        this._internal.container = this.getDocument().get(this.containerId);
-      }
-      return this._internal.container
-    }
-
     isInsideOf (other, strict) {
       
       
       if (other.isNull()) return false
-      strict = Boolean(strict);
-      let r1 = this._range(this);
-      let r2 = this._range(other);
-      return (r2.start.isBefore(r1.start, strict) &&
-        r1.end.isBefore(r2.end, strict))
+      return (
+        this._isCoordinateBefore(other.start, this.start, strict) &&
+        this._isCoordinateBefore(this.end, other.end, strict)
+      )
     }
 
     contains (other, strict) {
       
       
       if (other.isNull()) return false
-      strict = Boolean(strict);
-      let r1 = this._range(this);
-      let r2 = this._range(other);
-      return (r1.start.isBefore(r2.start, strict) &&
-        r2.end.isBefore(r1.end, strict))
+      return (
+        this._isCoordinateBefore(this.start, other.start, strict) &&
+        this._isCoordinateBefore(other.end, this.end, strict)
+      )
     }
 
-    containsNode (nodeId, strict) {
-      const container = this.getContainer();
-      if (!container.contains(nodeId)) return false
-      const coor = new Coordinate([nodeId], 0);
-      const address = container.getAddress(coor);
-      const r = this._range(this);
+    containsNode (nodeId) {
+      let containerPath = this.containerPath;
+      let doc = this.getDocument();
+      let nodeCoor = new Coordinate([nodeId], 0);
+      let cmpStart = compareCoordinates(doc, containerPath, nodeCoor, this.start);
+      let cmpEnd = compareCoordinates(doc, containerPath, nodeCoor, this.end);
       
-      let contained = r.start.isBefore(address, strict);
-      if (contained) {
-        address.offset = 1;
-        contained = r.end.isAfter(address, strict);
-      }
-      return contained
+      
+      
+      return cmpStart >= 0 && cmpEnd < 0
     }
 
     overlaps (other) {
-      let r1 = this._range(this);
-      let r2 = this._range(other);
       
-      return !(r1.end.isBefore(r2.start, false) ||
-        r2.end.isBefore(r1.start, false))
+      return (
+        !this._isCoordinateBefore(this.end, other.start, false) ||
+        this._isCoordinateBefore(other.end, this.start, false)
+      )
     }
 
     isLeftAlignedWith (other) {
-      let r1 = this._range(this);
-      let r2 = this._range(other);
-      return r1.start.isEqual(r2.start)
+      return this.start.isEqual(other.start)
     }
 
     isRightAlignedWith (other) {
-      let r1 = this._range(this);
-      let r2 = this._range(other);
-      return r1.end.isEqual(r2.end)
+      return this.end.isEqual(other.end)
     }
 
     
@@ -5690,21 +5795,19 @@
     }
 
     expand (other) {
-      let r1 = this._range(this);
-      let r2 = this._range(other);
       let start;
       let end;
 
-      if (r1.start.isEqual(r2.start)) {
+      if (this.start.isEqual(other.start)) {
         start = new Coordinate(this.start.path, Math.min(this.start.offset, other.start.offset));
-      } else if (r1.start.isAfter(r2.start)) {
+      } else if (this._isCoordinateBefore(other.start, this.start, false)) {
         start = new Coordinate(other.start.path, other.start.offset);
       } else {
         start = this.start;
       }
-      if (r1.end.isEqual(r2.end)) {
+      if (this.end.isEqual(other.end)) {
         end = new Coordinate(this.end.path, Math.max(this.end.offset, other.end.offset));
-      } else if (r1.end.isBefore(r2.end, false)) {
+      } else if (this._isCoordinateBefore(this.end, other.end, false)) {
         end = new Coordinate(other.end.path, other.end.offset);
       } else {
         end = this.end;
@@ -5721,25 +5824,23 @@
       if (!this.overlaps(other)) {
         return this
       }
-      let r1 = this._range(this);
-      let r2 = this._range(other);
       let start, end;
-      if (r2.start.isBefore(r1.start, 'strict') && r2.end.isBefore(r1.end, 'strict')) {
+      if (this._isCoordinateBefore(other.start, this.start, 'strict') && this._isCoordinateBefore(other.end, this.end, 'strict')) {
         start = other.end;
         end = this.end;
-      } else if (r1.start.isBefore(r2.start, 'strict') && r1.end.isBefore(r2.end, 'strict')) {
+      } else if (this._isCoordinateBefore(this.start, other.start, 'strict') && this._isCoordinateBefore(this.end, other.end, 'strict')) {
         start = this.start;
         end = other.start;
-      } else if (r1.start.isEqual(r2.start)) {
-        if (r2.end.isBefore(r1.end, 'strict')) {
+      } else if (this.start.isEqual(other.start)) {
+        if (this._isCoordinateBefore(other.end, this.end, 'strict')) {
           start = other.end;
           end = this.end;
         } else {
           
           return Selection.nullSelection
         }
-      } else if (r1.end.isEqual(r2.end)) {
-        if (r1.start.isBefore(r2.start, 'strict')) {
+      } else if (this.end.isEqual(other.end)) {
+        if (this._isCoordinateBefore(this.start, other.start, 'strict')) {
           start = this.start;
           end = other.start;
         } else {
@@ -5755,56 +5856,26 @@
     }
 
     
-    getNodeIds () {
-      const container = this.getContainer();
-      const startPos = container.getPosition(this.start.path[0]);
-      const endPos = container.getPosition(this.end.path[0]);
-      return container.getContent().slice(startPos, endPos + 1)
+    splitIntoPropertySelections () {
+      let fragments = this.getFragments();
+      return fragments.filter(f => f instanceof Selection.Fragment).map(f => {
+        return new PropertySelection(f.path, f.startOffset,
+          f.endOffset, false, this.containerPath, this.surfaceId)
+      })
     }
 
     
-    splitIntoPropertySelections () {
-      let sels = [];
-      let fragments = this.getFragments();
-      fragments.forEach(function (fragment) {
-        if (fragment instanceof Selection.Fragment) {
-          sels.push(
-            new PropertySelection(fragment.path, fragment.startOffset,
-              fragment.endOffset, false, this.containerId, this.surfaceId)
-          );
-        }
-      }.bind(this));
-      return sels
+    _getContainerContent () {
+      return this.getDocument().get(this.containerPath)
     }
 
     _clone () {
       return new ContainerSelection(this)
     }
 
-    _range (sel) {
-      
-      
-      
-      if (sel._internal.addressRange) {
-        return sel._internal.addressRange
-      }
-
-      let container = this.getContainer();
-      let startAddress = container.getAddress(sel.start);
-      let endAddress;
-      if (sel.isCollapsed()) {
-        endAddress = startAddress;
-      } else {
-        endAddress = container.getAddress(sel.end);
-      }
-      let addressRange = {
-        start: startAddress,
-        end: endAddress
-      };
-      if (sel._isContainerSelection) {
-        sel._internal.addressRange = addressRange;
-      }
-      return addressRange
+    _isCoordinateBefore (coor1, coor2, strict) {
+      let doc = this.getDocument();
+      return isCoordinateBefore(doc, this.containerPath, coor1, coor2, strict)
     }
 
     get path () {
@@ -5827,12 +5898,12 @@
         path: start.path,
         startOffset: start.offset,
         endOffset: start.offset,
-        containerId: containerSel.containerId,
+        containerPath: containerSel.containerPath,
         surfaceId: containerSel.surfaceId
       });
     } else {
       newSel = new ContainerSelection(
-        containerSel.containerId,
+        containerSel.containerPath,
         start.path, start.offset, end.path, end.offset,
         false, containerSel.surfaceId
       );
@@ -5846,27 +5917,27 @@
   }
 
   class NodeSelection extends Selection {
-    constructor (containerId, nodeId, mode, reverse, surfaceId) {
+    constructor (containerPath, nodeId, mode, reverse, surfaceId) {
       super();
 
       if (arguments.length === 1) {
         let data = arguments[0];
-        containerId = data.containerId;
+        containerPath = data.containerPath;
         nodeId = data.nodeId;
         mode = data.mode;
         reverse = data.reverse;
         surfaceId = data.surfaceId;
       }
 
-      if (!isString(containerId)) {
-        throw new Error("'containerId' is mandatory.")
+      if (!isArray(containerPath)) {
+        throw new Error("'containerPath' is mandatory.")
       }
       if (!isString(nodeId)) {
         throw new Error("'nodeId' is mandatory.")
       }
       mode = mode || 'full';
 
-      this.containerId = containerId;
+      this.containerPath = containerPath;
       this.nodeId = nodeId;
       this.mode = mode;
       this.reverse = Boolean(reverse);
@@ -5918,7 +5989,7 @@
         nodeId: this.nodeId,
         mode: this.mode,
         reverse: this.reverse,
-        containerId: this.containerId,
+        containerPath: this.containerPath,
         surfaceId: this.surfaceId
       }
     }
@@ -5927,7 +5998,7 @@
       
       return [
         'NodeSelection(',
-        this.containerId, '.', this.nodeId, ', ',
+        this.containerPath, '.', this.nodeId, ', ',
         this.mode, ', ',
         (this.reverse ? ', reverse' : ''),
         (this.surfaceId ? (', ' + this.surfaceId) : ''),
@@ -5940,13 +6011,13 @@
         if (this.isBefore()) {
           return this
         } else {
-          return new NodeSelection(this.containerId, this.nodeId, 'before', this.reverse, this.surfaceId)
+          return new NodeSelection(this.containerPath, this.nodeId, 'before', this.reverse, this.surfaceId)
         }
       } else if (direction === 'right') {
         if (this.isAfter()) {
           return this
         } else {
-          return new NodeSelection(this.containerId, this.nodeId, 'after', this.reverse, this.surfaceId)
+          return new NodeSelection(this.containerPath, this.nodeId, 'after', this.reverse, this.surfaceId)
         }
       } else {
         throw new Error("'direction' must be either 'left' or 'right'")
@@ -5969,30 +6040,27 @@
       return new NodeSelection(data)
     }
 
-    
-    static _createFromCoordinate (coor) {
-      var containerId = coor.containerId;
-      var nodeId = coor.getNodeId();
-      var mode = coor.offset === 0 ? 'before' : 'after';
-      return new NodeSelection(containerId, nodeId, mode, false)
-    }
-
     get _isNodeSelection () { return true }
   }
 
   class CustomSelection extends Selection {
-    constructor (customType, data, surfaceId) {
+    constructor (customType, data, nodeId, surfaceId) {
       super();
 
       if (arguments.length === 1) {
         let _data = arguments[0];
         customType = _data.customType;
         data = _data.data;
+        nodeId = _data.nodeId;
         surfaceId = _data.surfaceId;
       }
 
+      if (!customType) { throw new Error("'customType' is required") }
+      if (!nodeId) { throw new Error("'nodeId' is required") }
+
       this.customType = customType;
       this.data = data || {};
+      this.nodeId = nodeId;
       this.surfaceId = surfaceId;
     }
 
@@ -6008,13 +6076,22 @@
       return this.customType
     }
 
+    
+    getNodeId () {
+      return this.nodeId
+    }
+
     toJSON () {
-      return {
+      let res = {
         type: 'custom',
         customType: this.customType,
-        data: cloneDeep(this.data),
-        surfaceId: this.surfaceId
+        nodeId: this.nodeId,
+        data: cloneDeep(this.data)
+      };
+      if (this.surfaceId) {
+        res.surfaceId = this.surfaceId;
       }
+      return res
     }
 
     toString () {
@@ -6046,6 +6123,23 @@
     }
   }
 
+  function getContainerRoot (doc, containerPath, nodeId) {
+    let current = doc.get(nodeId);
+    let containerId = containerPath[0];
+    while (current) {
+      let parent = current.getParent();
+      if (parent && parent.id === containerId) {
+        return current
+      }
+      current = parent;
+    }
+  }
+
+  function getContainerPosition (doc, containerPath, nodeId) {
+    let node = getContainerRoot(doc, containerPath, nodeId);
+    return node.getPosition()
+  }
+
   function fromJSON (json) {
     if (!json) return Selection.nullSelection
     var type = json.type;
@@ -6065,57 +6159,55 @@
   }
 
 
-  function isFirst (doc, coor) {
-    if (coor.isNodeCoordinate() && coor.offset === 0) return true
-    let node = doc.get(coor.path[0]).getContainerRoot();
-    if (node.isText() && coor.offset === 0) return true
+  function isFirst (doc, containerPath, coor) {
+    if (coor.isNodeCoordinate()) {
+      return coor.offset === 0
+    }
+    let node = getContainerRoot(doc, containerPath, coor.path[0]);
+    if (node.isText()) {
+      return coor.offset === 0
+    }
     if (node.isList()) {
       let itemId = coor.path[0];
-      if (node.items[0] === itemId && coor.offset === 0) return true
+      return (node.items[0] === itemId && coor.offset === 0)
     }
+    return false
   }
 
 
-  function isLast (doc, coor) {
-    if (coor.isNodeCoordinate() && coor.offset > 0) return true
-    let node = doc.get(coor.path[0]).getContainerRoot();
-    if (node.isText() && coor.offset >= node.getLength()) return true
+  function isLast (doc, containerPath, coor) {
+    if (coor.isNodeCoordinate()) {
+      return coor.offset > 0
+    }
+    let node = getContainerRoot(doc, containerPath, coor.path[0]);
+    if (node.isText()) {
+      return coor.offset >= node.getLength()
+    }
     if (node.isList()) {
       let itemId = coor.path[0];
       let item = doc.get(itemId);
-      if (last$1(node.items) === itemId && coor.offset === item.getLength()) return true
+      return (last$1(node.items) === itemId && coor.offset === item.getLength())
     }
+    return false
   }
 
   function isEntirelySelected (doc, node, start, end) {
-    let { isEntirelySelected } = getRangeInfo(doc, node, start, end);
+    let { isEntirelySelected } = _getRangeInfo(doc, node, start, end);
     return isEntirelySelected
   }
 
-  function getRangeInfo (doc, node, start, end) {
+  function _getRangeInfo (doc, node, start, end) {
     let isFirst = true;
     let isLast = true;
-    if (node.isText()) {
+    if (node.isText() || node.isListItem()) {
       if (start && start.offset !== 0) isFirst = false;
       if (end && end.offset < node.getLength()) isLast = false;
-    } else if (node.isList()) {
-      if (start) {
-        let itemId = start.path[0];
-        let itemPos = node.getItemPosition(itemId);
-        if (itemPos > 0 || start.offset !== 0) isFirst = false;
-      }
-      if (end) {
-        let itemId = end.path[0];
-        let itemPos = node.getItemPosition(itemId);
-        let item = doc.get(itemId);
-        if (itemPos < node.items.length - 1 || end.offset < item.getLength()) isLast = false;
-      }
     }
     let isEntirelySelected = isFirst && isLast;
     return {isFirst, isLast, isEntirelySelected}
   }
 
-  function setCursor (tx, node, containerId, mode) {
+  function setCursor (tx, node, containerPath, mode) {
     if (node.isText()) {
       let offset = 0;
       if (mode === 'after') {
@@ -6126,7 +6218,7 @@
         type: 'property',
         path: node.getPath(),
         startOffset: offset,
-        containerId: containerId
+        containerPath
       });
     } else if (node.isList()) {
       let item, offset;
@@ -6141,12 +6233,12 @@
         type: 'property',
         path: item.getPath(),
         startOffset: offset,
-        containerId: containerId
+        containerPath
       });
     } else {
       tx.setSelection({
         type: 'node',
-        containerId: containerId,
+        containerPath,
         nodeId: node.id
         
         
@@ -6155,22 +6247,22 @@
     }
   }
 
-  function selectNode (tx, nodeId, containerId) {
-    tx.setSelection(createNodeSelection({ doc: tx, nodeId, containerId }));
+  function selectNode (tx, nodeId, containerPath) {
+    tx.setSelection(createNodeSelection({ doc: tx, nodeId, containerPath }));
   }
 
-  function createNodeSelection ({ doc, nodeId, containerId, mode, reverse, surfaceId }) {
+  function createNodeSelection ({ doc, nodeId, containerPath, mode, reverse, surfaceId }) {
     let node = doc.get(nodeId);
     if (!node) return Selection.nullSelection
-    node = node.getContainerRoot();
+    node = getContainerRoot(doc, containerPath, nodeId);
     if (node.isText()) {
       return new PropertySelection({
         path: node.getPath(),
         startOffset: mode === 'after' ? node.getLength() : 0,
         endOffset: mode === 'before' ? 0 : node.getLength(),
-        reverse: reverse,
-        containerId: containerId,
-        surfaceId: surfaceId
+        reverse,
+        containerPath,
+        surfaceId
       })
     } else if (node.isList() && node.getLength() > 0) {
       let first = node.getFirstItem();
@@ -6190,12 +6282,12 @@
         startOffset: start.offset,
         endPath: end.path,
         endOffset: end.offset,
-        reverse: reverse,
-        containerId: containerId,
-        surfaceId: surfaceId
+        reverse,
+        containerPath,
+        surfaceId
       })
     } else {
-      return new NodeSelection({ nodeId, mode, reverse, containerId, surfaceId })
+      return new NodeSelection({ nodeId, mode, reverse, containerPath, surfaceId })
     }
   }
 
@@ -6220,10 +6312,12 @@
         });
         return true
       } else if (surface._isContainerEditor) {
-        let container = surface.getContainer();
-        if (container.length > 0) {
-          let first = container.getChildAt(0);
-          setCursor(editorSession, first, container.id, 'after');
+        let doc = editorSession.getDocument();
+        let containerPath = surface.getContainerPath();
+        let nodeIds = doc.get();
+        if (nodeIds.length > 0) {
+          let first = doc.get(nodeIds[0]);
+          setCursor(editorSession, first, containerPath, 'after');
         }
         return true
       }
@@ -6234,10 +6328,19 @@
   function augmentSelection (selData, oldSel) {
     
     if (selData && oldSel && !selData.surfaceId && !oldSel.isNull()) {
-      selData.containerId = selData.containerId || oldSel.containerId;
+      selData.containerPath = selData.containerPath || oldSel.containerPath;
       selData.surfaceId = selData.surfaceId || oldSel.surfaceId;
     }
     return selData
+  }
+
+
+  function getNodeIdsCoveredByContainerSelection (doc, sel) {
+    let containerPath = sel.containerPath;
+    let startPos = getContainerPosition(doc, containerPath, sel.start.path[0]);
+    let endPos = getContainerPosition(doc, containerPath, sel.end.path[0]);
+    let nodeIds = doc.get(containerPath);
+    return nodeIds.slice(startPos, endPos + 1)
   }
 
   var selectionHelpers = /*#__PURE__*/Object.freeze({
@@ -6245,12 +6348,853 @@
     isFirst: isFirst,
     isLast: isLast,
     isEntirelySelected: isEntirelySelected,
-    getRangeInfo: getRangeInfo,
     setCursor: setCursor,
     selectNode: selectNode,
     createNodeSelection: createNodeSelection,
     stepIntoIsolatedNode: stepIntoIsolatedNode,
-    augmentSelection: augmentSelection
+    augmentSelection: augmentSelection,
+    getNodeIdsCoveredByContainerSelection: getNodeIdsCoveredByContainerSelection
+  });
+
+  var annotationHelpers = {
+    insertedText,
+    deletedText,
+    transferAnnotations,
+    expandAnnotation,
+    fuseAnnotation,
+    truncateAnnotation
+  }
+
+  function insertedText (doc, coordinate, length) {
+    if (!length) return
+    var index = doc.getIndex('annotations');
+    var annotations = index.get(coordinate.path);
+    for (let i = 0; i < annotations.length; i++) {
+      let anno = annotations[i];
+      var pos = coordinate.offset;
+      var start = anno.start.offset;
+      var end = anno.end.offset;
+      var newStart = start;
+      var newEnd = end;
+      if ((pos < start) ||
+           (pos === start)) {
+        newStart += length;
+      }
+      
+      if ((pos < end) ||
+           (pos === end && !anno.isInlineNode())) {
+        newEnd += length;
+      }
+      
+      if (newStart !== start) {
+        doc.set([anno.id, 'start', 'offset'], newStart);
+      }
+      if (newEnd !== end) {
+        doc.set([anno.id, 'end', 'offset'], newEnd);
+      }
+    }
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  }
+
+  function deletedText (doc, path, startOffset, endOffset) {
+    if (startOffset === endOffset) return
+    var index = doc.getIndex('annotations');
+    var annotations = index.get(path);
+    var length = endOffset - startOffset;
+    for (let i = 0; i < annotations.length; i++) {
+      let anno = annotations[i];
+      var pos1 = startOffset;
+      var pos2 = endOffset;
+      var start = anno.start.offset;
+      var end = anno.end.offset;
+      var newStart = start;
+      var newEnd = end;
+      if (pos2 <= start) {
+        newStart -= length;
+        newEnd -= length;
+        doc.set([anno.id, 'start', 'offset'], newStart);
+        doc.set([anno.id, 'end', 'offset'], newEnd);
+      } else {
+        if (pos1 <= start) {
+          newStart = start - Math.min(pos2 - pos1, start - pos1);
+        }
+        if (pos1 <= end) {
+          newEnd = end - Math.min(pos2 - pos1, end - pos1);
+        }
+        
+        if (start !== end && newStart === newEnd) {
+          doc.delete(anno.id);
+        } else {
+          
+          if (start !== newStart) {
+            doc.set([anno.id, 'start', 'offset'], newStart);
+          }
+          if (end !== newEnd) {
+            doc.set([anno.id, 'end', 'offset'], newEnd);
+          }
+        }
+      }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  }
+
+
+  function transferAnnotations (doc, path, offset, newPath, newOffset) {
+    var index = doc.getIndex('annotations');
+    var annotations = index.get(path, offset);
+    for (let i = 0; i < annotations.length; i++) {
+      let a = annotations[i];
+      var isInside = (offset > a.start.offset && offset < a.end.offset);
+      var start = a.start.offset;
+      var end = a.end.offset;
+      
+      if (isInside) {
+        
+        if (a.canSplit()) {
+          let newAnno = a.toJSON();
+          newAnno.id = uuid(a.type + '_');
+          newAnno.start.path = newPath;
+          newAnno.start.offset = newOffset;
+          newAnno.end.path = newPath;
+          newAnno.end.offset = newOffset + a.end.offset - offset;
+          doc.create(newAnno);
+        }
+        
+        let newStartOffset = a.start.offset;
+        let newEndOffset = offset;
+        
+        if (newEndOffset === newStartOffset) {
+          doc.delete(a.id);
+        
+        } else {
+          
+          if (newStartOffset !== start) {
+            doc.set([a.id, 'start', 'offset'], newStartOffset);
+          }
+          if (newEndOffset !== end) {
+            doc.set([a.id, 'end', 'offset'], newEndOffset);
+          }
+        }
+      
+      } else if (a.start.offset >= offset) {
+        
+        
+        
+        doc.set([a.id, 'start', 'path'], newPath);
+        doc.set([a.id, 'start', 'offset'], newOffset + a.start.offset - offset);
+        doc.set([a.id, 'end', 'path'], newPath);
+        doc.set([a.id, 'end', 'offset'], newOffset + a.end.offset - offset);
+      }
+    }
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  }
+
+
+  function truncateAnnotation (tx, anno, sel) {
+    if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
+    if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
+    let annoSel = anno.getSelection();
+    let newAnnoSel = annoSel.truncateWith(sel);
+    anno._updateRange(tx, newAnnoSel);
+    return anno
+  }
+
+
+  function expandAnnotation (tx, anno, sel) {
+    if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
+    if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
+    let annoSel = anno.getSelection();
+    let newAnnoSel = annoSel.expand(sel);
+    anno._updateRange(tx, newAnnoSel);
+    return anno
+  }
+
+
+  function fuseAnnotation (tx, annos) {
+    if (!isArray(annos) || annos.length < 2) {
+      throw new Error('fuseAnnotation(): at least two annotations are necessary.')
+    }
+    let sel, annoType;
+    annos.forEach(function (anno, idx) {
+      if (idx === 0) {
+        sel = anno.getSelection();
+        annoType = anno.type;
+      } else {
+        if (anno.type !== annoType) {
+          throw new Error('fuseAnnotation(): all annotations must be of the same type.')
+        }
+        sel = sel.expand(anno.getSelection());
+      }
+    });
+    
+    for (var i = 1; i < annos.length; i++) {
+      tx.delete(annos[i].id);
+    }
+    expandAnnotation(tx, annos[0], sel);
+    tx.setSelection(sel);
+  }
+
+  class NodeIndex {
+    
+    select (node) { 
+      throw new Error('This method is abstract.')
+    }
+
+    clear () {
+      throw new Error('This method is abstract')
+    }
+
+    
+    create (node) { 
+      throw new Error('This method is abstract.')
+    }
+
+    
+    delete (node) { 
+      throw new Error('This method is abstract.')
+    }
+
+    set (node, path, newValue, oldValue) {
+      this.update(node, path, newValue, oldValue);
+    }
+
+    
+    update (node, path, newValue, oldValue) { 
+      throw new Error('This method is abstract.')
+    }
+
+    
+    reset (data) {
+      this.clear();
+      this._initialize(data);
+    }
+
+    
+    clone () {
+      var NodeIndexClass = this.constructor;
+      var clone = new NodeIndexClass();
+      return clone
+    }
+
+    _initialize (data) {
+      forEach(data.getNodes(), function (node) {
+        if (this.select(node)) {
+          this.create(node);
+        }
+      }.bind(this));
+    }
+  }
+
+
+  NodeIndex.create = function (prototype) {
+    var index = Object.assign(new NodeIndex(), prototype);
+    index.clone = function () {
+      return NodeIndex.create(prototype)
+    };
+    return index
+  };
+
+
+  NodeIndex.filterByType = function (type) {
+    return function (node) {
+      return node.isInstanceOf(type)
+    }
+  };
+
+  class DocumentIndex extends NodeIndex {}
+
+  function isFunction$1 (f) {
+    return typeof f === 'function'
+  }
+
+  function filter (iteratee, fn) {
+    if (!iteratee) return []
+    if (iteratee.constructor.prototype.filter && isFunction$1(iteratee.constructor.prototype.filter)) {
+      return iteratee.filter(fn)
+    }
+    let result = [];
+    forEach(iteratee, (val, key) => {
+      if (fn(val, key)) {
+        result.push(val);
+      }
+    });
+    return result
+  }
+
+  function flatten$1 (arr) {
+    return Array.prototype.concat.apply([], arr)
+  }
+
+  function flattenOften (arr, max) {
+    if (!(max > 0)) throw new Error("'max' must be a positive number")
+    let l = arr.length;
+    arr = flatten$1(arr);
+    let round = 1;
+    while (round < max && l < arr.length) {
+      l = arr.length;
+      arr = flatten$1(arr);
+      round++;
+    }
+    return arr
+  }
+
+  function getPropertyAnnotationsForSelection (doc, sel, options) {
+    options = options || {};
+    if (!sel.isPropertySelection()) {
+      return []
+    }
+    let path = sel.getPath();
+    let annotations = doc.getIndex('annotations').get(path, sel.start.offset, sel.end.offset);
+    if (options.type) {
+      annotations = filter(annotations, DocumentIndex.filterByType(options.type));
+    }
+    return annotations
+  }
+
+
+  function getContainerAnnotationsForSelection (doc, sel, containerPath, options) {
+    
+    
+    
+    
+    
+    if (!containerPath) {
+      throw new Error("'containerPath' is required.")
+    }
+    options = options || {};
+    let index = doc.getIndex('container-annotations');
+    let annotations = [];
+    if (index) {
+      annotations = index.get(containerPath, options.type);
+      annotations = filter(annotations, function (anno) {
+        return sel.overlaps(anno.getSelection())
+      });
+    }
+    return annotations
+  }
+
+
+  function isContainerAnnotation (doc, type) {
+    let schema = doc.getSchema();
+    return schema.isInstanceOf(type, '@container-annotation')
+  }
+
+
+  function getTextForSelection (doc, sel) {
+    if (!sel || sel.isNull()) {
+      return ''
+    } else if (sel.isPropertySelection()) {
+      let text = doc.get(sel.start.path);
+      return text.substring(sel.start.offset, sel.end.offset)
+    } else if (sel.isContainerSelection()) {
+      let result = [];
+      let nodeIds = getNodeIdsCoveredByContainerSelection(doc, sel);
+      let L = nodeIds.length;
+      for (let i = 0; i < L; i++) {
+        let id = nodeIds[i];
+        let node = doc.get(id);
+        if (node.isText()) {
+          let text = node.getText();
+          if (i === L - 1) {
+            text = text.slice(0, sel.end.offset);
+          }
+          if (i === 0) {
+            text = text.slice(sel.start.offset);
+          }
+          result.push(text);
+        }
+      }
+      return result.join('\n')
+    }
+  }
+
+  function getMarkersForSelection (doc, sel) {
+    
+    if (!sel || !sel.isPropertySelection()) return []
+    const path = sel.getPath();
+    
+    let markers = doc.getIndex('markers').get(path);
+    const filtered = filter(markers, function (m) {
+      return m.containsSelection(sel)
+    });
+    return filtered
+  }
+
+  function deleteNode (doc, node) {
+    console.error('DEPRECATED: use documentHelpers.deepDeleteNode() instead');
+    return deepDeleteNode(doc, node)
+  }
+
+
+  function deepDeleteNode (doc, node) {
+    
+    if (!node) {
+      console.warn('Invalid arguments');
+      return
+    }
+    if (isString(node)) {
+      node = doc.get(node);
+    }
+    
+    if (node.isText()) {
+      
+      let annos = doc.getIndex('annotations').get(node.id);
+      for (let i = 0; i < annos.length; i++) {
+        doc.delete(annos[i].id);
+      }
+    }
+    let nodeSchema = node.getSchema();
+    
+    
+    
+    doc.delete(node.id);
+    
+    let ownedProps = nodeSchema.getOwnedProperties();
+    ownedProps.forEach(prop => {
+      let value = node[prop.name];
+      if (prop.isArray()) {
+        let ids = value;
+        if (ids.length > 0) {
+          
+          if (isArray(ids[0])) ids = flattenOften(ids, 2);
+          ids.forEach((id) => {
+            deepDeleteNode(doc, doc.get(id));
+          });
+        }
+      } else {
+        deepDeleteNode(doc, doc.get(value));
+      }
+    });
+  }
+
+
+  function copyNode (node) {
+    let nodes = [];
+    
+    let doc = node.getDocument();
+    let nodeSchema = node.getSchema();
+    for (let prop of nodeSchema) {
+      
+      
+      if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
+        let val = node[prop.name];
+        nodes.push(_copyChildren(val));
+      }
+    }
+    nodes.push(node.toJSON());
+    let annotationIndex = node.getDocument().getIndex('annotations');
+    let annotations = annotationIndex.get([node.id]);
+    forEach(annotations, function (anno) {
+      nodes.push(anno.toJSON());
+    });
+    let result = flatten$1(nodes).filter(Boolean);
+    
+    return result
+
+    function _copyChildren (val) {
+      if (!val) return null
+      if (isArray(val)) {
+        return flatten$1(val.map(_copyChildren))
+      } else {
+        let id = val;
+        if (!id) return null
+        let child = doc.get(id);
+        if (!child) return
+        return copyNode(child)
+      }
+    }
+  }
+
+
+  function deleteTextRange (doc, start, end) {
+    if (!start) {
+      start = {
+        path: end.path,
+        offset: 0
+      };
+    }
+    let path = start.path;
+    let text = doc.get(path);
+    if (!end) {
+      end = {
+        path: start.path,
+        offset: text.length
+      };
+    }
+    
+    if (!isArrayEqual(start.path, end.path)) {
+      throw new Error('start and end must be on one property')
+    }
+    let startOffset = start.offset;
+    if (startOffset < 0) throw new Error('start offset must be >= 0')
+    let endOffset = end.offset;
+    if (endOffset > text.length) throw new Error('end offset must be smaller than the text length')
+
+    doc.update(path, { type: 'delete', start: startOffset, end: endOffset });
+    
+    let annos = doc.getAnnotations(path);
+    annos.forEach(function (anno) {
+      let annoStart = anno.start.offset;
+      let annoEnd = anno.end.offset;
+      
+      if (annoEnd <= startOffset) ; else if (annoStart >= endOffset) {
+        doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - endOffset });
+        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
+      
+      } else if (annoStart >= startOffset && annoEnd <= endOffset) {
+        doc.delete(anno.id);
+      
+      } else if (annoStart >= startOffset && annoEnd >= endOffset) {
+        if (annoStart > startOffset) {
+          doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - annoStart });
+        }
+        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
+      
+      } else if (annoStart <= startOffset && annoEnd <= endOffset) {
+        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - annoEnd });
+      
+      } else if (annoStart < startOffset && annoEnd >= endOffset) {
+        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
+      } else {
+        console.warn('TODO: handle annotation update case.');
+      }
+    });
+  }
+
+  function deleteListRange (doc, list, start, end, options = {}) {
+    
+    
+    if (doc !== list.getDocument()) {
+      list = doc.get(list.id);
+    }
+    let startItem, endItem;
+    if (!start) {
+      startItem = list.getItemAt(0);
+      start = {
+        path: startItem.getPath(),
+        offset: 0
+      };
+    } else {
+      startItem = doc.get(start.path[0]);
+    }
+    if (!end) {
+      endItem = list.getLastItem();
+      end = {
+        path: endItem.getPath(),
+        offset: endItem.getLength()
+      };
+    } else {
+      endItem = doc.get(end.path[0]);
+    }
+    let startPos = list.getItemPosition(startItem);
+    let endPos = list.getItemPosition(endItem);
+    
+    if (startPos === endPos) {
+      deleteTextRange(doc, start, end);
+      return
+    }
+    
+    if (startPos > endPos) {
+      [start, end] = [end, start];
+      [startPos, endPos] = [endPos, startPos];
+      [startItem, endItem] = [endItem, startItem];
+    }
+    let firstEntirelySelected = isEntirelySelected(doc, startItem, start, null);
+    let lastEntirelySelected = isEntirelySelected(doc, endItem, null, end);
+
+    
+    if (lastEntirelySelected) {
+      list.removeItemAt(endPos);
+      deepDeleteNode(doc, endItem);
+    } else {
+      deleteTextRange(doc, null, end);
+    }
+
+    
+    let items = list.getItems();
+    for (let i = endPos - 1; i > startPos; i--) {
+      let item = items[i];
+      list.removeItemAt(i);
+      deepDeleteNode(doc, item);
+    }
+
+    
+    if (firstEntirelySelected) {
+      
+      
+      
+      
+      if (options.deleteEmptyFirstItem) {
+        list.removeItemAt(startPos);
+        deepDeleteNode(doc, startItem);
+      } else {
+        deleteTextRange(doc, start, null);
+      }
+    } else {
+      deleteTextRange(doc, start, null);
+    }
+
+    if (!firstEntirelySelected && !lastEntirelySelected) {
+      mergeListItems(doc, list.id, startPos);
+    }
+  }
+
+  function setText (doc, textPath, text) {
+    const oldText = doc.get(textPath);
+    if (oldText.length > 0) {
+      deleteTextRange(doc, { path: textPath, offset: 0 });
+    }
+    doc.update(textPath, { type: 'insert', start: 0, text });
+    return this
+  }
+
+  function mergeListItems (doc, listId, itemPos) {
+    
+    let list = doc.get(listId);
+    let targetItem = list.getItemAt(itemPos);
+    let targetPath = targetItem.getPath();
+    let targetLength = targetItem.getLength();
+    let sourceItem = list.getItemAt(itemPos + 1);
+    let sourcePath = sourceItem.getPath();
+    
+    list.removeItemAt(itemPos + 1);
+    
+    doc.update(targetPath, { type: 'insert', start: targetLength, text: sourceItem.getText() });
+    
+    annotationHelpers.transferAnnotations(doc, sourcePath, 0, targetPath, targetLength);
+    deepDeleteNode(doc, sourceItem);
+  }
+
+
+
+  const SNIPPET_ID = 'snippet';
+  const TEXT_SNIPPET_ID = 'text-snippet';
+
+  function insertAt (doc, containerPath, pos, id) {
+    doc.update(containerPath, { type: 'insert', pos, value: id });
+  }
+
+  function append (doc, containerPath, id) {
+    insertAt(doc, containerPath, doc.get(containerPath).length, id);
+  }
+
+
+  function removeAt (doc, containerPath, pos) {
+    let op = doc.update(containerPath, { type: 'delete', pos });
+    if (op && op.diff) {
+      return op.diff.val
+    }
+  }
+
+  function remove (doc, containerPath, id) {
+    let index = doc.get(containerPath).indexOf(id);
+    if (index >= 0) {
+      return removeAt(doc, containerPath, index)
+    }
+    return false
+  }
+
+  function getNodesForPath (doc, containerPath) {
+    let ids = doc.get(containerPath);
+    return getNodesForIds(doc, ids)
+  }
+
+  function getNodesForIds (doc, ids) {
+    return ids.map(id => doc.get(id, 'strict'))
+  }
+
+  function getNodeAt (doc, containerPath, nodePos) {
+    let ids = doc.get(containerPath);
+    return doc.get(ids[nodePos])
+  }
+
+  function getPreviousNode (doc, containerPath, nodePos) {
+    if (nodePos > 0) {
+      return getNodeAt(doc, containerPath, nodePos - 1)
+    }
+  }
+
+  function getNextNode (doc, containerPath, nodePos) {
+    return getNodeAt(doc, containerPath, nodePos + 1)
+  }
+
+
+
+  function getChildren (node) {
+    const doc = node.getDocument();
+    const id = node.id;
+    const schema = node.getSchema();
+    let result = [];
+    for (let p of schema) {
+      const name = p.name;
+      if (p.isText()) {
+        let annos = doc.getAnnotations([id, name]);
+        forEach(annos, a => result.push(a));
+      } else if (p.isReference() && p.isOwned()) {
+        let val = node[name];
+        if (val) {
+          if (p.isArray()) {
+            result = result.concat(val.map(id => doc.get(id)));
+          } else {
+            result.push(doc.get(val));
+          }
+        }
+      }
+    }
+    return result
+  }
+
+  function getParent (node) {
+    
+    if (node._isAnnotation) {
+      let anno = node;
+      let nodeId = anno.start.path[0];
+      return anno.getDocument().get(nodeId)
+    } else {
+      return node.getParent()
+    }
+  }
+
+
+  function createNodeFromJson (doc, data) {
+    if (!data) throw new Error("'data' is mandatory")
+    if (!data.type) throw new Error("'data.type' is mandatory")
+    if (!isFunction$1(doc.create)) throw new Error('First argument must be document or tx')
+    let type = data.type;
+    let nodeSchema = doc.getSchema().getNodeSchema(type);
+    let nodeData = {
+      type,
+      id: data.id
+    };
+    for (let p of nodeSchema) {
+      const name = p.name;
+      if (!data.hasOwnProperty(name)) continue
+      let val = data[name];
+      if (p.isReference()) {
+        if (p.isArray()) {
+          nodeData[name] = val.map(childData => createNodeFromJson(doc, childData).id);
+        } else {
+          let child = createNodeFromJson(doc, val);
+          nodeData[name] = child.id;
+        }
+      } else {
+        nodeData[p.name] = val;
+      }
+    }
+    return doc.create(nodeData)
+  }
+
+  var documentHelpers = /*#__PURE__*/Object.freeze({
+    getPropertyAnnotationsForSelection: getPropertyAnnotationsForSelection,
+    getContainerAnnotationsForSelection: getContainerAnnotationsForSelection,
+    isContainerAnnotation: isContainerAnnotation,
+    getTextForSelection: getTextForSelection,
+    getMarkersForSelection: getMarkersForSelection,
+    deleteNode: deleteNode,
+    deepDeleteNode: deepDeleteNode,
+    copyNode: copyNode,
+    deleteTextRange: deleteTextRange,
+    deleteListRange: deleteListRange,
+    setText: setText,
+    mergeListItems: mergeListItems,
+    SNIPPET_ID: SNIPPET_ID,
+    TEXT_SNIPPET_ID: TEXT_SNIPPET_ID,
+    insertAt: insertAt,
+    append: append,
+    removeAt: removeAt,
+    remove: remove,
+    getNodesForPath: getNodesForPath,
+    getNodesForIds: getNodesForIds,
+    getNodeAt: getNodeAt,
+    getPreviousNode: getPreviousNode,
+    getNextNode: getNextNode,
+    getChildren: getChildren,
+    getParent: getParent,
+    createNodeFromJson: createNodeFromJson,
+    compareCoordinates: compareCoordinates,
+    isCoordinateBefore: isCoordinateBefore,
+    getContainerRoot: getContainerRoot,
+    getContainerPosition: getContainerPosition
   });
 
   class DocumentChange {
@@ -6304,11 +7248,11 @@
           case 'create':
           case 'delete': {
             let node = op.val;
-            if (node.hasOwnProperty('start')) {
-              updated[node.start.path] = true;
+            if (node.hasOwnProperty('start') && node.start.path) {
+              updated[getKeyForPath(node.start.path)] = true;
             }
-            if (node.hasOwnProperty('end')) {
-              updated[node.end.path] = true;
+            if (node.hasOwnProperty('end') && node.end.path) {
+              updated[getKeyForPath(node.end.path)] = true;
             }
             break
           }
@@ -6318,7 +7262,7 @@
             let node = doc.get(op.path[0]);
             if (node) {
               if (node.isPropertyAnnotation()) {
-                updated[node.start.path] = true;
+                updated[getKeyForPath(node.start.path)] = true;
               } else if (node.isContainerAnnotation()) {
                 affectedContainerAnnos.push(node);
               }
@@ -6342,19 +7286,19 @@
           deleted[op.val.id] = op.val;
         }
         if (op.type === 'set' || op.type === 'update') {
-          updated[op.path] = true;
+          updated[getKeyForPath(op.path)] = true;
           
           updated[op.path[0]] = true;
         }
         _checkAnnotation(op);
       }
 
-      affectedContainerAnnos.forEach(function (anno) {
-        let container = doc.get(anno.containerId, 'strict');
-        let startPos = container.getPosition(anno.start.path[0]);
-        let endPos = container.getPosition(anno.end.path[0]);
+      affectedContainerAnnos.forEach(anno => {
+        let startPos = getContainerPosition(doc, anno.containerPath, anno.start.path[0]);
+        let endPos = getContainerPosition(doc, anno.containerPath, anno.end.path[0]);
+        let nodeIds = doc.get(anno.containerPath);
         for (let pos = startPos; pos <= endPos; pos++) {
-          let node = container.getChildAt(pos);
+          let node = doc.get(nodeIds[pos]);
           let path;
           if (node.isText()) {
             path = node.getPath();
@@ -6362,7 +7306,7 @@
             path = [node.id];
           }
           if (!deleted[node.id]) {
-            updated[path] = true;
+            updated[getKeyForPath(path)] = true;
           }
         }
       });
@@ -6370,7 +7314,7 @@
       
       if (Object.keys(deleted).length > 0) {
         forEach(updated, function (_, key) {
-          let nodeId = key.split(',')[0];
+          let nodeId = key.split('.')[0];
           if (deleted[nodeId]) {
             delete updated[key];
           }
@@ -6401,20 +7345,14 @@
       return inverted
     }
 
-    
-    isAffected (path) {
-      console.error('DEPRECATED: use change.hasUpdated() instead');
-      return this.hasUpdated(path)
-    }
-
-    isUpdated (path) {
-      console.error('DEPRECATED: use change.hasUpdated() instead');
-      return this.hasUpdated(path)
-    }
-    
-
     hasUpdated (path) {
-      return this.updated[path]
+      let key;
+      if (isString(path)) {
+        key = path;
+      } else {
+        key = getKeyForPath(path);
+      }
+      return this.updated[key]
     }
 
     hasDeleted (id) {
@@ -6494,13 +7432,13 @@
     return new DocumentChange(change)
   };
 
-  function transformDocumentChange (A, B) {
-    _transformInplaceBatch(A, B);
+  function transformDocumentChange (A, B, options = {}) {
+    _transformBatch(A, B, options);
   }
 
-  function transformSelection (sel, a) {
+  function transformSelection (sel, a, options) {
     let newSel = sel.clone();
-    let hasChanged = _transformSelectionInplace(newSel, a);
+    let hasChanged = _transformSelectionInplace(newSel, a, options);
     if (hasChanged) {
       return newSel
     } else {
@@ -6508,31 +7446,45 @@
     }
   }
 
-  function _transformInplaceSingle (a, b) {
+  function _transformSingle (a, b, options = {}) {
+    
+    
+    let immutableLeft = options.immutableLeft;
+    let immutableRight = options.immutableRight;
     for (let i = 0; i < a.ops.length; i++) {
-      let opA = a.ops[i];
       for (let j = 0; j < b.ops.length; j++) {
+        let opA = a.ops[i];
         let opB = b.ops[j];
+        if (immutableLeft) {
+          opA = opA.clone();
+        }
+        if (immutableRight) {
+          opB = opB.clone();
+        }
         
         
-        ObjectOperation.transform(opA, opB, {inplace: true});
+        ObjectOperation.transform(opA, opB, options);
       }
     }
-    if (a.before) {
-      _transformSelectionInplace(a.before.selection, b);
+    if (!immutableLeft) {
+      if (a.before) {
+        _transformSelectionInplace(a.before.selection, b, options);
+      }
+      if (a.after) {
+        _transformSelectionInplace(a.after.selection, b, options);
+      }
     }
-    if (a.after) {
-      _transformSelectionInplace(a.after.selection, b);
-    }
-    if (b.before) {
-      _transformSelectionInplace(b.before.selection, a);
-    }
-    if (b.after) {
-      _transformSelectionInplace(b.after.selection, a);
+    if (!immutableRight) {
+      if (b.before) {
+        _transformSelectionInplace(b.before.selection, a, options);
+      }
+      if (b.after) {
+        _transformSelectionInplace(b.after.selection, a, options);
+      }
     }
   }
 
-  function _transformInplaceBatch (A, B) {
+  function _transformBatch (A, B, options = {}) {
     if (!isArray(A)) {
       A = [A];
     }
@@ -6543,12 +7495,12 @@
       let a = A[i];
       for (let j = 0; j < B.length; j++) {
         let b = B[j];
-        _transformInplaceSingle(a, b);
+        _transformSingle(a, b, options);
       }
     }
   }
 
-  function _transformSelectionInplace (sel, a) {
+  function _transformSelectionInplace (sel, a, options = {}) {
     if (!sel || (!sel.isPropertySelection() && !sel.isContainerSelection())) {
       return false
     }
@@ -6557,9 +7509,9 @@
     let isCollapsed = sel.isCollapsed();
     for (let i = 0; i < ops.length; i++) {
       let op = ops[i];
-      hasChanged |= _transformCoordinateInplace(sel.start, op);
+      hasChanged |= _transformCoordinateInplace(sel.start, op, options);
       if (!isCollapsed) {
-        hasChanged |= _transformCoordinateInplace(sel.end, op);
+        hasChanged |= _transformCoordinateInplace(sel.end, op, options);
       } else {
         if (sel.isContainerSelection()) {
           sel.end.path = sel.start.path;
@@ -6570,7 +7522,7 @@
     return hasChanged
   }
 
-  function _transformCoordinateInplace (coor, op) {
+  function _transformCoordinateInplace (coor, op, options) {
     if (!isEqual(op.path, coor.path)) return false
     let hasChanged = false;
     if (op.type === 'update' && op.propertyType === 'string') {
@@ -7518,10 +8470,6 @@
     return Object.assign(...args)
   }
 
-  function isFunction$1 (f) {
-    return typeof f === 'function'
-  }
-
   class ArrayIterator {
     constructor (arr) {
       this.arr = arr;
@@ -8139,14 +9087,13 @@
     }
 
     
-    append (child) {
-      var children;
+    append (children) {
       if (arguments.length === 1) {
-        if (isArray(child)) {
-          children = child;
+        if (isArray(children)) {
+          children = children.slice();
         } else {
-          this.appendChild(child);
-          return this
+          let child = children;
+          return this.appendChild(child)
         }
       } else {
         children = arguments;
@@ -8394,6 +9341,8 @@
   const SIGNATURE = uuid('_BrowserDOMElement');
 
   function _attach (nativeEl, browserDOMElement) {
+    if (!browserDOMElement._isBrowserDOMElement) throw new Error('Invalid argument')
+    if (nativeEl.hasOwnProperty(SIGNATURE)) throw new Error('Already attached')
     nativeEl[SIGNATURE] = browserDOMElement;
   }
 
@@ -8489,8 +9438,16 @@
       return this
     }
 
+    hasAttribute (name) {
+      return this.el.hasAttribute(name)
+    }
+
     getAttribute (name) {
-      return this.el.getAttribute(name)
+      
+      
+      if (this.el.hasAttribute(name)) {
+        return this.el.getAttribute(name)
+      }
     }
 
     setAttribute (name, value) {
@@ -8936,6 +9893,7 @@
       }
       this.el = newEl;
       _detach(oldEl);
+      _detach(newEl);
       _attach(newEl, this);
     }
 
@@ -8959,8 +9917,12 @@
     }
 
     click () {
+      
+      
+      
+      
       this.el.click();
-      return this
+      return true
     }
 
     getWidth () {
@@ -9112,7 +10074,7 @@
       } else if (el instanceof window.Node) {
         return new BrowserDOMElement(el)
       } else if (el._isBrowserDOMElement) {
-        return new BrowserDOMElement(el.getNativeElement())
+        return el
       } else if (el === window) {
         return BrowserDOMElement.getBrowserWindow()
       }
@@ -9132,8 +10094,11 @@
       this.el = window;
       _attach(window, this);
     }
+
+    get _isBrowserDOMElement () { return true }
   }
 
+  BrowserWindow.prototype.getNativeElement = BrowserDOMElement.prototype.getNativeElement;
   BrowserWindow.prototype.on = BrowserDOMElement.prototype.on;
   BrowserWindow.prototype.off = BrowserDOMElement.prototype.off;
   BrowserWindow.prototype.addEventListener = BrowserDOMElement.prototype.addEventListener;
@@ -19971,8 +20936,8 @@
     }
 
     click () {
-      this.emit('click', { target: this });
-      return this
+      this.emit('click', { target: this, currentTarget: this });
+      return true
     }
 
     emit (name, data) {
@@ -20171,7 +21136,7 @@
     static getBrowserWindow () {
       
       if (!_browserWindowStub) {
-        _browserWindowStub = MemoryDOMElement.createDocument('html');
+        _browserWindowStub = new MemoryWindowStub();
       }
       return _browserWindowStub
     }
@@ -20252,6 +21217,39 @@
   class DOMElementStub {
     on () {}
     off () {}
+  }
+
+
+
+  class MemoryWindowStub extends MemoryDOMElement {
+    constructor () {
+      super('window', { ownerDocument: MemoryDOMElement.createDocument('html') });
+
+      let location = {
+        href: '',
+        hash: ''
+      };
+
+      function _updateLocation (url) {
+        let hashIdx = url.indexOf('#');
+        location.href = url;
+        if (hashIdx >= 0) {
+          location.hash = url.slice(hashIdx);
+        }
+      }
+
+      let history = {
+        replaceState (stateObj, title, url) {
+          _updateLocation(url);
+        },
+        pushState (stateObj, title, url) {
+          _updateLocation(url);
+        }
+      };
+
+      this.location = location;
+      this.history = history;
+    }
   }
 
   function nameWithoutNS (name) {
@@ -20450,9 +21448,13 @@
     return _getDefaultImpl().isReverse(anchorNode, anchorOffset, focusNode, focusOffset)
   };
 
+
+  DefaultDOMElement._forceMemoryDOM = false;
+
   function _getDefaultImpl () {
-    
-    if (platform.inBrowser || platform.inElectron) {
+    if (DefaultDOMElement._forceMemoryDOM) {
+      return MemoryDOMElement
+    } else if (platform.inBrowser || platform.inElectron) {
       return BrowserDOMElement
     } else {
       return MemoryDOMElement
@@ -20464,21 +21466,14 @@
     DEBUG_RENDERING: false
   };
 
-  function flatten (arr) {
-    return Array.prototype.concat.apply([], arr)
-  }
-
-  function flattenOften (arr, max) {
-    if (!(max > 0)) throw new Error("'max' must be a positive number")
-    let l = arr.length;
-    arr = flatten(arr);
-    let round = 1;
-    while (round < max && l < arr.length) {
-      l = arr.length;
-      arr = flatten(arr);
-      round++;
+  function deleteFromArray (array, value) {
+    if (!array) return
+    for (var i = 0; i < array.length; i++) {
+      if (array[i] === value) {
+        array.splice(i, 1);
+        i--;
+      }
     }
-    return arr
   }
 
   function isBoolean (val) {
@@ -20522,14 +21517,15 @@
     ref (ref) {
       if (!ref) throw new Error('Illegal argument')
       
+      
       if (this._ref) throw new Error('A VirtualElement can only be referenced once.')
       this._ref = ref;
       if (this._context) {
         const refs = this._context.refs;
-        if (refs[ref]) {
+        if (refs.has(ref)) {
           throw new Error('An item with reference "' + ref + '" already exists.')
         }
-        refs[ref] = this;
+        refs.set(ref, this);
       }
       return this
     }
@@ -20590,22 +21586,22 @@
 
     removeAttribute (name) {
       if (this.attributes) {
-        delete this.attributes[name];
+        this.attributes.delete(name);
       }
       return this
     }
 
     getAttribute (name) {
       if (this.attributes) {
-        return this.attributes[name]
+        return this.attributes.get(name)
       }
     }
 
     setAttribute (name, value) {
       if (!this.attributes) {
-        this.attributes = {};
+        this.attributes = new Map();
       }
-      this.attributes[name] = value;
+      this.attributes.set(name, value);
       return this
     }
 
@@ -20613,19 +21609,21 @@
       
       
       
-      var attributes = {};
+      
+      
+      let entries = [];
       if (this.attributes) {
-        Object.assign(attributes, this.attributes);
+        entries = Array.from(this.attributes);
       }
       if (this.classNames) {
-        attributes.class = this.classNames.join(' ');
+        entries.push(['class', this.classNames.join(' ')]);
       }
       if (this.style) {
-        attributes.style = map(this.style, function (val, key) {
+        entries.push(['style', map(this.style, function (val, key) {
           return key + ':' + val
-        }).join(';');
+        }).join(';')]);
       }
-      return attributes
+      return new Map(entries)
     }
 
     getId () {
@@ -20781,37 +21779,37 @@
 
     getProperty (name) {
       if (this.htmlProps) {
-        return this.htmlProps[name]
+        return this.htmlProps.get(name)
       }
     }
 
     setProperty (name, value) {
       if (!this.htmlProps) {
-        this.htmlProps = {};
+        this.htmlProps = new Map();
       }
-      this.htmlProps[name] = value;
+      this.htmlProps.set(name, value);
       return this
     }
 
     removeProperty (name) {
       if (this.htmlProps) {
-        delete this.htmlProps[name];
+        this.htmlProps.delete(name);
       }
       return this
     }
 
     getStyle (name) {
       if (this.style) {
-        return this.style[name]
+        return this.style.get(name)
       }
     }
 
     setStyle (name, value) {
       if (!this.style) {
-        this.style = {};
+        this.style = new Map();
       }
       if (DOMElement.pxStyles[name] && isNumber(value)) value = value + 'px';
-      this.style[name] = value;
+      this.style.set(name, value);
       return this
     }
 
@@ -20878,48 +21876,85 @@
 
     _attach (child) {
       child.parent = this;
-      if (this._context && child._owner !== this._owner && child._ref) {
-        this._context.foreignRefs[child._ref] = child;
+      if (this._context) {
+        
+        
+        if (child._owner !== this._owner && child._isVirtualComponent) {
+          this._context.injectedComponents.push(child);
+        }
+        if (child._owner !== this._owner && child._ref) {
+          this._context.foreignRefs[child._ref] = child;
+        }
       }
     }
 
     _detach (child) {
       child.parent = null;
-      if (this._context && child._owner !== this._owner && child._ref) {
-        delete this.context.foreignRefs[child._ref];
+      if (this._context) {
+        if (child._isVirtualComponent) {
+          deleteFromArray(this._context.injectedComponents, child);
+        }
+        if (child._owner !== this._owner && child._ref) {
+          this._context.foreignRefs.delete(child._ref);
+        }
       }
     }
 
-    _mergeHTMLConfig (other) {
-      if (other.classNames) {
-        if (!this.classNames) {
-          this.classNames = [];
+    _copy () {
+      if (this.classNames || this.attributes || this.eventListeners || this.htmlProps || this.style) {
+        let copy = {};
+        if (this.classNames) {
+          copy.classNames = this.classNames.slice();
         }
-        this.classNames = this.classNames.concat(other.classNames);
+        if (this.attributes) {
+          copy.attributes = new Map(this.attributes);
+        }
+        if (this.eventListeners) {
+          copy.eventListeners = this.eventListeners.slice();
+        }
+        if (this.htmlProps) {
+          copy.htmlProps = new Map(this.htmlProps);
+        }
+        if (this.style) {
+          copy.style = new Map(this.style);
+        }
+        return copy
       }
-      if (other.attributes) {
-        if (!this.attributes) {
-          this.attributes = {};
+    }
+
+    _clear () {
+      this.classNames = null;
+      this.attributes = null;
+      this.htmlProps = null;
+      this.style = null;
+      this.eventListeners = null;
+    }
+
+    _merge (other) {
+      if (!other) return
+      const ARRAY_TYPE_VALS = ['classNames', 'eventListeners'];
+      for (let name of ARRAY_TYPE_VALS) {
+        let otherVal = other[name];
+        if (otherVal) {
+          let thisVal = this[name];
+          if (!thisVal) {
+            this[name] = otherVal.slice();
+          } else {
+            this[name] = thisVal.concat(otherVal);
+          }
         }
-        Object.assign(this.attributes, other.attributes);
       }
-      if (other.htmlProps) {
-        if (!this.htmlProps) {
-          this.htmlProps = {};
+      const MAP_TYPE_VALS = ['attributes', 'htmlProps', 'style'];
+      for (let name of MAP_TYPE_VALS) {
+        let otherVal = other[name];
+        if (otherVal) {
+          let thisVal = this[name];
+          if (!thisVal) {
+            this[name] = new Map(otherVal);
+          } else {
+            this[name] = new Map([...thisVal, ...otherVal]);
+          }
         }
-        Object.assign(this.htmlProps, other.htmlProps);
-      }
-      if (other.style) {
-        if (!this.style) {
-          this.style = {};
-        }
-        Object.assign(this.style, other.style);
-      }
-      if (other.eventListeners) {
-        if (!this.eventListeners) {
-          this.eventListeners = [];
-        }
-        this.eventListeners = this.eventListeners.concat(other.eventListeners);
       }
     }
 
@@ -20955,8 +21990,14 @@
       return 'component'
     }
 
+    
+    
     outlet (name) {
       return new Outlet(this, name)
+    }
+
+    setInnerHTML () {
+      throw new Error('Can not set innerHTML of a Component')
     }
 
     _attach (child) {
@@ -20965,16 +22006,6 @@
 
     _detach (child) {
       child._preliminaryParent = null;
-    }
-
-    _copyHTMLConfig () {
-      return {
-        classNames: clone(this.classNames),
-        attributes: clone(this.attributes),
-        htmlProps: clone(this.htmlProps),
-        style: clone(this.style),
-        eventListeners: clone(this.eventListeners)
-      }
     }
 
     get _isVirtualHTMLElement () { return false }
@@ -21094,6 +22125,40 @@
     return content
   };
 
+  VirtualElement.Context = class VirtualElementContext {
+    constructor (owner) {
+      this.owner = owner;
+      
+      this.refs = new Map();
+      
+      
+      this.foreignRefs = new Map();
+      
+      this.elements = [];
+      
+      this.components = [];
+      
+      this.injectedComponents = [];
+      this.$$ = this._createComponent.bind(this);
+      this.$$.capturing = true;
+    }
+
+    _createComponent () {
+      let vel = VirtualElement.createElement.apply(this, arguments);
+      vel._context = this;
+      vel._owner = this.owner;
+      if (vel._isVirtualComponent) {
+        
+        this.components.push(vel);
+      }
+      this.elements.push(vel);
+      return vel
+    }
+  };
+
+  const TOP_LEVEL_ELEMENT = Symbol('TOP_LEVEL_ELEMENT');
+
+
   class RenderingEngine {
     constructor (options = {}) {
       this.componentFactory = options.componentFactory;
@@ -21103,43 +22168,63 @@
     }
 
     _render (comp, oldProps, oldState) {
-      
-      var vel = _createWrappingVirtualComponent(comp);
-      var state = this._createState();
+      if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+        console.group('RenderingEngine');
+        if (!comp.el) {
+          console.log('Rendering Engine: initial render of %s', comp.constructor.name);
+        } else {
+          console.log('Rendering Engine: re-render of %s', comp.constructor.name);
+        }
+        console.time('rendering (total)');
+      }
+      let vel = _createWrappingVirtualComponent(comp);
+      let state = this._createState();
       if (oldProps) {
-        state.setOldProps(vel, oldProps);
+        state.set(OLDPROPS, vel, oldProps);
       }
       if (oldState) {
-        state.setOldState(vel, oldState);
+        state.set(OLDSTATE, vel, oldState);
       }
       try {
+        if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+          console.time('capturing');
+        }
         
-        
-        
-        _capture(state, vel, 'forceCapture');
-        
+        _capture(state, vel, TOP_LEVEL_ELEMENT);
+        if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+          console.timeEnd('capturing');
+        }
 
-        
-        
-        _render(state, vel);
-        
+        if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+          console.time('updating');
+        }
+        _update(state, vel);
+        if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+          console.timeEnd('updating');
+        }
 
-        _triggerUpdate(state, vel);
+        _triggerDidUpdate(state, vel);
       } finally {
+        if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+          console.timeEnd('rendering (total)');
+          console.groupEnd('RenderingEngine');
+        }
         state.dispose();
       }
-      
     }
 
+    
+    
+    
     
     _renderChild (comp, vel) {
       
       
-      var state = this._createState();
-      vel.parent = { _comp: comp };
+      let state = this._createState();
+      vel.parent = { _comp: comp, _isFake: true };
       try {
         _capture(state, vel);
-        _render(state, vel);
+        _update(state, vel);
         return vel._comp
       } finally {
         state.dispose();
@@ -21149,22 +22234,202 @@
     _createState () {
       return new RenderingState(this.componentFactory, this.elementFactory)
     }
+
+    static createContext (comp) {
+      let vel = _createWrappingVirtualComponent(comp);
+      return new VirtualElement.Context(vel)
+    }
   }
 
+
+  function _capture (state, vel, mode) {
+    if (state.is(CAPTURED, vel)) {
+      return vel
+    }
+    
+    let comp = vel._comp;
+    if (!comp) {
+      comp = _create(state, vel);
+      state.set(NEW, vel);
+    }
+    if (vel._isVirtualComponent) {
+      let needRerender;
+      
+      
+      
+      if (mode === TOP_LEVEL_ELEMENT) {
+        needRerender = true;
+        
+        console.assert(vel._comp === comp, 'top-level element and component should be linked already');
+        state.set(MAPPED, vel);
+        state.set(MAPPED, comp);
+        state.set(LINKED, vel);
+        state.set(LINKED, comp);
+        let compData = _getInternalComponentData(comp);
+        vel.elementProps = compData.elementProps;
+      } else {
+        
+        needRerender = !comp.el || comp.shouldRerender(vel.props, comp.state);
+        
+        
+        
+        
+        
+        vel.elementProps = vel._copy();
+        vel._clear();
+        state.set(OLDPROPS, vel, comp.props);
+        state.set(OLDSTATE, vel, comp.state);
+        
+        comp._setProps(vel.props);
+        if (!state.is(NEW, vel)) {
+          state.set(UPDATED, vel);
+        }
+      }
+      if (needRerender) {
+        let context = new VirtualElement.Context(vel);
+        let content = comp.render(context.$$);
+        if (!content) {
+          throw new Error('Component.render() returned nil.')
+        } else if (content._isVirtualComponent) {
+          
+          
+          vel._forwardedEl = content;
+          vel._isForwarding = true;
+          content._isForwarded = true;
+          content.parent = vel;
+          vel.children = [content];
+        } else if (content._isVirtualHTMLElement) {
+          
+          vel.tagName = content.tagName;
+          vel._merge(content);
+          if (content.hasInnerHTML()) {
+            vel._innerHTMLString = content._innerHTMLString;
+            vel.children = [];
+          } else {
+            vel.children = content.children;
+            
+            vel.children.forEach(child => {
+              child.parent = vel;
+            });
+          }
+        } else {
+          throw new Error('render() must return a plain element or a Component')
+        }
+        
+        vel._context = content._context;
+
+        
+        
+        if (vel.elementProps) {
+          vel._merge(vel.elementProps);
+          
+          
+          if (vel._isForwarding) {
+            vel._forwardedEl._merge(vel);
+          }
+        }
+
+        
+        if (!state.is(NEW, vel) && comp.isMounted()) {
+          state.set(UPDATED, vel);
+        }
+
+        
+        
+        
+        _forEachComponent(state, comp, vel, _linkComponent);
+
+        
+        if (substanceGlobals.DEBUG_RENDERING) {
+          
+          
+          
+          
+          let stack = vel.children.slice(0);
+          while (stack.length) {
+            let child = stack.shift();
+            if (state.is(CAPTURED, child)) continue
+            
+            if (child._isVirtualComponent) continue
+            if (!child._comp) {
+              _create(state, child);
+            }
+            if (child._isVirtualHTMLElement && child.children.length > 0) {
+              stack = stack.concat(child.children);
+            }
+            state.set(CAPTURED, child);
+          }
+          
+          
+          let descendingContext = new DescendingContext(state, context);
+          while (descendingContext.hasPendingCaptures()) {
+            descendingContext.reset();
+            comp.render(descendingContext.$$);
+          }
+          
+          
+          for (let child of context.injectedComponents) {
+            _capture(state, child);
+          }
+          
+          
+          
+          if (vel._forwardedEl) {
+            _capture(state, vel._forwardedEl);
+          }
+        } else {
+          
+          
+          
+          
+          
+          if (vel._forwardedEl) {
+            _capture(state, vel._forwardedEl);
+          } else {
+            for (let child of vel.children) {
+              _capture(state, child);
+            }
+          }
+        }
+        _forEachComponent(state, comp, vel, _propagateLinking);
+      } else {
+        
+        state.set(SKIPPED, vel);
+      }
+    } else if (vel._isVirtualHTMLElement) {
+      for (let child of vel.children) {
+        _capture(state, child);
+      }
+    }
+
+    state.set(CAPTURED, vel);
+    return vel
+  }
+
+
+
   function _create (state, vel) {
-    var comp = vel._comp;
+    let comp = vel._comp;
     console.assert(!comp, 'Component instance should not exist when this method is used.');
-    var parent = vel.parent._comp;
+    let parent = vel.parent._comp;
     
     if (!parent) {
       parent = _create(state, vel.parent);
     }
+    
     if (vel._isVirtualComponent) {
       console.assert(parent, 'A Component should have a parent.');
       comp = state.componentFactory.createComponent(vel.ComponentClass, parent, vel.props);
       
+      
       vel.props = comp.props;
-      comp.__htmlConfig__ = vel._copyHTMLConfig();
+      if (vel._forwardedEl) {
+        let forwardedEl = vel._forwardedEl;
+        let forwardedComp = state.componentFactory.createComponent(forwardedEl.ComponentClass, comp, forwardedEl.props);
+        
+        forwardedEl.props = forwardedComp.props;
+        comp._forwardedComp = forwardedComp;
+      }
     } else if (vel._isVirtualHTMLElement) {
       comp = state.componentFactory.createElementComponent(parent, vel);
     } else if (vel._isVirtualTextNode) {
@@ -21180,270 +22445,450 @@
     return comp
   }
 
-  function _capture (state, vel, forceCapture) {
-    if (state.isCaptured(vel)) {
-      return vel
-    }
-    
-    var comp = vel._comp;
-    if (!comp) {
-      comp = _create(state, vel);
-      state.setNew(vel);
-    }
-    if (vel._isVirtualComponent) {
-      var needRerender;
-      
-      
-      
-      if (forceCapture) {
-        needRerender = true;
-      } else {
-        
-        needRerender = !comp.el || comp.shouldRerender(vel.props, comp.state);
-        comp.__htmlConfig__ = vel._copyHTMLConfig();
-        state.setOldProps(vel, comp.props);
-        state.setOldState(vel, comp.state);
-        
-        comp._setProps(vel.props);
-        if (!state.isNew(vel)) {
-          state.setUpdated(vel);
-        }
-      }
-      if (needRerender) {
-        var context = new CaptureContext(vel);
-        var content = comp.render(context.$$);
-        if (!content) {
-          throw new Error('Component.render() returned nil.')
-        } else if (content._isVirtualComponent) {
-          
-          
-          content._isForwarded = true;
-          content.parent = vel;
-          
-          
-        } else if (!content._isVirtualHTMLElement) {
-          throw new Error('render() must return a plain element or a Component')
-        }
 
-        if (comp.__htmlConfig__) {
-          content._mergeHTMLConfig(comp.__htmlConfig__);
-        }
-        if (!content._isVirtualComponent) {
-          content._comp = comp;
-        }
-        vel._content = content;
-        if (!state.isNew(vel) && comp.isMounted()) {
-          state.setUpdated(vel);
-        }
-        
-        
-        _prepareVirtualComponent(state, comp, content);
-        
-        
-        
-        if (substanceGlobals.DEBUG_RENDERING && !vel._content._isForwarded) {
-          
-          
-          
-          
-          var stack = content.children.slice(0);
-          while (stack.length) {
-            var child = stack.shift();
-            if (state.isCaptured(child)) continue
-            
-            if (child._isVirtualComponent) continue
-            if (!child._comp) {
-              _create(state, child);
-            }
-            if (child._isVirtualHTMLElement && child.children.length > 0) {
-              stack = stack.concat(child.children);
-            }
-            state.setCaptured(child);
-          }
-          state.setCaptured(content);
-          
-          
-          var descendingContext = new DescendingContext(state, context);
-          while (descendingContext.hasPendingCaptures()) {
-            descendingContext.reset();
-            comp.render(descendingContext.$$);
-          }
-        } else {
-          
-          
-          _capture(state, vel._content);
-        }
-      } else {
-        state.setSkipped(vel);
+  function _forEachComponent (state, comp, vc, hook) {
+    console.assert(vc._isVirtualComponent, 'this method is intended for VirtualComponents only');
+    if (!vc.__components__) {
+      let context = vc._context;
+      console.assert(context, 'there should be a capturing context on the VirtualComponent');
+      
+      let newRefs = context.refs;
+      
+      let newForeignRefs = context.foreignRefs;
+      
+      if (!context.internalRefs) {
+        context.internalRefs = _extractInternalRefs(context, vc);
       }
-    } else if (vel._isVirtualHTMLElement) {
-      for (var i = 0; i < vel.children.length; i++) {
-        _capture(state, vel.children[i]);
+      let newInternalRefs = context.internalRefs;
+      let entries = [];
+      let compData = _getInternalComponentData(comp);
+      let oldRefs = compData.refs;
+      let oldForeignRefs = compData.foreignRefs;
+      
+      let oldInternalRefs = compData.internalRefs || new Map();
+      let _addEntries = (_newRefs, _oldRefs) => {
+        for (let [ref, vc] of _newRefs) {
+          let oldVc = _oldRefs.get(ref);
+          let comp;
+          if (oldVc) {
+            comp = oldVc._comp;
+          }
+          entries.push({ vc, comp });
+        }
+      };
+      if (newRefs.size > 0) _addEntries(newRefs, oldRefs);
+      if (newForeignRefs.size > 0) _addEntries(newForeignRefs, oldForeignRefs);
+      if (newInternalRefs.size > 0) _addEntries(newInternalRefs, oldInternalRefs);
+      vc.__components__ = entries;
+    }
+    if (vc.__components__.length > 0) {
+      for (let entry of vc.__components__) {
+        hook(state, entry.comp, entry.vc);
       }
     }
-    state.setCaptured(vel);
-    return vel
   }
 
-  function _render (state, vel) {
-    if (state.isSkipped(vel)) return
+  function _linkComponent (state, comp, vc) {
     
+    if (!comp) {
+      _reject(state, comp, vc);
+      return
+    }
+    if (_isMapped(state, comp, vc)) return
+    if (_isLinked(state, comp, vc)) return
+    if (_isOfSameType(comp, vc)) {
+      _link(state, comp, vc);
+    } else {
+      _reject(state, comp, vc);
+    }
+  }
+
+  function _link (state, comp, vc) {
+    vc._comp = comp;
+    state.set(MAPPED, vc);
+    state.set(MAPPED, comp);
+    state.set(LINKED, vc);
+    state.set(LINKED, comp);
+  }
+
+  function _reject (state, comp, vc) {
+    vc._comp = null;
+    state.set(MAPPED, vc);
+    if (comp) state.set(MAPPED, comp);
+  }
+
+  function _isMapped (state, comp, vc) {
+    const vcIsMapped = state.is(MAPPED, vc);
+    const compIsMapped = state.is(MAPPED, comp);
+    if (vcIsMapped || compIsMapped) {
+      return true
+    }
+    return false
+  }
+
+  function _isLinked (state, comp, vc) {
+    let compIsLinked = state.is(LINKED, comp);
+    let vcIsLinked = state.is(LINKED, vc);
+    if (vc._comp === comp) {
+      if (!vcIsLinked) {
+        console.error('FIXME: comp is linked, but not virtual component');
+        state.set(LINKED, vc);
+      }
+      if (!compIsLinked) {
+        console.error('FIXME: virtual comp is linked, but not component');
+        state.set(LINKED, vc);
+      }
+      return true
+    }
+    return false
+  }
+
+
+  function _propagateLinking (state, comp, vel, stopIfMapped) {
+    if (!vel) {
+      console.error('DOCUMENT WHY THIS IS NEEDED');
+      return false
+    }
+    
+    
+    if (!comp) {
+      return false
+    }
+    
+    if (stopIfMapped && _isMapped(state, comp, vel)) {
+      return _isLinked(state, comp, vel)
+    }
 
     
     
+    if (!vel._isVirtualComponent) {
+      if (!_isOfSameType(comp, vel)) {
+        _reject(state, comp, vel);
+        
+        return false
+      } else {
+        _link(state, comp, vel);
+      }
+    }
+
+    
+    let canLinkParent = false;
+    let parent = comp.getParent();
+    if (vel.parent) {
+      canLinkParent = _propagateLinking(state, parent, vel.parent, true);
     
     
     
+    
+    } else if (vel._preliminaryParent) {
+      while (parent && parent._isElementComponent) {
+        parent = parent.getParent();
+      }
+      canLinkParent = _propagateLinking(state, parent, vel._preliminaryParent, true);
+    }
+    
+    
+    
+    
+    
+    if (vel._isVirtualComponent && !canLinkParent) {
+      if (substanceGlobals.VERBOSE_RENDERING_ENGINE) {
+        console.info('Component has been relocated: ' + comp.constructor.name);
+      }
+      state.set(RELOCATED, vel);
+      state.set(RELOCATED, comp);
+    }
+    return canLinkParent
+  }
+
+  function _isOfSameType (comp, vc) {
+    return (
+      (comp._isElementComponent && vc._isVirtualHTMLElement) ||
+      (comp._isComponent && vc._isVirtualComponent && comp.constructor === vc.ComponentClass) ||
+      (comp._isTextNodeComponent && vc._isVirtualTextNode)
+    )
+  }
+
+
+  function _update (state, vel) {
+    
+    
+    
+
+    if (state.is(SKIPPED, vel)) return
     
 
     let comp = vel._comp;
+
+    
+    
+    
+    
+    
+    
+    
+    if (!comp) {
+      if (vel._ref && vel._preliminaryParent !== vel._owner) {
+        _capture(state, vel);
+      }
+    }
     console.assert(comp && comp._isComponent, 'A captured VirtualElement must have a component instance attached.');
 
     
-    if (vel._isVirtualComponent) {
-      _render(state, vel._content);
-
+    
+    if (vel._isForwarding) {
+      _update(state, vel._forwardedEl);
+    } else {
       
-      const context = vel._content._context;
-      let refs = {};
-      let foreignRefs = {};
-      forEach(context.refs, (vel, ref) => {
-        refs[ref] = vel._comp;
-      });
-      forEach(context.foreignRefs, (vel, ref) => {
-        foreignRefs[ref] = vel._comp;
-      });
-      comp.refs = refs;
-      comp.__foreignRefs__ = foreignRefs;
-
-      
-      
-      
-      if (vel._content._isVirtualComponent) {
-        comp.el = vel._content._comp.el;
-        vel._content._comp.triggerDidMount();
-        comp.triggerDidMount();
+      if (!comp.el) {
+        comp.el = _createDOMElement(state, vel);
+      } else {
+        let el = comp.el;
+        console.assert(el, "Component's element should exist at this point.");
+        _updateDOMElement(el, vel);
       }
-      return
-    }
-
-    
-    if (!comp.el) {
-      comp.el = _createElement(state, vel);
-      comp.el._comp = comp;
-    }
-    _updateElement(comp, vel);
-
-    
-    if (vel._isVirtualHTMLElement && !vel.hasInnerHTML()) {
-      var newChildren = vel.children;
-      var oldComp, virtualComp, newComp;
-      var pos1 = 0; var pos2 = 0;
 
       
       
       
-      var oldChildren = [];
-      comp.el.getChildNodes().forEach(function (node) {
-        var childComp = node._comp;
+      
+
+      
+      if ((vel._isVirtualComponent || vel._isVirtualHTMLElement) && !vel.hasInnerHTML()) {
+        let newChildren = vel.children;
 
         
         
         
         
-
         
-        if (!childComp || state.isRelocated(childComp)) {
-          comp.el.removeChild(node);
-        } else {
-          oldChildren.push(childComp);
-        }
-      });
-
-      while (pos1 < oldChildren.length || pos2 < newChildren.length) {
-        
-        
-        
-        
-        do {
-          oldComp = oldChildren[pos1++];
-        } while (oldComp && (state.isDetached(oldComp)))
-
-        virtualComp = newChildren[pos2++];
-        
-        if (oldComp && !virtualComp) {
-          while (oldComp) {
-            _removeChild(state, comp, oldComp);
-            oldComp = oldChildren[pos1++];
+        let _childNodes = comp.el.getChildNodes();
+        let oldChildren = _childNodes.map(child => {
+          let childComp = child._comp;
+          
+          
+          
+          
+          
+          if (childComp._isForwarded()) {
+            childComp = _findForwardingChildOfComponent(comp, childComp);
           }
-          break
-        }
-
-        
-        if (oldComp && oldComp.el.isTextNode() &&
-            virtualComp && virtualComp._isVirtualTextNode &&
-            oldComp.el.textContent === virtualComp.text) {
-          continue
-        }
-
-        
-        if (!state.isRendered(virtualComp)) {
-          _render(state, virtualComp);
-        }
-
-        newComp = virtualComp._comp;
-
-        
-        
-        if (state.isRelocated(newComp)) {
-          newComp._setParent(comp);
-        }
-
-        console.assert(newComp, 'Component instance should now be available.');
-
-        
-        if (virtualComp && !oldComp) {
-          _appendChild(state, comp, newComp);
-          continue
-        
-        } else if (state.isMapped(virtualComp)) {
           
-          if (newComp === oldComp) ; else if (state.isMapped(oldComp)) {
-            
-            state.setDetached(oldComp);
-            _removeChild(state, comp, oldComp);
-            pos2--;
-          
+          if (!childComp || state.is(RELOCATED, childComp)) {
+            comp.el.removeChild(child);
+            return null
           } else {
-            _removeChild(state, comp, oldComp);
-            pos2--;
+            return childComp
           }
-        } else if (state.isMapped(oldComp)) {
-          _insertChildBefore(state, comp, newComp, oldComp);
-          pos1--;
-        } else {
+        }).filter(Boolean);
+
+        
+        
+        
+        
+        let pos1 = 0; let pos2 = 0;
+        while (pos1 < oldChildren.length || pos2 < newChildren.length) {
+          let oldComp;
           
           
           
           
-          _replaceChild(state, comp, oldComp, newComp);
+          
+          do {
+            oldComp = oldChildren[pos1++];
+          } while (oldComp && (state.is(DETACHED, oldComp)))
+
+          let newVel = newChildren[pos2++];
+          
+          if (oldComp && !newVel) {
+            while (oldComp) {
+              _removeChild(state, comp, oldComp);
+              oldComp = oldChildren[pos1++];
+            }
+            break
+          }
+
+          
+          if (oldComp && oldComp.el.isTextNode() &&
+              newVel && newVel._isVirtualTextNode &&
+              oldComp.el.textContent === newVel.text) {
+            continue
+          }
+
+          
+          
+          
+          
+          
+          if (oldComp && oldComp._isElementComponent &&
+              newVel._isVirtualHTMLElement &&
+              !state.is(MAPPED, oldComp) && !state.is(MAPPED, newVel) &&
+              oldComp.tagName === newVel.tagName) {
+            
+            newVel._comp = oldComp;
+            state.set(LINKED, newVel);
+            state.set(LINKED, oldComp);
+            _update(state, newVel);
+            continue
+          }
+
+          
+          if (!state.is(RENDERED, newVel)) {
+            _update(state, newVel);
+          }
+
+          let newComp = newVel._comp;
+          
+          if (newComp === oldComp) {
+            continue
+          }
+          
+          
+          if (state.is(RELOCATED, newComp)) {
+            newComp._setParent(comp);
+          }
+          console.assert(newComp, 'Component instance should now be available.');
+
+          
+          if (newVel && !oldComp) {
+            _appendChild(state, comp, newComp);
+            continue
+          }
+
+          
+          if (state.is(LINKED, newVel)) {
+            if (state.is(LINKED, oldComp)) {
+              
+              state.set(DETACHED, oldComp);
+              _removeChild(state, comp, oldComp);
+              pos2--;
+            
+            } else {
+              _removeChild(state, comp, oldComp);
+              pos2--;
+            }
+          } else if (state.is(LINKED, oldComp)) {
+            _insertChildBefore(state, comp, newComp, oldComp);
+            pos1--;
+          } else {
+            
+            
+            
+            
+            
+            _replaceChild(state, comp, oldComp, newComp);
+          }
         }
       }
     }
 
-    state.setRendered(vel);
+    if (vel._isVirtualComponent) {
+      _storeInternalData(comp, vel);
+
+      
+      if (vel._forwardedEl) {
+        let forwardedComp = vel._forwardedEl._comp;
+        
+        
+        
+        if (!comp.el) {
+          comp.el = forwardedComp.el;
+          
+          
+        } else {
+          
+          let oldForwardedComp = comp.el._comp;
+          if (oldForwardedComp !== forwardedComp) {
+            oldForwardedComp.triggerDispose();
+            comp.el.parentNode.replaceChild(comp.el, forwardedComp.el);
+            comp.el = forwardedComp.el;
+            forwardedComp.triggerDidMount();
+          }
+        }
+      }
+    }
+
+    state.set(RENDERED, vel);
+    state.set(RENDERED, comp);
   }
 
-  function _triggerUpdate (state, vel) {
-    if (vel._isVirtualComponent) {
-      if (!state.isSkipped(vel)) {
-        vel._content.children.forEach(_triggerUpdate.bind(null, state));
+  function _getInternalComponentData (comp) {
+    if (!comp.__internal__) {
+      comp.__internal__ = new InternalComponentData();
+    }
+    return comp.__internal__
+  }
+
+  function _storeInternalData (comp, vc) {
+    let context = vc._context;
+    let compData = _getInternalComponentData(comp);
+    compData.elementProps = vc.elementProps;
+    compData.refs = context.refs;
+    compData.foreignRefs = context.foreignRefs;
+    compData.internalRefs = context.internalRefs;
+    
+    comp.refs = Array.from(context.refs).reduce((refs, [key, vc]) => {
+      
+      
+      
+      let comp = vc._comp;
+      if (comp) {
+        refs[key] = vc._comp;
+      } else {
+        console.warn(`Warning: component with reference '${key}' has not been used`);
       }
-      if (state.isUpdated(vel)) {
-        vel._comp.didUpdate(state.getOldProps(vel), state.getOldState(vel));
+      return refs
+    }, {});
+  }
+
+  function _extractInternalRefs (context, root) {
+    let idCounts = new Map();
+    let refs = new Map();
+    for (let vc of context.components) {
+      
+      if (vc._ref) continue
+      let ref = _getVirtualComponentTrace(vc, root);
+      
+      if (idCounts.has(ref)) {
+        let count = idCounts.get(ref) + 1;
+        idCounts.set(ref, count);
+        ref = ref + '@' + count;
+      } else {
+        idCounts.set(ref, 1);
+      }
+      refs.set(ref, vc);
+    }
+    return refs
+  }
+
+  function _getVirtualComponentTrace (vc, root) {
+    let frags = [vc.ComponentClass.name];
+    
+    if (!vc._isForwarded) {
+      let parent = vc.getParent();
+      while (parent) {
+        if (parent === root) break
+        
+        if (parent._isFake) break
+        
+        console.assert(parent._isVirtualHTMLElement);
+        frags.unshift(parent.tagName);
+        parent = parent.parent;
+      }
+    }
+    return frags.join('/')
+  }
+
+  function _triggerDidUpdate (state, vel) {
+    if (vel._isVirtualComponent) {
+      if (!state.is(SKIPPED, vel)) {
+        vel.children.forEach(_triggerDidUpdate.bind(null, state));
+      }
+      if (state.is(UPDATED, vel)) {
+        vel._comp.didUpdate(state.get(OLDPROPS, vel), state.get(OLDSTATE, vel));
       }
     } else if (vel._isVirtualHTMLElement) {
-      vel.children.forEach(_triggerUpdate.bind(null, state));
+      vel.children.forEach(_triggerDidUpdate.bind(null, state));
     }
   }
 
@@ -21454,7 +22899,7 @@
 
   function _replaceChild (state, parent, oldChild, newChild) {
     parent.el.replaceChild(oldChild.el, newChild.el);
-    if (!state.isDetached(oldChild)) {
+    if (!state.is(DETACHED, oldChild)) {
       oldChild.triggerDispose();
     }
     _triggerDidMount(state, parent, newChild);
@@ -21467,120 +22912,39 @@
 
   function _removeChild (state, parent, child) {
     parent.el.removeChild(child.el);
-    if (!state.isDetached(child)) {
+    if (!state.is(DETACHED, child)) {
       child.triggerDispose();
     }
   }
 
   function _triggerDidMount (state, parent, child) {
-    if (!state.isDetached(child) &&
+    if (!state.is(DETACHED, child) &&
         parent.isMounted() && !child.isMounted()) {
       child.triggerDidMount(true);
     }
   }
 
-
-  function _prepareVirtualComponent (state, comp, vc) {
-    var newRefs = {};
-    var foreignRefs = {};
-    
-    
-    
-    
-    if (vc._context) {
-      newRefs = vc._context.refs;
-      foreignRefs = vc._context.foreignRefs;
-    }
-    var oldRefs = comp.refs;
-    var oldForeignRefs = comp.__foreignRefs__;
-    
-    forEach(newRefs, function (vc, ref) {
-      var comp = oldRefs[ref];
-      if (comp) _mapComponents(state, comp, vc);
-    });
-    forEach(foreignRefs, function (vc, ref) {
-      var comp = oldForeignRefs[ref];
-      if (comp) _mapComponents(state, comp, vc);
-    });
-  }
-
-
-
-  function _mapComponents (state, comp, vc) {
-    if (!comp && !vc) return true
-    if (!comp || !vc) return false
-    
-    
-    
-    
-    
-    if (state.isMapped(vc) || state.isMapped(comp)) {
-      return vc._comp === comp
-    }
-    if (vc._comp) {
-      if (vc._comp === comp) {
-        state.setMapped(vc);
-        state.setMapped(comp);
-        return true
-      } else {
-        return false
-      }
-    }
-    if (!_isOfSameType(comp, vc)) {
-      return false
-    }
-
-    vc._comp = comp;
-    state.setMapped(vc);
-    state.setMapped(comp);
-
-    var canMapParent;
-    var parent = comp.getParent();
-    if (vc.parent) {
-      canMapParent = _mapComponents(state, parent, vc.parent);
-    
-    
-    
-    
-    } else if (vc._preliminaryParent) {
-      while (parent && parent._isElementComponent) {
-        parent = parent.getParent();
-      }
-      canMapParent = _mapComponents(state, parent, vc._preliminaryParent);
-    }
-    if (!canMapParent) {
-      state.setRelocated(vc);
-      state.setRelocated(comp);
-    }
-    return canMapParent
-  }
-
-  function _isOfSameType (comp, vc) {
-    return (
-      (comp._isElementComponent && vc._isVirtualHTMLElement) ||
-      (comp._isComponent && vc._isVirtualComponent && comp.constructor === vc.ComponentClass) ||
-      (comp._isTextNodeComponent && vc._isVirtualTextNode)
-    )
-  }
-
-  function _createElement (state, vel) {
-    var el;
+  function _createDOMElement (state, vel) {
+    let el;
     if (vel._isVirtualTextNode) {
       el = state.elementFactory.createTextNode(vel.text);
     } else {
       el = state.elementFactory.createElement(vel.tagName);
     }
+    if (vel._comp) {
+      el._comp = vel._comp;
+    }
+    _updateDOMElement(el, vel);
     return el
   }
 
-  function _updateElement (comp, vel) {
-    if (comp._isTextNodeComponent) {
-      comp.setTextContent(vel.text);
+  function _updateDOMElement (el, vel) {
+    
+    if (vel._isVirtualTextNode) {
+      el.setTextContent(vel.text);
       return
     }
-    var el = comp.el;
-    console.assert(el, "Component's element should exist at this point.");
-    var tagName = el.getTagName();
+    let tagName = el.getTagName();
     if (vel.tagName.toLowerCase() !== tagName) {
       el.setTagName(vel.tagName);
     }
@@ -21605,7 +22969,7 @@
       }
     });
     _updateListeners({
-      el: el,
+      el,
       oldListeners: el.getEventListeners(),
       newListeners: vel.getEventListeners()
     });
@@ -21616,8 +22980,8 @@
         el.empty();
         el.setInnerHTML(vel.getInnerHTML());
       } else {
-        var oldInnerHTML = el.getInnerHTML();
-        var newInnerHTML = vel.getInnerHTML();
+        let oldInnerHTML = el.getInnerHTML();
+        let newInnerHTML = vel.getInnerHTML();
         if (oldInnerHTML !== newInnerHTML) {
           el.setInnerHTML(newInnerHTML);
         }
@@ -21626,22 +22990,37 @@
     }
   }
 
-  function _updateHash (args) {
-    const newHash = args.newHash;
-    const oldHash = args.oldHash || {};
-    const update = args.update;
-    const remove = args.remove;
+  function _hashGet (hash, key) {
+    if (hash instanceof Map) {
+      return hash.get(key)
+    } else {
+      return hash[key]
+    }
+  }
+
+  function _updateHash ({ newHash, oldHash, update, remove }) {
+    if (!newHash && !oldHash) return
+    
+    if (!newHash) {
+      newHash = new Map();
+    }
+    
+    if (!oldHash) {
+      oldHash = new Map();
+    }
     let updatedKeys = {};
-    for (let key in newHash) {
-      if (newHash.hasOwnProperty(key)) {
-        var oldVal = oldHash[key];
-        var newVal = newHash[key];
-        updatedKeys[key] = true;
-        if (oldVal !== newVal) {
-          update(key, newVal);
-        }
+    
+    
+    
+    for (let key of newHash.keys()) {
+      let oldVal = _hashGet(oldHash, key);
+      let newVal = _hashGet(newHash, key);
+      updatedKeys[key] = true;
+      if (oldVal !== newVal) {
+        update(key, newVal);
       }
     }
+    
     
     
     if (isFunction$1(oldHash.keys) && oldHash.size > 0) {
@@ -21661,44 +23040,58 @@
   }
 
   function _updateListeners (args) {
-    var el = args.el;
+    let el = args.el;
     
     
     
-    var newListeners = args.newListeners || [];
+    let newListeners = args.newListeners || [];
     el.removeAllEventListeners();
-    for (var i = 0; i < newListeners.length; i++) {
+    for (let i = 0; i < newListeners.length; i++) {
       el.addEventListener(newListeners[i]);
     }
   }
 
+  function _findForwardingChildOfComponent (comp, forwarded) {
+    let current = forwarded.getParent();
+    while (current) {
+      let parent = current.getParent();
+      if (parent === comp) {
+        return current
+      }
+      current = parent;
+    }
+  }
 
 
   class DescendingContext {
     constructor (state, captureContext) {
       this.state = state;
       this.owner = captureContext.owner;
-      this.refs = {};
-      this.foreignRefs = {};
+      this.refs = new Map();
+      this.foreignRefs = new Map();
+      this.internalRefs = null;
       this.elements = captureContext.elements;
       this.pos = 0;
       this.updates = captureContext.components.length;
       this.remaining = this.updates;
+      this.injectedComponents = captureContext.injectedComponents;
 
-      this.$$ = this._createComponent.bind(this);
+      this.$$ = this._$$.bind(this);
     }
 
-    _createComponent () {
-      var state = this.state;
-      var vel = this.elements[this.pos++];
+    _$$ () {
+      let state = this.state;
+      let vel = this.elements[this.pos++];
       
       
       
-      if (!state.isCaptured(vel) && vel._isVirtualComponent &&
-           vel.parent && state.isCaptured(vel.parent)) {
-        _capture(state, vel);
-        this.updates++;
-        this.remaining--;
+      if (!state.is(CAPTURED, vel) && vel._isVirtualComponent) {
+        let parent = vel.parent;
+        if (parent && (parent === this.owner || state.is(CAPTURED, vel.parent))) {
+          _capture(state, vel);
+          this.updates++;
+          this.remaining--;
+        }
       }
       
       
@@ -21722,179 +23115,92 @@
     reset () {
       this.pos = 0;
       this.updates = 0;
-      this.refs = {};
-    }
-
-    _ancestorsReady (vel) {
-      while (vel) {
-        if (this.state.isCaptured(vel) ||
-            
-            vel === this.owner || vel === this.owner._content) {
-          return true
-        }
-        vel = vel.parent;
-      }
-      return false
-    }
-  }
-
-  RenderingEngine._internal = {
-    _capture: _capture,
-    _wrap: _createWrappingVirtualComponent
-  };
-
-  class CaptureContext {
-    constructor (owner) {
-      this.owner = owner;
-      this.refs = {};
-      this.foreignRefs = {};
-      this.elements = [];
-      this.components = [];
-      this.$$ = this._createComponent.bind(this);
-      this.$$.capturing = true;
-    }
-
-    _createComponent () {
-      var vel = VirtualElement.createElement.apply(this, arguments);
-      vel._context = this;
-      vel._owner = this.owner;
-      if (vel._isVirtualComponent) {
-        
-        this.components.push(vel);
-      }
-      this.elements.push(vel);
-      return vel
+      this.refs.clear();
     }
   }
 
   function _createWrappingVirtualComponent (comp) {
-    var vel = new VirtualElement.Component(comp.constructor);
+    let vel = new VirtualElement.Component(comp.constructor);
     vel._comp = comp;
-    if (comp.__htmlConfig__) {
-      vel._mergeHTMLConfig(comp.__htmlConfig__);
-    }
     return vel
   }
 
-  RenderingEngine.createContext = function (comp) {
-    var vel = _createWrappingVirtualComponent(comp);
-    return new CaptureContext(vel)
-  };
+  const CAPTURED = Symbol('CAPTURED');
+  const DETACHED = Symbol('DETACHED');
+  const LINKED = Symbol('LINKED');
+  const MAPPED = Symbol('MAPPED');
+  const NEW = Symbol('NEW');
+  const OLDPROPS = Symbol('OLDPROPS');
+  const OLDSTATE = Symbol('OLDSTATE');
+
+
+  const RELOCATED = Symbol('RELOCATED');
+  const RENDERED = Symbol('RENDERED');
+  const SKIPPED = Symbol('SKIPPED');
+  const UPDATED = Symbol('UPDATED');
 
   class RenderingState {
     constructor (componentFactory, elementFactory) {
       this.componentFactory = componentFactory;
       this.elementFactory = elementFactory;
-      this.poluted = [];
+      this.polluted = [];
       this.id = '__' + uuid();
     }
 
     dispose () {
-      var id = this.id;
-      this.poluted.forEach(function (obj) {
+      let id = this.id;
+      this.polluted.forEach(function (obj) {
         delete obj[id];
       });
     }
 
-    set (obj, key, val) {
-      var info = obj[this.id];
+    set (key, obj, val = true) {
+      let info = obj[this.id];
       if (!info) {
         info = {};
         obj[this.id] = info;
-        this.poluted.push(obj);
+        this.polluted.push(obj);
       }
       info[key] = val;
     }
 
-    get (obj, key) {
-      var info = obj[this.id];
+    get (key, obj) {
+      let info = obj[this.id];
       if (info) {
         return info[key]
       }
     }
 
-    setMapped (c) {
-      this.set(c, 'mapped', true);
-    }
-
-    isMapped (c) {
-      return Boolean(this.get(c, 'mapped'))
-    }
-
-    
-    
-    setRelocated (c) {
-      this.set(c, 'relocated', true);
-    }
-
-    isRelocated (c) {
-      return Boolean(this.get(c, 'relocated'))
-    }
-
-    setDetached (c) {
-      this.set(c, 'detached', true);
-    }
-
-    isDetached (c) {
-      return Boolean(this.get(c, 'detached'))
-    }
-
-    setCaptured (vc) {
-      this.set(vc, 'captured', true);
-    }
-
-    isCaptured (vc) {
-      return Boolean(this.get(vc, 'captured'))
-    }
-
-    setNew (vc) {
-      this.set(vc, 'created', true);
-    }
-
-    isNew (vc) {
-      return Boolean(this.get(vc, 'created'))
-    }
-
-    setUpdated (vc) {
-      this.set(vc, 'updated', true);
-    }
-
-    isUpdated (vc) {
-      return Boolean(this.get(vc, 'updated'))
-    }
-
-    setSkipped (vc) {
-      this.set(vc, 'skipped', true);
-    }
-
-    isSkipped (vc) {
-      return Boolean(this.get(vc, 'skipped'))
-    }
-
-    setRendered (vc) {
-      this.set(vc, 'rendered', true);
-    }
-
-    isRendered (vc) {
-      return Boolean(this.get(vc, 'rendered'))
-    }
-
-    setOldProps (vc, oldProps) {
-      this.set(vc, 'oldProps', oldProps);
-    }
-
-    getOldProps (vc) {
-      return this.get(vc, 'oldProps')
-    }
-
-    setOldState (vc, oldState) {
-      this.set(vc, 'oldState', oldState);
-    }
-
-    getOldState (vc) {
-      return this.get(vc, 'oldState')
+    is (key, obj) {
+      return Boolean(this.get(key, obj))
     }
   }
+
+  class InternalComponentData {
+    constructor () {
+      this.refs = new Map();
+      this.foreignRefs = new Map();
+      this.internalRefs = new Map();
+      this.elementProps = null;
+    }
+  }
+
+
+  RenderingEngine._INTERNAL_API = {
+    _capture,
+    _wrap: _createWrappingVirtualComponent,
+    _update,
+    CAPTURED,
+    DETACHED,
+    LINKED,
+    MAPPED,
+    NEW,
+    RELOCATED,
+    RENDERED,
+    SKIPPED,
+    TOP_LEVEL_ELEMENT,
+    UPDATED
+  };
 
   const COMPONENT_FACTORY = {
     createComponent (ComponentClass, parent, props) {
@@ -21996,8 +23302,8 @@
 
     
     getRoot () {
-      var comp = this;
-      var parent = comp;
+      let comp = this;
+      let parent = comp;
       while (parent) {
         comp = parent;
         parent = comp.getParent();
@@ -22101,17 +23407,41 @@
       
 
       
+
+      
+      
+      
+      if (this._isForwarded()) {
+        this.getParent().triggerDidMount();
+      }
+
+      
+      
       
       if (!this.__isMounted__) {
         this.__isMounted__ = true;
         this.didMount();
       }
       
-      this.getChildren().forEach(function (child) {
+      const children = this.getChildren();
+      for (let child of children) {
         
         
         child.triggerDidMount(true);
-      });
+      }
+    }
+
+    
+    triggerDispose () {
+      if (this._isForwarding()) {
+        this.el._comp.triggerDispose();
+      } else {
+        this.getChildren().forEach(function (child) {
+          child.triggerDispose();
+        });
+      }
+      this.dispose();
+      this.__isMounted__ = false;
     }
 
     
@@ -22126,16 +23456,31 @@
     }
 
     
-    triggerDispose () {
-      this.getChildren().forEach(function (child) {
-        child.triggerDispose();
-      });
-      this.dispose();
-      this.__isMounted__ = false;
-    }
+    dispose () {}
 
     
-    dispose () {}
+    
+    
+    
+    
+    _isForwarding () {
+      if (this.el) {
+        return this.el._comp !== this
+      } else {
+        return false
+      }
+    }
+
+    _isForwarded () {
+      let parent = this.getParent();
+      return (parent && parent._isForwarding())
+    }
+
+    _getForwardedComponent () {
+      if (this.el) {
+        return this.el._comp
+      }
+    }
 
     
     _setParent (newParent) {
@@ -22147,7 +23492,7 @@
     
     send (action) {
       
-      var comp = this;
+      let comp = this;
       while (comp) {
         if (comp._actionHandlers && comp._actionHandlers[action]) {
           comp._actionHandlers[action].apply(comp, Array.prototype.slice.call(arguments, 1));
@@ -22183,11 +23528,11 @@
 
     
     setState (newState) {
-      var oldProps = this.props;
-      var oldState = this.state;
+      let oldProps = this.props;
+      let oldState = this.state;
       
       
-      var needRerender = !this.__isSettingProps__ &&
+      let needRerender = !this.__isSettingProps__ &&
         this.shouldRerender(this.getProps(), newState);
       
       this.willUpdateState(newState);
@@ -22217,9 +23562,9 @@
 
     
     setProps (newProps) {
-      var oldProps = this.props;
-      var oldState = this.state;
-      var needRerender = this.shouldRerender(newProps, this.state);
+      let oldProps = this.props;
+      let oldState = this.state;
+      let needRerender = this.shouldRerender(newProps, this.state);
       this._setProps(newProps);
       if (needRerender) {
         this._rerender(oldProps, oldState);
@@ -22243,7 +23588,7 @@
 
     
     extendProps (updatedProps) {
-      var newProps = extend({}, this.props, updatedProps);
+      let newProps = extend({}, this.props, updatedProps);
       this.setProps(newProps);
     }
 
@@ -22307,6 +23652,12 @@
       return this
     }
 
+    get tagName () {
+      if (this.el) {
+        return this.el.tagName
+      }
+    }
+
     hasClass (name) {
       if (this.el) {
         return this.el.hasClass(name)
@@ -22364,7 +23715,7 @@
 
     getChildNodes () {
       if (!this.el) return []
-      var childNodes = this.el.getChildNodes();
+      let childNodes = this.el.getChildNodes();
       childNodes = childNodes.map(_unwrapComp).filter(Boolean);
       return childNodes
     }
@@ -22377,19 +23728,19 @@
     }
 
     getChildAt (pos) {
-      let node = this.el.getChildAt(pos);
-      if (node) {
-        return _unwrapCompStrict(node)
+      let child = this.el.getChildAt(pos);
+      if (child) {
+        return _unwrapCompStrict(child)
       }
     }
 
     find (cssSelector) {
-      var el = this.el.find(cssSelector);
+      let el = this.el.find(cssSelector);
       return _unwrapComp(el)
     }
 
     findAll (cssSelector) {
-      var els = this.el.findAll(cssSelector);
+      let els = this.el.findAll(cssSelector);
       return els.map(_unwrapComp).filter(Boolean)
     }
 
@@ -22404,15 +23755,15 @@
       if (!childEl._isVirtualElement) {
         throw new Error('Invalid argument: "child" must be a VirtualElement.')
       }
-      var child = this.renderingEngine._renderChild(this, childEl);
+      let child = this.renderingEngine._renderChild(this, childEl);
       this.el.insertAt(pos, child.el);
       _mountChild(this, child);
     }
 
     removeAt (pos) {
-      var childEl = this.el.getChildAt(pos);
+      let childEl = this.el.getChildAt(pos);
       if (childEl) {
-        var child = _unwrapCompStrict(childEl);
+        let child = _unwrapCompStrict(childEl);
         _disposeChild(child);
         this.el.removeAt(pos);
       }
@@ -22482,9 +23833,11 @@
 
     click () {
       if (this.el) {
-        this.el.click();
+        
+        
+        return this.el.click()
       }
-      return this
+      return false
     }
 
     getComponentPath () {
@@ -22498,8 +23851,8 @@
     }
 
     _getContext () {
-      var context = {};
-      var parent = this.getParent();
+      let context = {};
+      let parent = this.getParent();
       if (parent) {
         context = extend(context, parent.context);
         if (parent.getChildContext) {
@@ -22543,8 +23896,8 @@
 
     static render (props) {
       props = props || {};
-      var ComponentClass = this;
-      var comp = new ComponentClass(null, props);
+      let ComponentClass = this;
+      let comp = new ComponentClass(null, props);
       comp._render();
       return comp
     }
@@ -22556,7 +23909,7 @@
       }
       if (!el) throw new Error("'el' is required.")
       if (isString(el)) {
-        var selector = el;
+        let selector = el;
         if (platform.inBrowser) {
           el = window.document.querySelector(selector);
         } else {
@@ -22659,7 +24012,7 @@
   }
 
   class Range {
-    constructor (start, end, reverse, containerId, surfaceId) {
+    constructor (start, end, reverse, containerPath, surfaceId) {
       
       if (arguments[0] === 'SKIP') return
       if (arguments.length === 1 && isPlainObject(arguments[0])) {
@@ -22667,13 +24020,13 @@
         this.start = data.start;
         this.end = data.end;
         this.reverse = Boolean(data.reverse);
-        this.containerId = data.containerId;
+        this.containerPath = data.containerPath;
         this.surfaceId = data.surfaceId;
       } else {
         this.start = start;
         this.end = end;
         this.reverse = Boolean(reverse);
-        this.containerId = containerId;
+        this.containerPath = containerPath;
         this.surfaceId = surfaceId;
       }
     }
@@ -22686,7 +24039,7 @@
       if (this === other) return true
       else {
         return (
-          this.containerId === other.containerId &&
+          isArrayEqual(this.containerPath, other.containerPath) &&
           this.start.equals(other.start) &&
           this.end.equals(other.end)
         )
@@ -22702,8 +24055,8 @@
       if (this.isReverse()) {
         str.push('[reverse]');
       }
-      if (this.containerId) {
-        str.push('[container=' + this.containerId + ']');
+      if (this.containerPath) {
+        str.push('[container=' + this.containerPath + ']');
       }
       if (this.surfaceId) {
         str.push('[surface=' + this.surfaceId + ']');
@@ -23063,7 +24416,7 @@
     }
 
     _onDocumentChange (update) {
-      if (update.change && update.change.updated[this.getPath()]) {
+      if (update.change && update.change.hasUpdated(this.getPath())) {
         this.rerender();
       }
     }
@@ -23166,7 +24519,7 @@
         
         markers = markersManager.getMarkers(path, {
           surfaceId: this.getSurfaceId(),
-          containerId: this.getContainerId()
+          containerPath: this.getContainerPath()
         });
       } else {
         const doc = this.getDocument();
@@ -23252,9 +24605,9 @@
       return surface ? surface.id : null
     }
 
-    getContainerId () {
+    getContainerPath () {
       let surface = this.getSurface();
-      return surface ? surface.getContainerId() : null
+      return surface ? surface.getContainerPath() : null
     }
 
     isEditable () {
@@ -23702,7 +25055,7 @@
     }
 
     _shouldConsumeEvent (event) {
-      let comp = Component.unwrap(event.target);
+      let comp = Component.unwrap(event.currentTarget);
       let isolatedNodeComponent = this._getIsolatedNode(comp);
       return (isolatedNodeComponent === this)
     }
@@ -23794,14 +25147,19 @@
     selectNode () {
       
       const editorSession = this.getEditorSession();
-      const surface = this.getParentSurface();
       const nodeId = this.props.node.id;
-      editorSession.setSelection({
+      let selData = {
         type: 'node',
-        nodeId: nodeId,
-        containerId: surface.getContainerId(),
-        surfaceId: surface.id
-      });
+        nodeId: nodeId
+      };
+      const surface = this.getParentSurface();
+      if (surface) {
+        Object.assign(selData, {
+          containerPath: surface.getContainerPath(),
+          surfaceId: surface.id
+        });
+      }
+      editorSession.setSelection(selData);
     }
 
     
@@ -24213,8 +25571,10 @@
         if (comp && comp._isContainerEditor) {
           let childIdx = (offset === 0) ? 0 : offset - 1;
           let isBefore = (offset === 0);
-          let container = comp.getContainer();
-          let childNode = container.getNodeAt(childIdx);
+          let doc = comp.getDocument();
+          let containerPath = comp.getContainerPath();
+          let nodeIds = doc.get(containerPath);
+          let childNode = doc.get(nodeIds[childIdx]);
           let childComp = comp.getChildAt(childIdx);
           coor = new Coordinate([childNode.id], isBefore ? 0 : 1);
           coor._comp = childComp;
@@ -24254,7 +25614,7 @@
       console.error('Coordinates are within two different surfaces. Can not create a selection.');
       return null
     }
-    return new Range(start, end, isReverse, surface.getContainerId(), surface.id)
+    return new Range(start, end, isReverse, surface.getContainerPath(), surface.id)
   }
 
   class DeprecatedResourceManager {
@@ -24688,8 +26048,8 @@
     
     register (nodeClazz) {
       var type = nodeClazz.prototype.type;
-      if (typeof type !== 'string' || type === '') {
-        throw new Error('Node names must be strings and must not be empty')
+      if (!isString(type) || !type) {
+        throw new Error('Node type must be string and not empty')
       }
       if (!(nodeClazz.prototype._isNode)) {
         throw new Error('Nodes must be subclasses of Substance.Data.Node')
@@ -24728,6 +26088,10 @@
       return Boolean(this.definition._isText)
     }
 
+    isContainer () {
+      return Boolean(this.definition._isContainer)
+    }
+
     isOwned () {
       return Boolean(this.definition.owned)
     }
@@ -24753,18 +26117,16 @@
         return []
       }
       switch (this.definition.type) {
-        case 'object':
-          return {}
-        case 'number':
-          return -1
-        case 'coordinate':
-          return new Coordinate([], 0)
         case 'boolean':
           return false
-        case 'id':
-          return null
         case 'string':
           return ''
+        case 'number':
+          return -1
+        case 'object':
+          return {}
+        case 'coordinate':
+          return new Coordinate([], 0)
         default:
           return null
       }
@@ -24777,11 +26139,19 @@
     get targetTypes () {
       return this.definition.targetTypes
     }
+
+    get defaultTextType () {
+      return this.definition.defaultTextType
+    }
+
+    get values () {
+      return this.definition.values
+    }
   }
 
   class NodeSchema {
     constructor (properties, superTypes) {
-      this.properties = properties;
+      this._properties = properties;
       this._superTypes = superTypes;
       
       
@@ -24790,16 +26160,16 @@
       
       this._ownedPropNames = new Set();
       this._ownedProps = [];
-      forEach(properties, (prop) => {
+      for (let prop of properties.values()) {
         if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
           this._ownedPropNames.add(prop.name);
           this._ownedProps.push(prop);
         }
-      });
+      }
     }
 
     getProperty (name) {
-      return this.properties[name]
+      return this._properties.get(name)
     }
 
     hasOwnedProperties () {
@@ -24823,31 +26193,20 @@
     }
 
     [Symbol.iterator] () {
-      const properties = this.properties;
-      let ids = Object.keys(properties);
-      let idx = 0;
-      return { 
-        next () {
-          let done = idx > ids.length - 1;
-          if (done) {
-            return { done }
-          } else {
-            return {
-              value: properties[ids[idx++]]
-            }
-          }
-        }
-      }
+      return this._properties.values()
     }
   }
 
-  const VALUE_TYPES = new Set(['string', 'number', 'boolean', 'object', 'array', 'coordinate']);
+  const VALUE_TYPES = new Set(['id', 'string', 'number', 'boolean', 'enum', 'object', 'array', 'coordinate']);
 
 
   class Node extends EventEmitter {
     
     constructor (...args) {
       super();
+
+      
+      this._properties = {};
 
       
       
@@ -24869,9 +26228,9 @@
           throw new Error('Property ' + name + ' is mandatory for node type ' + this.type)
         }
         if (propIsGiven) {
-          this[name] = _checked(property, data[name]);
+          this._properties[name] = _checked(property, data[name]);
         } else if (hasDefault) {
-          this[name] = cloneDeep(_checked(property, property.getDefault()));
+          this._properties[name] = cloneDeep(_checked(property, property.getDefault()));
         }
       }
     }
@@ -24929,6 +26288,10 @@
       return this.constructor.type
     }
 
+    _set (propName, value) {
+      this._properties[propName] = value;
+    }
+
     
     static isInstanceOf (NodeClass, typeName) {
       let schema = NodeClass.schema;
@@ -24940,16 +26303,11 @@
       return false
     }
 
-    
     get _isNode () { return true }
 
     
-    static define (schema) {
-      _define(schema);
-    }
-
-    static defineSchema (schema) {
-      _define(schema);
+    static _defineSchema (schema) {
+      Node.schema = schema;
     }
   }
 
@@ -24961,7 +26319,7 @@
       if (!NodeClass.hasOwnProperty('_schema')) {
         let ParentNodeClass = _getParentClass(NodeClass);
         let parentSchema = ParentNodeClass.schema;
-        NodeClass._schema = new NodeSchema(parentSchema.properties, _getSuperTypes(NodeClass));
+        NodeClass._schema = new NodeSchema(parentSchema._properties, _getSuperTypes(NodeClass));
       }
       return NodeClass._schema
     },
@@ -24986,15 +26344,15 @@
 
 
 
-
-
-
-
-
-  function _define (schema) {
-    console.error("DEPRECATED: use 'Node.schema = {...}' instead");
-    let NodeClass = this;
-    NodeClass.schema = schema;
+  function _assign (maps) {
+    let result = new Map();
+    for (let m of maps) {
+      for (let [key, value] of m) {
+        if (result.has(key)) result.delete(key);
+        result.set(key, value);
+      }
+    }
+    return result
   }
 
   function compileSchema (NodeClass, schema) {
@@ -25003,17 +26361,33 @@
     let Clazz = _getParentClass(NodeClass);
     while (Clazz) {
       if (Clazz && Clazz._schema) {
-        schemas.unshift(Clazz._schema.properties);
+        schemas.unshift(Clazz._schema._properties);
       }
       Clazz = _getParentClass(Clazz);
     }
-    schemas.unshift({});
     let superTypes = _getSuperTypes(NodeClass);
-    return new NodeSchema(Object.assign.apply(null, schemas), superTypes)
+    let _schema = new NodeSchema(_assign(schemas), superTypes);
+
+    
+    for (let prop of _schema) {
+      let name = prop.name;
+      Object.defineProperty(NodeClass.prototype, name, {
+        get () {
+          return this._properties[name]
+        },
+        set (val) {
+          this.set(name, val);
+        },
+        enumerable: true,
+        configurable: true
+      });
+    }
+
+    return _schema
   }
 
   function _compileSchema (schema) {
-    let compiledSchema = {};
+    let compiledSchema = new Map();
     forEach(schema, function (definition, name) {
       
       if (name === 'type') return
@@ -25024,7 +26398,7 @@
       }
       definition = _compileDefintion(definition);
       definition.name = name;
-      compiledSchema[name] = new NodeProperty(name, definition);
+      compiledSchema.set(name, new NodeProperty(name, definition));
     });
     return compiledSchema
   }
@@ -25106,6 +26480,7 @@
       throw new Error('Value for property ' + name + ' is undefined.')
     }
     if ((type === 'string' && !isString(value)) ||
+        (type === 'enum' && !isString(value)) ||
         (type === 'boolean' && !isBoolean(value)) ||
         (type === 'number' && !isNumber(value)) ||
         (type === 'array' && !isArray(value)) ||
@@ -25137,44 +26512,44 @@
 
   class Schema {
     
-    constructor (name, version) {
-      if (!name) {
-        throw new Error("'name' is mandatory")
-      }
-      if (!version) {
-        throw new Error("'version' is mandatory")
+    constructor (options) {
+      
+      
+      
+      if (arguments.length > 1) {
+        console.warn('DEPRECATED: use "new Schema(options)" instead');
+        options = { name: arguments[0], version: arguments[1] };
       }
 
       
-      this.name = name;
+      this.name = options.name;
       
-      this.version = version;
+      this.version = options.version;
       
       this.nodeRegistry = new NodeRegistry();
-      
-      this.tocTypes = [];
 
       
       this.addNodes(this.getBuiltIns());
+
+      if (options.nodes) {
+        this.addNodes(options.nodes);
+      }
     }
 
     
     addNodes (nodes) {
       if (!nodes) return
-      forEach(nodes, function (NodeClass) {
+      forEach(nodes, NodeClass => {
         if (!NodeClass.prototype._isNode) {
           console.error('Illegal node class: ', NodeClass);
         } else {
           this.addNode(NodeClass);
         }
-      }.bind(this));
+      });
     }
 
     addNode (NodeClass) {
       this.nodeRegistry.register(NodeClass);
-      if (NodeClass.tocType) {
-        this.tocTypes.push(NodeClass.type);
-      }
     }
 
     
@@ -25202,11 +26577,6 @@
     }
 
     
-    getTocTypes () {
-      return this.tocTypes
-    }
-
-    
     getDefaultTextType () {
       throw new Error('Schmema.prototype.getDefaultTextType() must be overridden.')
     }
@@ -25221,15 +26591,123 @@
     }
   }
 
+  class XPathNode {
+    constructor (id, type) {
+      this.id = id;
+      this.type = type;
+      this.prev = null;
+      this.property = null;
+      this.pos = null;
+    }
+
+    toJSON () {
+      let data = { id: this.id, type: this.type };
+      if (this.property) data.property = this.property;
+      if (isNumber(this.pos)) data.pos = this.pos;
+      return data
+    }
+
+    toArray () {
+      let result = [this.toJSON()];
+      let current = this;
+      while (current.prev) {
+        current = current.prev;
+        result.unshift(current.toJSON());
+      }
+      return result
+    }
+  }
+
+  class DocumentNodeSelectAdapter extends domUtils.DomUtils {
+    
+    isTag () {
+      return true
+    }
+
+    getChildren (node) {
+      return getChildren(node)
+    }
+
+    getParent (node) {
+      return getParent(node)
+    }
+
+    getAttributeValue (node, name) {
+      return node[name]
+    }
+
+    getAttributes (node) {
+      
+      
+      return ['id', node.id]
+    }
+
+    hasAttrib (node, name) {
+      if (name === 'id') {
+        return true
+      } else {
+        return node.hasOwnProperty(name)
+      }
+    }
+
+    getName (node) {
+      return node.type
+    }
+
+    getNameWithoutNS (node) {
+      return this.getName(node)
+    }
+
+    getText (node) {
+      
+      if (node.isText()) {
+        return node.getText()
+      }
+      return ''
+    }
+  }
+
+  const cssSelectAdapter = new DocumentNodeSelectAdapter();
+
+
   class DocumentNode extends Node {
     _initialize (doc, props) {
       this.document = doc;
+
       super._initialize(props);
+
+      
+      this._xpath = new XPathNode(this.id, this.type);
     }
 
     
     getDocument () {
       return this.document
+    }
+
+    resolve (propName) {
+      let val = this[propName];
+      if (val) {
+        let doc = this.getDocument();
+        if (isArray(val)) {
+          return val.map(id => doc.get(id))
+        } else {
+          return doc.get(val)
+        }
+      }
+    }
+
+    
+    set (propName, value) {
+      this.getDocument().set([this.id, propName], value);
+    }
+
+    
+    assign (props) {
+      if (!props) return
+      Object.keys(props).forEach(propName => {
+        this.set(propName, props[propName]);
+      });
     }
 
     
@@ -25257,35 +26735,22 @@
       return node
     }
 
-    getContainerRoot () {
-      let node = this;
-      while (node.parent) {
-        
-        if (node.parent.isContainer()) return node
-        
-        node = node.parent;
-      }
-      return node
+    find (cssSelector) {
+      return cssSelect.selectOne(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
+    }
+
+    findAll (cssSelector) {
+      return cssSelect.selectAll(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
     }
 
     
-    hasChildren () {
-      return false
+    getXpath () {
+      return this._xpath
     }
 
     
-    getChildIndex(child) { 
-      return -1
-    }
-
-    
-    getChildAt(idx) { 
-      return null
-    }
-
-    
-    getChildCount () {
-      return 0
+    getPosition () {
+      return this._xpath.pos
     }
 
     
@@ -25374,746 +26839,25 @@
     get _isDocumentNode () { return true }
   }
 
-  class ContainerAddress {
-    constructor (pos, offset) {
-      this.pos = pos;
-      this.offset = offset;
-    }
-
-    isBefore (other, strict) {
-      strict = Boolean(strict);
-      if (this.pos < other.pos) {
-        return true
-      } else if (this.pos > other.pos) {
-        return false
-      } else if (this.offset < other.offset) {
-        return true
-      } else if (this.offset > other.offset) {
-        return false
-      }
-      if (strict) {
-        return false
-      } else {
-        return true
-      }
-    }
-
-    isAfter (other, strict) {
-      return other.isBefore(this, strict)
-    }
-
-    isEqual (other) {
-      return (this.pos === other.pos && this.offset === other.offset)
-    }
-
-    toString () {
-      return [this.pos, '.', this.offset].join('')
-    }
-  }
-
-  function filter (iteratee, fn) {
-    if (!iteratee) return []
-    if (iteratee.constructor.prototype.filter && isFunction$1(iteratee.constructor.prototype.filter)) {
-      return iteratee.filter(fn)
-    }
-    let result = [];
-    forEach(iteratee, (val, key) => {
-      if (fn(val, key)) {
-        result.push(val);
-      }
-    });
-    return result
-  }
-
-  class NodeIndex {
-    
-    select (node) { 
-      throw new Error('This method is abstract.')
-    }
-
-    clear () {
-      throw new Error('This method is abstract')
-    }
-
-    
-    create (node) { 
-      throw new Error('This method is abstract.')
-    }
-
-    
-    delete (node) { 
-      throw new Error('This method is abstract.')
-    }
-
-    set (node, path, newValue, oldValue) {
-      this.update(node, path, newValue, oldValue);
-    }
-
-    
-    update (node, path, newValue, oldValue) { 
-      throw new Error('This method is abstract.')
-    }
-
-    
-    reset (data) {
-      this.clear();
-      this._initialize(data);
-    }
-
-    
-    clone () {
-      var NodeIndexClass = this.constructor;
-      var clone = new NodeIndexClass();
-      return clone
-    }
-
-    _initialize (data) {
-      forEach(data.getNodes(), function (node) {
-        if (this.select(node)) {
-          this.create(node);
-        }
-      }.bind(this));
-    }
-  }
-
-
-  NodeIndex.create = function (prototype) {
-    var index = Object.assign(new NodeIndex(), prototype);
-    index.clone = function () {
-      return NodeIndex.create(prototype)
-    };
-    return index
-  };
-
-
-  NodeIndex.filterByType = function (type) {
-    return function (node) {
-      return node.isInstanceOf(type)
-    }
-  };
-
-  class DocumentIndex extends NodeIndex {}
-
-  var annotationHelpers = {
-    insertedText,
-    deletedText,
-    transferAnnotations,
-    expandAnnotation,
-    fuseAnnotation,
-    truncateAnnotation
-  }
-
-  function insertedText (doc, coordinate, length) {
-    if (!length) return
-    var index = doc.getIndex('annotations');
-    var annotations = index.get(coordinate.path);
-    for (let i = 0; i < annotations.length; i++) {
-      let anno = annotations[i];
-      var pos = coordinate.offset;
-      var start = anno.start.offset;
-      var end = anno.end.offset;
-      var newStart = start;
-      var newEnd = end;
-      if ((pos < start) ||
-           (pos === start)) {
-        newStart += length;
-      }
-      
-      if ((pos < end) ||
-           (pos === end && !anno.isInlineNode())) {
-        newEnd += length;
-      }
-      
-      if (newStart !== start) {
-        doc.set([anno.id, 'start', 'offset'], newStart);
-      }
-      if (newEnd !== end) {
-        doc.set([anno.id, 'end', 'offset'], newEnd);
-      }
-    }
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  }
-
-  function deletedText (doc, path, startOffset, endOffset) {
-    if (startOffset === endOffset) return
-    var index = doc.getIndex('annotations');
-    var annotations = index.get(path);
-    var length = endOffset - startOffset;
-    for (let i = 0; i < annotations.length; i++) {
-      let anno = annotations[i];
-      var pos1 = startOffset;
-      var pos2 = endOffset;
-      var start = anno.start.offset;
-      var end = anno.end.offset;
-      var newStart = start;
-      var newEnd = end;
-      if (pos2 <= start) {
-        newStart -= length;
-        newEnd -= length;
-        doc.set([anno.id, 'start', 'offset'], newStart);
-        doc.set([anno.id, 'end', 'offset'], newEnd);
-      } else {
-        if (pos1 <= start) {
-          newStart = start - Math.min(pos2 - pos1, start - pos1);
-        }
-        if (pos1 <= end) {
-          newEnd = end - Math.min(pos2 - pos1, end - pos1);
-        }
-        
-        if (start !== end && newStart === newEnd) {
-          doc.delete(anno.id);
-        } else {
-          
-          if (start !== newStart) {
-            doc.set([anno.id, 'start', 'offset'], newStart);
-          }
-          if (end !== newEnd) {
-            doc.set([anno.id, 'end', 'offset'], newEnd);
-          }
-        }
-      }
-    }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  }
-
-
-  function transferAnnotations (doc, path, offset, newPath, newOffset) {
-    var index = doc.getIndex('annotations');
-    var annotations = index.get(path, offset);
-    for (let i = 0; i < annotations.length; i++) {
-      let a = annotations[i];
-      var isInside = (offset > a.start.offset && offset < a.end.offset);
-      var start = a.start.offset;
-      var end = a.end.offset;
-      
-      if (isInside) {
-        
-        if (a.canSplit()) {
-          let newAnno = a.toJSON();
-          newAnno.id = uuid(a.type + '_');
-          newAnno.start.path = newPath;
-          newAnno.start.offset = newOffset;
-          newAnno.end.path = newPath;
-          newAnno.end.offset = newOffset + a.end.offset - offset;
-          doc.create(newAnno);
-        }
-        
-        let newStartOffset = a.start.offset;
-        let newEndOffset = offset;
-        
-        if (newEndOffset === newStartOffset) {
-          doc.delete(a.id);
-        
-        } else {
-          
-          if (newStartOffset !== start) {
-            doc.set([a.id, 'start', 'offset'], newStartOffset);
-          }
-          if (newEndOffset !== end) {
-            doc.set([a.id, 'end', 'offset'], newEndOffset);
-          }
-        }
-      
-      } else if (a.start.offset >= offset) {
-        
-        
-        
-        doc.set([a.id, 'start', 'path'], newPath);
-        doc.set([a.id, 'start', 'offset'], newOffset + a.start.offset - offset);
-        doc.set([a.id, 'end', 'path'], newPath);
-        doc.set([a.id, 'end', 'offset'], newOffset + a.end.offset - offset);
-      }
-    }
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  }
-
-
-  function truncateAnnotation (tx, anno, sel) {
-    if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
-    if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
-    let annoSel = anno.getSelection();
-    let newAnnoSel = annoSel.truncateWith(sel);
-    anno._updateRange(tx, newAnnoSel);
-    return anno
-  }
-
-
-  function expandAnnotation (tx, anno, sel) {
-    if (!sel || !sel._isSelection) throw new Error('Argument "selection" is required.')
-    if (!anno || !anno.isAnnotation()) throw new Error('Argument "anno" is required and must be an annotation.')
-    let annoSel = anno.getSelection();
-    let newAnnoSel = annoSel.expand(sel);
-    anno._updateRange(tx, newAnnoSel);
-    return anno
-  }
-
-
-  function fuseAnnotation (tx, annos) {
-    if (!isArray(annos) || annos.length < 2) {
-      throw new Error('fuseAnnotation(): at least two annotations are necessary.')
-    }
-    let sel, annoType;
-    annos.forEach(function (anno, idx) {
-      if (idx === 0) {
-        sel = anno.getSelection();
-        annoType = anno.type;
-      } else {
-        if (anno.type !== annoType) {
-          throw new Error('fuseAnnotation(): all annotations must be of the same type.')
-        }
-        sel = sel.expand(anno.getSelection());
-      }
-    });
-    
-    for (var i = 1; i < annos.length; i++) {
-      tx.delete(annos[i].id);
-    }
-    expandAnnotation(tx, annos[0], sel);
-    tx.setSelection(sel);
-  }
-
-  function getPropertyAnnotationsForSelection (doc, sel, options) {
-    options = options || {};
-    if (!sel.isPropertySelection()) {
-      return []
-    }
-    let path = sel.getPath();
-    let annotations = doc.getIndex('annotations').get(path, sel.start.offset, sel.end.offset);
-    if (options.type) {
-      annotations = filter(annotations, DocumentIndex.filterByType(options.type));
-    }
-    return annotations
-  }
-
-
-  function getContainerAnnotationsForSelection (doc, sel, containerId, options) {
-    
-    
-    
-    
-    
-    if (!containerId) {
-      throw new Error("'containerId' is required.")
-    }
-    options = options || {};
-    let index = doc.getIndex('container-annotations');
-    let annotations = [];
-    if (index) {
-      annotations = index.get(containerId, options.type);
-      annotations = filter(annotations, function (anno) {
-        return sel.overlaps(anno.getSelection())
-      });
-    }
-    return annotations
-  }
-
-
-  function isContainerAnnotation (doc, type) {
-    let schema = doc.getSchema();
-    return schema.isInstanceOf(type, '@container-annotation')
-  }
-
-
-  function getTextForSelection (doc, sel) {
-    if (!sel || sel.isNull()) {
-      return ''
-    } else if (sel.isPropertySelection()) {
-      let text = doc.get(sel.start.path);
-      return text.substring(sel.start.offset, sel.end.offset)
-    } else if (sel.isContainerSelection()) {
-      let result = [];
-      let nodeIds = sel.getNodeIds();
-      let L = nodeIds.length;
-      for (let i = 0; i < L; i++) {
-        let id = nodeIds[i];
-        let node = doc.get(id);
-        if (node.isText()) {
-          let text = node.getText();
-          if (i === L - 1) {
-            text = text.slice(0, sel.end.offset);
-          }
-          if (i === 0) {
-            text = text.slice(sel.start.offset);
-          }
-          result.push(text);
-        }
-      }
-      return result.join('\n')
-    }
-  }
-
-  function getMarkersForSelection (doc, sel) {
-    
-    if (!sel || !sel.isPropertySelection()) return []
-    const path = sel.getPath();
-    
-    let markers = doc.getIndex('markers').get(path);
-    const filtered = filter(markers, function (m) {
-      return m.containsSelection(sel)
-    });
-    return filtered
-  }
-
-
-  function deleteNode (doc, node) {
-    
-    if (!node) {
-      console.warn('Invalid arguments');
-      return
-    }
-    
-    if (node.isText()) {
-      
-      let annos = doc.getIndex('annotations').get(node.id);
-      for (let i = 0; i < annos.length; i++) {
-        doc.delete(annos[i].id);
-      }
-    }
-    let nodeSchema = node.getSchema();
-    
-    
-    
-    doc.delete(node.id);
-    
-    let ownedProps = nodeSchema.getOwnedProperties();
-    ownedProps.forEach(prop => {
-      let value = node[prop.name];
-      if (prop.isArray()) {
-        let ids = value;
-        if (ids.length > 0) {
-          
-          if (isArray(ids[0])) ids = flattenOften(ids, 2);
-          ids.forEach((id) => {
-            deleteNode(doc, doc.get(id));
-          });
-        }
-      } else {
-        deleteNode(doc, doc.get(value));
-      }
-    });
-  }
-
-
-  function copyNode (node) {
-    let nodes = [];
-    
-    let doc = node.getDocument();
-    let nodeSchema = node.getSchema();
-    for (let prop of nodeSchema) {
-      
-      
-      if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
-        let val = node[prop.name];
-        nodes.push(_copyChildren(val));
-      }
-    }
-    nodes.push(node.toJSON());
-    let annotationIndex = node.getDocument().getIndex('annotations');
-    let annotations = annotationIndex.get([node.id]);
-    forEach(annotations, function (anno) {
-      nodes.push(anno.toJSON());
-    });
-    let result = flatten(nodes).filter(Boolean);
-    
-    return result
-
-    function _copyChildren (val) {
-      if (!val) return null
-      if (isArray(val)) {
-        return flatten(val.map(_copyChildren))
-      } else {
-        let id = val;
-        if (!id) return null
-        let child = doc.get(id);
-        if (!child) return
-        return copyNode(child)
-      }
-    }
-  }
-
-
-  function deleteTextRange (doc, start, end) {
-    if (!start) {
-      start = {
-        path: end.path,
-        offset: 0
-      };
-    }
-    let path = start.path;
-    let text = doc.get(path);
-    if (!end) {
-      end = {
-        path: start.path,
-        offset: text.length
-      };
-    }
-    
-    if (!isArrayEqual(start.path, end.path)) {
-      throw new Error('start and end must be on one property')
-    }
-    let startOffset = start.offset;
-    if (startOffset < 0) throw new Error('start offset must be >= 0')
-    let endOffset = end.offset;
-    if (endOffset > text.length) throw new Error('end offset must be smaller than the text length')
-
-    doc.update(path, { type: 'delete', start: startOffset, end: endOffset });
-    
-    let annos = doc.getAnnotations(path);
-    annos.forEach(function (anno) {
-      let annoStart = anno.start.offset;
-      let annoEnd = anno.end.offset;
-      
-      if (annoEnd <= startOffset) ; else if (annoStart >= endOffset) {
-        doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - endOffset });
-        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
-      
-      } else if (annoStart >= startOffset && annoEnd <= endOffset) {
-        doc.delete(anno.id);
-      
-      } else if (annoStart >= startOffset && annoEnd >= endOffset) {
-        if (annoStart > startOffset) {
-          doc.update([anno.id, 'start'], { type: 'shift', value: startOffset - annoStart });
-        }
-        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
-      
-      } else if (annoStart <= startOffset && annoEnd <= endOffset) {
-        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - annoEnd });
-      
-      } else if (annoStart < startOffset && annoEnd >= endOffset) {
-        doc.update([anno.id, 'end'], { type: 'shift', value: startOffset - endOffset });
-      } else {
-        console.warn('TODO: handle annotation update case.');
-      }
-    });
-  }
-
-  function deleteListRange (doc, list, start, end) {
-    if (doc !== list.getDocument()) {
-      list = doc.get(list.id);
-    }
-    let startItem, endItem;
-    if (!start) {
-      startItem = list.getItemAt(0);
-      start = {
-        path: startItem.getPath(),
-        offset: 0
-      };
-    } else {
-      startItem = doc.get(start.path[0]);
-    }
-    if (!end) {
-      endItem = list.getLastItem();
-      end = {
-        path: endItem.getPath(),
-        offset: endItem.getLength()
-      };
-    } else {
-      endItem = doc.get(end.path[0]);
-    }
-    let startPos = list.getItemPosition(startItem);
-    let endPos = list.getItemPosition(endItem);
-    
-    if (startPos === endPos) {
-      deleteTextRange(doc, start, end);
-      return
-    }
-    
-    if (startPos > endPos) {
-      [start, end] = [end, start];
-      [startPos, endPos] = [endPos, startPos];
-      [startItem, endItem] = [endItem, startItem];
-    }
-    let firstEntirelySelected = isEntirelySelected(doc, startItem, start, null);
-    let lastEntirelySelected = isEntirelySelected(doc, endItem, null, end);
-
-    
-    if (lastEntirelySelected) {
-      list.removeItemAt(endPos);
-      deleteNode(doc, endItem);
-    } else {
-      deleteTextRange(doc, null, end);
-    }
-
-    
-    let items = list.getItems();
-    for (let i = endPos - 1; i > startPos; i--) {
-      let item = items[i];
-      list.removeItemAt(i);
-      deleteNode(doc, item);
-    }
-
-    
-    if (firstEntirelySelected) {
-      
-      
-      
-      
-      deleteTextRange(doc, start, null);
-    } else {
-      deleteTextRange(doc, start, null);
-    }
-
-    if (!firstEntirelySelected && !lastEntirelySelected) {
-      mergeListItems(doc, list.id, startPos);
-    }
-  }
-
-  function mergeListItems (doc, listId, itemPos) {
-    
-    let list = doc.get(listId);
-    let targetItem = list.getItemAt(itemPos);
-    let targetPath = targetItem.getPath();
-    let targetLength = targetItem.getLength();
-    let sourceItem = list.getItemAt(itemPos + 1);
-    let sourcePath = sourceItem.getPath();
-    
-    list.removeItemAt(itemPos + 1);
-    
-    doc.update(targetPath, { type: 'insert', start: targetLength, text: sourceItem.getText() });
-    
-    annotationHelpers.transferAnnotations(doc, sourcePath, 0, targetPath, targetLength);
-    deleteNode(doc, sourceItem);
-  }
-
-  function getNodes (doc, ids) {
-    return ids.map((id) => {
-      return doc.get(id, 'strict')
-    })
-  }
-
-
-
-  const SNIPPET_ID = 'snippet';
-  const TEXT_SNIPPET_ID = 'text-snippet';
-
-  var documentHelpers = /*#__PURE__*/Object.freeze({
-    getPropertyAnnotationsForSelection: getPropertyAnnotationsForSelection,
-    getContainerAnnotationsForSelection: getContainerAnnotationsForSelection,
-    isContainerAnnotation: isContainerAnnotation,
-    getTextForSelection: getTextForSelection,
-    getMarkersForSelection: getMarkersForSelection,
-    deleteNode: deleteNode,
-    copyNode: copyNode,
-    deleteTextRange: deleteTextRange,
-    deleteListRange: deleteListRange,
-    mergeListItems: mergeListItems,
-    getNodes: getNodes,
-    SNIPPET_ID: SNIPPET_ID,
-    TEXT_SNIPPET_ID: TEXT_SNIPPET_ID
-  });
-
   function ContainerMixin (DocumentNode) {
     class AbstractContainer extends DocumentNode {
-      contains (nodeId) {
-        return this.getPosition(nodeId) >= 0
+      getContentPath () {
+        throw new Error('This method is abstract')
       }
 
-      getPosition (node, strict) {
-        if (isString(node)) {
-          node = this.document.get(node);
-        }
-        if (!node) return -1
-        let pos = this._getPosition(node);
-        if (strict && pos < 0) {
-          throw new Error('Node is not within this container: ' + node.id)
-        }
-        return pos
+      getContent () {
+        let doc = this.getDocument();
+        return doc.get(this.getContentPath())
+      }
+
+      contains (nodeId) {
+        return this.getChildIndex(nodeId) >= 0
       }
 
       getNodeAt (idx) {
-        const nodeId = this.getNodeIdAt(idx);
+        const nodeId = this._getNodeIdAt(idx);
         if (nodeId) {
           return this.getDocument().get(nodeId)
-        }
-      }
-
-      getNodeIdAt (idx) {
-        let content = this.getContent();
-        if (idx < 0 || idx >= content.length) {
-          
-          return undefined
-        } else {
-          return content[idx]
         }
       }
 
@@ -26122,7 +26866,15 @@
         return this.getContent().map(id => doc.get(id)).filter(Boolean)
       }
 
-      show (nodeId, pos) {
+      getNodeIndex (id) {
+        return this.getContent().indexOf(id)
+      }
+
+      getPath () {
+        return this.getContentPath()
+      }
+
+      append (nodeId) {
         
         const arg1 = arguments[0];
         if (!isString(arg1)) {
@@ -26130,17 +26882,12 @@
             nodeId = arg1.id;
           }
         }
-        if (arguments.length > 1) {
-          console.error('DEPRECATED: use container.showAt(pos, nodeId) instead');
-        } else {
-          pos = this.getLength();
-        }
-        return this.showAt(pos, nodeId)
+        return this.insertAt(this.length, nodeId)
       }
 
-      showAt (pos, nodeId) {
+      insertAt (pos, nodeId) {
         const doc = this.getDocument();
-        const length = this.getLength();
+        const length = this.length;
         if (!isNumber(pos) || pos < 0 || pos > length) {
           throw new Error('Index out of bounds')
         }
@@ -26154,13 +26901,13 @@
         doc.update(this.getContentPath(), { type: 'insert', pos: pos, value: nodeId });
       }
 
-      hide (nodeId) {
-        const pos = this.getPosition(nodeId);
-        this.hideAt(pos);
+      remove (nodeId) {
+        const pos = getContainerPosition(this.getDocument(), this.getContentPath(), nodeId);
+        this.removeAt(pos);
       }
 
-      hideAt (pos) {
-        const length = this.getLength();
+      removeAt (pos) {
+        const length = this.length;
         if (pos >= 0 && pos < length) {
           const doc = this.getDocument();
           doc.update(this.getContentPath(), { type: 'delete', pos: pos });
@@ -26169,122 +26916,22 @@
         }
       }
 
-      getAddress (coor) {
-        if (!coor._isCoordinate) {
-          
-          throw new Error('Illegal argument: Container.getAddress(coor) expects a Coordinate instance.')
-        }
-        var nodeId = coor.path[0];
-        var nodePos = this.getPosition(nodeId);
-        var offset;
-        if (coor.isNodeCoordinate()) {
-          if (coor.offset > 0) {
-            offset = Number.MAX_VALUE;
-          } else {
-            offset = 0;
-          }
-        } else {
-          offset = coor.offset;
-        }
-        return new ContainerAddress(nodePos, offset)
+      get length () {
+        return this.getLength()
       }
 
       getLength () {
         return this.getContent().length
       }
 
-      get length () {
-        return this.getLength()
-      }
-
-      _getPosition (node) {
-        if (this._isCaching) {
-          return this._getCachedPosition(node)
+      _getNodeIdAt (idx) {
+        let content = this.getContent();
+        if (idx < 0 || idx >= content.length) {
+          
+          return undefined
         } else {
-          return this._lookupPosition(node)
+          return content[idx]
         }
-      }
-
-      _getCachedPosition (node) {
-        let cache = this._cachedPositions || this._fillCache();
-        let nodeId = node.id;
-        let pos = -1;
-        if (cache.hasOwnProperty(nodeId)) {
-          pos = cache[nodeId];
-        } else {
-          pos = this._lookupPosition(node);
-          cache[nodeId] = pos;
-        }
-        return pos
-      }
-
-      _fillCache () {
-        let positions = {};
-        this.nodes.forEach((id, pos) => {
-          positions[id] = pos;
-        });
-        this._cachedPositions = positions;
-        return positions
-      }
-
-      _invalidateCache () {
-        this._cachedPositions = null;
-      }
-
-      _lookupPosition (node) {
-        if (node.hasParent()) {
-          node = node.getContainerRoot();
-        }
-        return this.getContent().indexOf(node.id)
-      }
-
-      _enableCaching () {
-        
-        if (this.document) {
-          this.document.data.on('operation:applied', this._onOperationApplied, this);
-          this._isCaching = true;
-        }
-      }
-
-      _onOperationApplied (op) {
-        if (op.type === 'set' || op.type === 'update') {
-          if (op.path[0] === this.id) {
-            this._invalidateCache();
-          }
-        }
-      }
-
-      _onDocumentChange (change) {
-        if (change.hasUpdated(this.getContentPath())) {
-          this._invalidateCache();
-        }
-      }
-
-      
-      
-
-      hasChildren () {
-        return this.getContent().length > 0
-      }
-
-      getChildIndex (child) {
-        return this.getContent().indexOf(child.id)
-      }
-
-      getChildren () {
-        return getNodes(this.getDocument(), this.getContent())
-      }
-
-      getChildAt (idx) {
-        var childrenIds = this.getContent();
-        if (idx < 0 || idx >= childrenIds.length) {
-          throw new Error('Array index out of bounds: ' + idx + ', ' + childrenIds.length)
-        }
-        return this.getDocument().get(childrenIds[idx], 'strict')
-      }
-
-      getChildCount () {
-        return this.getContent().length
       }
 
       static isContainer () {
@@ -26295,19 +26942,6 @@
   }
 
   class Container extends ContainerMixin(DocumentNode) {
-    constructor (...args) {
-      super(...args);
-
-      
-      
-      
-      this._enableCaching();
-    }
-
-    dispose () {
-      this.document.off(this);
-    }
-
     getContentPath () {
       return [this.id, 'nodes']
     }
@@ -26315,9 +26949,6 @@
     getContent () {
       return this.nodes
     }
-
-    
-    get _isContainer () { return true }
   }
 
   Container.schema = {
@@ -26331,8 +26962,8 @@
         super(doc, _normalizedProps(props));
 
         
-        this.start = new Coordinate(this.start);
-        this.end = new Coordinate(this.end);
+        this._properties.start = new Coordinate(this.start);
+        this._properties.end = new Coordinate(this.end);
       }
 
       
@@ -26418,7 +27049,7 @@
         if (this.isContainerAnnotation()) {
           return doc.createSelection({
             type: 'container',
-            containerId: this.containerId,
+            containerPath: this.containerPath,
             startPath: this.start.path,
             startOffset: this.start.offset,
             endPath: this.end.path,
@@ -26552,14 +27183,14 @@
 
   ContainerAnnotation.schema = {
     type: '@container-annotation',
-    containerId: 'string',
+    containerPath: { type: ['array', 'id'] },
     start: 'coordinate',
     end: 'coordinate'
   };
 
   class DocumentSchema extends Schema {
     constructor (schemaSpec) {
-      super(schemaSpec.name, schemaSpec.version);
+      super(schemaSpec);
       
       if (!schemaSpec.DocumentClass) {
         throw new Error('DocumentClass is mandatory')
@@ -27032,7 +27663,7 @@
           path: inlineNode.start.path,
           startOffset: inlineNode.start.offset,
           endOffset: inlineNode.end.offset,
-          containerId: surface.getContainerId(),
+          containerPath: surface.getContainerPath(),
           surfaceId: surface.id
         };
         return
@@ -27044,7 +27675,7 @@
       dragState.sourceSelection = {
         type: 'node',
         nodeId: isolatedNodeComponent.props.node.id,
-        containerId: surface.getContainerId(),
+        containerPath: surface.getContainerPath(),
         surfaceId: surface.id
       };
       
@@ -27164,21 +27795,21 @@
       let copy = tx.copySelection();
       
       tx.deleteSelection({ clear: true });
-      let containerId = dragState.targetSurface.getContainerId();
+      let containerPath = dragState.targetSurface.getContainerPath();
       let surfaceId = dragState.targetSurface.getName();
-      let container = tx.get(containerId);
-      let targetNodeId = container.getNodeIdAt(insertPos);
+      let nodeIds = tx.get(containerPath);
+      let targetNodeId = nodeIds[insertPos];
       let insertMode = 'before';
       if (!targetNodeId) {
-        targetNodeId = container.getNodeIdAt(insertPos - 1);
+        targetNodeId = nodeIds[insertPos - 1];
         insertMode = 'after';
       }
       tx.setSelection({
         type: 'node',
         nodeId: targetNodeId,
         mode: insertMode,
-        containerId: containerId,
-        surfaceId: surfaceId
+        containerPath,
+        surfaceId
       });
       tx.paste(copy);
     }
@@ -27226,21 +27857,21 @@
       let { insertPos } = dragState.dropParams;
       let files = dragState.data.files;
       let uris = dragState.data.uris;
-      let containerId = dragState.targetSurface.getContainerId();
+      let containerPath = dragState.targetSurface.getContainerPath();
       let surfaceId = dragState.targetSurface.id;
-      let container = tx.get(containerId);
-      let targetNode = container.getNodeIdAt(insertPos);
+      let nodeIds = tx.get(containerPath);
+      let targetNode = nodeIds[insertPos];
       let insertMode = 'before';
       if (!targetNode) {
-        targetNode = container.getNodeIdAt(insertPos - 1);
+        targetNode = nodeIds[insertPos - 1];
         insertMode = 'after';
       }
       tx.setSelection({
         type: 'node',
         nodeId: targetNode,
         mode: insertMode,
-        containerId: containerId,
-        surfaceId: surfaceId
+        containerPath,
+        surfaceId
       });
       if (files.length > 0) {
         files.forEach((file) => {
@@ -27519,72 +28150,72 @@
 
   function parseKeyCombo (combo) {
     let frags = combo.split('+');
-    let data = {
+    let keyEvent = {
       keyCode: -1
     };
     for (var i = 0; i < frags.length; i++) {
       let frag = frags[i].toUpperCase();
       switch (frag) {
         case 'ALT': {
-          data.altKey = true;
+          keyEvent.altKey = true;
           break
         }
         case 'ALTGR': {
-          data.altKey = true;
-          data.code = 'AltRight';
+          keyEvent.altKey = true;
+          keyEvent.code = 'AltRight';
           break
         }
         case 'CMD': {
-          data.metaKey = true;
+          keyEvent.metaKey = true;
           break
         }
         case 'CTRL': {
-          data.ctrlKey = true;
+          keyEvent.ctrlKey = true;
           break
         }
         case 'COMMANDORCONTROL': {
           if (platform.isMac) {
-            data.metaKey = true;
+            keyEvent.metaKey = true;
           } else {
-            data.ctrlKey = true;
+            keyEvent.ctrlKey = true;
           }
           break
         }
         case 'MEDIANEXTTRACK': {
-          data.code = 'MediaTrackNext';
+          keyEvent.code = 'MediaTrackNext';
           break
         }
         case 'MEDIAPLAYPAUSE': {
-          data.code = 'MediaPlayPause';
+          keyEvent.code = 'MediaPlayPause';
           break
         }
         case 'MEDIAPREVIOUSTRACK': {
-          data.code = 'MediaPreviousTrack';
+          keyEvent.code = 'MediaPreviousTrack';
           break
         }
         case 'MEDIASTOP': {
-          data.code = 'MediaStop';
+          keyEvent.code = 'MediaStop';
           break
         }
         case 'SHIFT': {
-          data.shiftKey = true;
+          keyEvent.shiftKey = true;
           break
         }
         case 'SUPER': {
-          data.metaKey = true;
+          keyEvent.metaKey = true;
           break
         }
         default:
           if (frag.length === 1) {
-            data.keyCode = frag.charCodeAt(0);
+            keyEvent.keyCode = frag.charCodeAt(0);
           } else if (keys$1.hasOwnProperty(frag)) {
-            data.keyCode = keys$1[frag];
+            keyEvent.keyCode = keys$1[frag];
           } else {
             throw new Error('Unsupported keyboard command: ' + combo)
           }
       }
     }
-    return parseKeyEvent(data)
+    return keyEvent
   }
 
   class DeprecatedKeyboardManager extends AbstractKeyboardManager {
@@ -27604,7 +28235,7 @@
           let handler = new ExecuteCommandHandler(editorSession, spec.command);
           let hook = handler.execute.bind(handler);
           if (type === 'keydown') {
-            key = parseKeyCombo(key);
+            key = parseKeyEvent(parseKeyCombo(key));
             if (!this.keydownBindings[key]) this.keydownBindings[key] = [];
             this.keydownBindings[key].push(hook);
           } else if (type === 'textinput') {
@@ -27632,7 +28263,7 @@
       return this.context
     }
 
-    static parseCombo (...args) { return parseKeyCombo(...args) }
+    static parseCombo (...args) { return parseKeyEvent(parseKeyCombo(...args)) }
   }
 
   class ExecuteCommandHandler {
@@ -27747,30 +28378,31 @@
     }
   }
 
-  function deleteFromArray (array, value) {
-    if (!array) return
-    for (var i = 0; i < array.length; i++) {
-      if (array[i] === value) {
-        array.splice(i, 1);
-        i--;
-      }
-    }
-  }
-
   class ArrayTree {
     add (path, val) {
-      if (!this[path]) {
-        this[path] = [];
+      let key = this._getKey(path);
+      if (!this[key]) {
+        this[key] = [];
       }
-      this[path].push(val);
+      this[key].push(val);
     }
     remove (path, val) {
-      if (this[path]) {
-        deleteFromArray(this[path], val);
+      let key = this._getKey(path);
+      if (this[key]) {
+        deleteFromArray(this[key], val);
       }
     }
     get (path) {
-      return this[path] || []
+      let key = this._getKey(path);
+      return this[key] || []
+    }
+
+    _getKey (path) {
+      if (isString) {
+        return path
+      } else {
+        return getKeyForPath(path)
+      }
     }
   }
 
@@ -27787,7 +28419,7 @@
       if (!props.end) {
         throw new Error("'end' is mandatory")
       }
-      Object.assign(this, props);
+      Object.assign(this._properties, props);
     }
 
     
@@ -27885,7 +28517,7 @@
       opts = opts || {};
       let doc = this.editorSession.getDocument();
       let annos = doc.getAnnotations(path) || [];
-      let markers = this._markers.get(path, opts.surfaceId, opts.containerId);
+      let markers = this._markers.get(path, opts.surfaceId, opts.containerPath);
       return annos.concat(markers)
     }
 
@@ -27919,7 +28551,7 @@
       let path = textPropertyComponent.getPath();
       let markers = this.getMarkers(path, {
         surfaceId: textPropertyComponent.getSurfaceId(),
-        containerId: textPropertyComponent.getContainerId()
+        containerPath: textPropertyComponent.getContainerPath()
       });
       
       textPropertyComponent.setState({
@@ -29185,7 +29817,7 @@
     }
   }
 
-  class ChangeHistory {
+  class DeprecatedChangeHistory {
     constructor () {
       this.reset();
     }
@@ -29357,29 +29989,26 @@
 
     _deriveContainerSelectionState (sel) {
       let doc = this.document;
-      if (sel.containerId) {
-        let container = doc.get(sel.containerId);
-        this.container = container;
+      let containerPath = sel.containerPath;
+      if (containerPath) {
         let startId = sel.start.getNodeId();
         let endId = sel.end.getNodeId();
-        let startNode = doc.get(startId).getContainerRoot();
-        let startPos = container.getPosition(startNode);
+        let startNode = getContainerRoot(doc, containerPath, startId);
+        let startPos = startNode.getPosition();
         if (startPos > 0) {
-          this.previousNode = container.getNodeAt(startPos - 1);
+          this.previousNode = getPreviousNode(doc, containerPath, startPos);
         }
-        this.isFirst = isFirst(doc, sel.start);
+        this.isFirst = isFirst(doc, containerPath, sel.start);
         let endNode, endPos;
         if (endId === startId) {
           endNode = startNode;
           endPos = startPos;
         } else {
-          endNode = doc.get(endId).getContainerRoot();
-          endPos = container.getPosition(endNode);
+          endNode = getContainerRoot(doc, containerPath, endId);
+          endPos = endNode.getPosition();
         }
-        if (endPos < container.getLength() - 1) {
-          this.nextNode = container.getNodeAt(endPos + 1);
-        }
-        this.isLast = isLast(doc, sel.end);
+        this.nextNode = getNextNode(doc, containerPath, endPos);
+        this.isLast = isLast(doc, containerPath, sel.end);
       }
     }
 
@@ -29399,9 +30028,9 @@
       if (propAnnos.length === 1 && propAnnos[0].isInlineNode()) {
         this.isInlineNodeSelection = propAnnos[0].getSelection().equals(sel);
       }
-      const containerId = sel.containerId;
-      if (containerId) {
-        const containerAnnos = getContainerAnnotationsForSelection(doc, sel, containerId);
+      const containerPath = sel.containerPath;
+      if (containerPath) {
+        const containerAnnos = getContainerAnnotationsForSelection(doc, sel, containerPath);
         containerAnnos.forEach(_add);
       }
       this.annosByType = annosByType;
@@ -29421,7 +30050,6 @@
       
       this.isInlineNodeSelection = false;
       
-      this.container = null;
       this.previousNode = null;
       this.nextNode = null;
       
@@ -29453,7 +30081,7 @@
       
       _patchTxSetSelection(this._transaction, this);
 
-      this._history = new ChangeHistory();
+      this._history = new DeprecatedChangeHistory();
       
       this._currentChange = null;
 
@@ -29711,7 +30339,7 @@
       }
 
       _addSurfaceId(sel, this);
-      _addContainerId(sel, this);
+      _addContainerPath(sel, this);
 
       if (this._setSelection(sel) && !skipFlow) {
         this.startFlow();
@@ -29724,7 +30352,7 @@
       this.setSelection({
         type: 'node',
         nodeId: nodeId,
-        containerId: surface.getContainerId(),
+        containerPath: surface.getContainerPath(),
         surfaceId: surface.id
       });
     }
@@ -30216,7 +30844,7 @@
     tx.setSelection = function (sel) {
       sel = Transaction.prototype.setSelection.call(tx, sel);
       _addSurfaceId(sel, editorSession);
-      _addContainerId(sel, editorSession);
+      _addContainerPath(sel, editorSession);
       return sel
     };
   }
@@ -30237,13 +30865,13 @@
     }
   }
 
-  function _addContainerId (sel, editorSession) {
-    if (sel && !sel.isNull() && sel.surfaceId && !sel.containerId) {
+  function _addContainerPath (sel, editorSession) {
+    if (sel && !sel.isNull() && sel.surfaceId && !sel.containerPath) {
       let surface = editorSession.getSurface(sel.surfaceId);
       if (surface) {
-        let containerId = surface.getContainerId();
-        if (containerId) {
-          sel.containerId = containerId;
+        let containerPath = surface.getContainerPath();
+        if (containerPath) {
+          sel.containerPath = containerPath;
         }
       }
     }
@@ -31775,8 +32403,350 @@
     isYInside: isYInside
   });
 
-  class TreeNode {}
+  class ChangeHistoryView {
+    constructor (documentSession) {
+      this.documentSession = documentSession;
+      this._undo = [];
+      this._redo = [];
+    }
 
+    canUndo () {
+      return this._undo.length > 0
+    }
+
+    canRedo () {
+      return this._redo.length > 0
+    }
+
+    commit (change, info) {
+      let idx = this.documentSession._history.length;
+      this.documentSession._commitChange(change, info);
+      this._undo.push(idx);
+      
+      
+      this._redo.length = 0;
+    }
+
+    undo () {
+      if (this._undo.length === 0) return
+      const history = this.documentSession._history;
+      let newIdx = history.length;
+      
+      let idx = this._undo.pop();
+      let change;
+      try {
+        change = this.documentSession.revert(idx);
+        this._redo.push(newIdx);
+      } catch (err) {
+        console.error(err);
+        this._undo.push(idx);
+      }
+      return change
+    }
+
+    redo () {
+      if (this._redo.length === 0) return
+      const history = this.documentSession._history;
+      let newIdx = history.length;
+      
+      let idx = this._redo.pop();
+      let change;
+      try {
+        change = this.documentSession.revert(idx);
+        this._undo.push(newIdx);
+      } catch (err) {
+        console.error(err);
+        this._redo.push(idx);
+      }
+      return change
+    }
+
+    reset () {
+      this._undo.length = 0;
+      this._redo.length = 0;
+    }
+  }
+
+  class DocumentStage {
+    
+    constructor (masterSession) {
+      this.masterSession = masterSession;
+      
+      let masterDocument = masterSession.getDocument();
+      this.masterDocument = masterDocument;
+
+      
+      this.stageDocument = masterDocument.newInstance().createFromDocument(masterDocument);
+      
+      
+      this.stageDocument._isTransactionDocument = true;
+      
+      this.stageVersion = this._getMasterVersion();
+
+      
+      
+      this.tx = this.stageDocument.createEditingInterface();
+      
+      
+      this._isTransacting = false;
+    }
+
+    dispose () {
+      this.stageDocument.dispose();
+    }
+
+    
+
+    _reset () {
+      this.stageDocument._ops.length = 0;
+    }
+
+    _transaction (transformation, info, before = {}) {
+      if (this._isTransacting) throw new Error('Nested transactions are not supported.')
+      if (!isFunction$1(transformation)) throw new Error('Document.transaction() requires a transformation function.')
+      let hasFinished = false;
+      this._isTransacting = true;
+      
+      this._reset();
+      
+      this._sync();
+      
+      let change;
+      try {
+        const tx = this.tx;
+        if (before.selection) {
+          tx.selection = before.selection;
+        }
+        transformation(tx);
+        let ops = this.stageDocument._ops;
+        if (ops.length > 0) {
+          change = new DocumentChange(ops, {}, {});
+          change.info = info;
+          change.before = before;
+          change.after = {
+            selection: tx.selection
+          };
+          
+          
+          this.stageVersion++;
+          
+          
+          
+        }
+        hasFinished = true;
+      } finally {
+        
+        if (!hasFinished) {
+          this._rollback();
+        }
+        this._reset();
+        this._isTransacting = false;
+      }
+      return change
+    }
+
+    _sync () {
+      const masterVersion = this._getMasterVersion();
+      const stageVersion = this.stageVersion;
+      if (stageVersion < masterVersion) {
+        let stageDocument = this.stageDocument;
+        
+        let changes = this.masterSession._history.slice(stageVersion);
+        for (let change of changes) {
+          stageDocument._apply(change);
+        }
+        this.stageVersion = masterVersion;
+      } else if (stageVersion > masterVersion) {
+        
+        
+        throw new Error('stage document is in an unexpected state.')
+      }
+    }
+
+    _rollback () {
+      const stage = this.stageDocument;
+      let ops = stage._ops;
+      for (let i = ops.length - 1; i >= 0; i--) {
+        stage._applyOp(ops[i].invert());
+      }
+      this._reset();
+    }
+
+    _getMasterVersion () {
+      return this.masterSession._history.length
+    }
+  }
+
+  class AbstractEditorSession extends EventEmitter {
+    constructor (id, documentSession, history) {
+      super();
+
+      const doc = documentSession.getDocument();
+
+      this._id = id;
+      this._document = doc;
+      this._documentSession = documentSession;
+      this._history = history || new ChangeHistoryView(documentSession);
+      this._stage = new DocumentStage(documentSession);
+
+      this._initialize();
+    }
+
+    _initialize () {
+      
+    }
+
+    dispose () {
+      
+    }
+
+    canUndo () {
+      return this._history.canUndo()
+    }
+
+    canRedo () {
+      return this._history.canRedo()
+    }
+
+    getDocument () {
+      return this._document
+    }
+
+    getFocusedSurface () {
+      
+      
+      
+    }
+
+    getSurface (surfaceId) {
+      
+    }
+
+    getSelection () {
+      return this._getSelection()
+    }
+
+    setSelection (sel) {
+      
+      if (!sel) sel = Selection.nullSelection;
+      if (sel && isPlainObject(sel)) {
+        sel = this.getDocument().createSelection(sel);
+      }
+      if (sel && !sel.isNull()) {
+        if (!sel.surfaceId) {
+          let fs = this.getFocusedSurface();
+          if (fs) {
+            sel.surfaceId = fs.id;
+          }
+        }
+      }
+      
+      
+      
+      
+      
+      if (!sel.isCustomSelection()) {
+        if (!sel.surfaceId) {
+          _addSurfaceId$1(sel, this);
+        }
+        if (!sel.containerPath) {
+          _addContainerPath$1(sel, this);
+        }
+      }
+      this._setSelection(this._normalizeSelection(sel));
+      return sel
+    }
+
+    transaction (transformation, info = {}) {
+      const stage = this._stage;
+      let before = {
+        selection: this._getSelection()
+      };
+      let change = stage._transaction(transformation, info, before);
+      if (change) {
+        let after = change.after;
+        let selAfter = after.selection;
+        this._setSelection(this._normalizeSelection(selAfter));
+        
+        this._commit(change, info);
+      }
+      return change
+    }
+
+    undo () {
+      let change = this._history.undo();
+      
+      if (change) this._setSelection(this._normalizeSelection(change.after.selection));
+    }
+
+    updateNodeStates (tuples, options = {}) {
+      this._documentSession.updateNodeStates(tuples, options);
+    }
+
+    redo () {
+      let change = this._history.redo();
+      
+      if (change) this._setSelection(this._normalizeSelection(change.after.selection));
+    }
+
+    
+    resetHistory () {
+      this._history.reset();
+    }
+
+    _commit (change, info) {
+      this._history.commit(change, info);
+    }
+
+    _normalizeSelection (sel) {
+      const doc = this.getDocument();
+      if (!sel) {
+        sel = Selection.nullSelection;
+      } else {
+        sel.attach(doc);
+      }
+      return sel
+    }
+
+    _getSelection () {
+      
+    }
+
+    _setSelection (sel) {
+      
+    }
+
+    _transformSelection (change) {
+      var oldSelection = this.getSelection();
+      var newSelection = transformSelection(oldSelection, change);
+      return newSelection
+    }
+  }
+
+  function _addSurfaceId$1 (sel, editorSession) {
+    if (sel && !sel.isNull() && !sel.surfaceId) {
+      
+      let surface = editorSession.getFocusedSurface();
+      if (surface) {
+        sel.surfaceId = surface.id;
+      }
+    }
+  }
+
+  function _addContainerPath$1 (sel, editorSession) {
+    if (sel && !sel.isNull() && sel.surfaceId && !sel.containerPath) {
+      let surface = editorSession.getSurface(sel.surfaceId);
+      if (surface) {
+        let containerPath = surface.getContainerPath();
+        if (containerPath) {
+          
+          sel.containerPath = containerPath;
+        }
+      }
+    }
+  }
+
+  class TreeNode {}
 
 
   class TreeIndex {
@@ -31785,9 +32755,7 @@
       if (arguments.length > 1) {
         path = Array.prototype.slice(arguments, 0);
       }
-      if (isString(path)) {
-        path = [path];
-      }
+      path = _pathify(path);
       return get(this, path)
     }
 
@@ -31795,34 +32763,29 @@
       if (arguments.length > 1) {
         path = Array.prototype.slice(arguments, 0);
       }
-      if (isString(path)) {
-        path = [path];
-      }
+      path = _pathify(path);
       if (!isArray(path)) {
         throw new Error('Illegal argument for TreeIndex.get()')
       }
-      var node = get(this, path);
+      let node = get(this, path);
       return this._collectValues(node)
     }
 
     set (path, value) {
-      if (isString(path)) {
-        path = [path];
-      }
+      path = _pathify(path);
       setWith(this, path, value, function (val) {
         if (!val) return new TreeNode()
       });
     }
 
     delete (path) {
-      if (isString(path)) {
-        delete this[path];
-      } else if (path.length === 1) {
+      path = _pathify(path);
+      if (path.length === 1) {
         delete this[path[0]];
       } else {
-        var key = path[path.length - 1];
+        let key = path[path.length - 1];
         path = path.slice(0, -1);
-        var parent = get(this, path);
+        let parent = get(this, path);
         if (parent) {
           delete parent[key];
         }
@@ -31830,8 +32793,8 @@
     }
 
     clear () {
-      var root = this;
-      for (var key in root) {
+      let root = this;
+      for (let key in root) {
         if (root.hasOwnProperty(key)) {
           delete root[key];
         }
@@ -31847,11 +32810,11 @@
     }
 
     _traverse (root, path, fn) {
-      var id;
+      let id;
       for (id in root) {
         if (!root.hasOwnProperty(id)) continue
-        var child = root[id];
-        var childPath = path.concat([id]);
+        let child = root[id];
+        let childPath = path.concat([id]);
         if (child instanceof TreeNode) {
           this._traverse(child, childPath, fn);
         } else {
@@ -31863,12 +32826,20 @@
     _collectValues (root) {
       
       
-      var vals = {};
+      let vals = {};
       this._traverse(root, [], function (val, path) {
-        var key = path[path.length - 1];
+        let key = path[path.length - 1];
         vals[key] = val;
       });
       return vals
+    }
+  }
+
+  function _pathify (path) {
+    if (isString(path)) {
+      return [path]
+    } else {
+      return path
     }
   }
 
@@ -31892,13 +32863,11 @@
     }
 
     add (path, value) {
-      if (isString(path)) {
-        path = [path];
-      }
+      path = _pathify(path);
       if (!isArray(path)) {
         throw new Error('Illegal arguments.')
       }
-      var arr;
+      let arr;
 
       
       
@@ -31920,7 +32889,7 @@
     }
 
     remove (path, value) {
-      var arr = get(this, path);
+      let arr = get(this, path);
       if (arr instanceof TreeNode) {
         if (arguments.length === 1) {
           delete arr.__values__;
@@ -31931,7 +32900,7 @@
     }
 
     _collectValues (root) {
-      var vals = [];
+      let vals = [];
       this._traverse(root, [], function (val) {
         vals.push(val);
       });
@@ -32052,7 +33021,7 @@
       id: TEXT_SNIPPET_ID,
       content: text.substring(offset, endOffset)
     });
-    containerNode.show(TEXT_SNIPPET_ID);
+    containerNode.append(TEXT_SNIPPET_ID);
     let annotations = doc.getIndex('annotations').get(path, offset, endOffset);
     forEach(annotations, function (anno) {
       let data = cloneDeep(anno.toJSON());
@@ -32071,10 +33040,13 @@
   }
 
   function _copyContainerSelection (tx, sel) {
-    let snippet = tx.createSnippet();
-    let container = snippet.getContainer();
+    let containerPath = sel.containerPath;
 
-    let nodeIds = sel.getNodeIds();
+    let snippet = tx.createSnippet();
+    let targetContainer = snippet.getContainer();
+    let targetContainerPath = targetContainer.getContentPath();
+
+    let nodeIds = getNodeIdsCoveredByContainerSelection(tx, sel);
     let L = nodeIds.length;
     if (L === 0) return snippet
 
@@ -32090,11 +33062,11 @@
       let id = nodeIds[i];
       let node = tx.get(id);
       
-      if (i === 0 && isLast(tx, start)) {
+      if (i === 0 && isLast(tx, containerPath, start)) {
         skippedFirst = true;
         continue
       }
-      if (i === L - 1 && isFirst(tx, end)) {
+      if (i === L - 1 && isFirst(tx, containerPath, end)) {
         skippedLast = true;
         continue
       }
@@ -32103,21 +33075,21 @@
           let copy = snippet.create(nodeData);
           created[copy.id] = true;
         });
-        container.show(id);
+        append(snippet, targetContainerPath, id);
       }
     }
     if (!skippedFirst) {
       
-      let startNode = snippet.get(start.getNodeId()).getContainerRoot();
+      let startNode = getContainerRoot(snippet, targetContainerPath, start.getNodeId());
       if (startNode.isText()) {
         deleteTextRange(snippet, null, start);
       } else if (startNode.isList()) {
-        deleteListRange(snippet, startNode, null, start);
+        deleteListRange(snippet, startNode, null, start, { deleteEmptyFirstItem: true });
       }
     }
     if (!skippedLast) {
       
-      let endNode = snippet.get(end.getNodeId()).getContainerRoot();
+      let endNode = getContainerRoot(snippet, targetContainerPath, end.getNodeId());
       if (endNode.isText()) {
         deleteTextRange(snippet, end, null);
       } else if (endNode.isList()) {
@@ -32129,27 +33101,29 @@
 
   function _copyNodeSelection (doc, selection) {
     let snippet = doc.createSnippet();
-    let containerNode = snippet.getContainer();
+    let targetNode = snippet.getContainer();
+    let targetPath = targetNode.getContentPath();
     let nodeId = selection.getNodeId();
     let node = doc.get(nodeId);
     copyNode(node).forEach((nodeData) => {
       snippet.create(nodeData);
     });
-    containerNode.show(node.id);
+    append(snippet, targetPath, node.id);
     return snippet
   }
 
   function _transferWithDisambiguatedIds (sourceDoc, targetDoc, id, visited) {
     if (visited[id]) throw new Error('FIXME: dont call me twice')
+    visited[id] = id;
     const node = sourceDoc.get(id, 'strict');
-    let oldId = node.id;
+    const nodeData = node.toJSON();
+    let oldId = id;
     let newId;
-    if (targetDoc.contains(node.id)) {
+    if (targetDoc.contains(id)) {
       
       newId = uuid(node.type);
-      node.id = newId;
+      nodeData.id = newId;
     }
-    visited[id] = node.id;
     const annotationIndex = sourceDoc.getIndex('annotations');
     const nodeSchema = node.getSchema();
     
@@ -32164,13 +33138,13 @@
       if ((prop.isReference() && prop.isOwned()) || (prop.type === 'file')) {
         
         
-        let val = node[prop.name];
         if (prop.isArray()) {
-          _transferArrayOfReferences(sourceDoc, targetDoc, val, visited);
+          let ids = nodeData[name];
+          nodeData[name] = _transferArrayOfReferences(sourceDoc, targetDoc, ids, visited);
         } else {
-          let id = val;
+          let id = nodeData[name];
           if (!visited[id]) {
-            node[name] = _transferWithDisambiguatedIds(sourceDoc, targetDoc, id, visited);
+            nodeData[name] = _transferWithDisambiguatedIds(sourceDoc, targetDoc, id, visited);
           }
         }
       
@@ -32181,6 +33155,7 @@
         
         
         let _annos = annotationIndex.get([oldId, prop.name]);
+        
         for (let i = 0; i < _annos.length; i++) {
           let anno = _annos[i];
           if (anno.start.path[0] === oldId && newId) {
@@ -32193,26 +33168,28 @@
         }
       }
     }
-    targetDoc.create(node);
+    targetDoc.create(nodeData);
     for (let i = 0; i < annos.length; i++) {
       _transferWithDisambiguatedIds(sourceDoc, targetDoc, annos[i].id, visited);
     }
-    return node.id
+    return nodeData.id
   }
 
   function _transferArrayOfReferences (sourceDoc, targetDoc, arr, visited) {
+    let result = arr.slice(0);
     for (let i = 0; i < arr.length; i++) {
       let val = arr[i];
       
       if (isArray(val)) {
-        _transferArrayOfReferences(sourceDoc, targetDoc, val, visited);
+        result[i] = _transferArrayOfReferences(sourceDoc, targetDoc, val, visited);
       } else {
         let id = val;
         if (id && !visited[id]) {
-          arr[i] = _transferWithDisambiguatedIds(sourceDoc, targetDoc, id, visited);
+          result[i] = _transferWithDisambiguatedIds(sourceDoc, targetDoc, id, visited);
         }
       }
     }
+    return result
   }
 
   function paste (tx, args) {
@@ -32227,7 +33204,7 @@
     args.text = args.text || '';
     let pasteDoc = args.doc;
     
-    let inContainer = Boolean(sel.containerId);
+    let inContainer = Boolean(sel.containerPath);
     
     if (!sel.isCollapsed()) {
       tx.deleteSelection();
@@ -32248,7 +33225,7 @@
     let snippet = pasteDoc.get(SNIPPET_ID);
     let L = snippet.getLength();
     if (L === 0) return
-    let first = snippet.getChildAt(0);
+    let first = snippet.getNodeAt(0);
     
     if (!inContainer) {
       
@@ -32267,7 +33244,7 @@
         
         
         
-        snippet.hideAt(0);
+        snippet.removeAt(0);
         L--;
       }
       
@@ -32295,7 +33272,7 @@
         type: defaultTextType,
         content: lines[0]
       });
-      container.show(node.id);
+      container.append(node.id);
     } else {
       for (let i = 0; i < lines.length; i++) {
         node = pasteDoc.create({
@@ -32303,7 +33280,7 @@
           type: defaultTextType,
           content: lines[i]
         });
-        container.show(node.id);
+        container.append(node.id);
       }
     }
     return pasteDoc
@@ -32349,7 +33326,7 @@
       content: fragments.join('')
     });
     annos.forEach(anno => snippet.create(anno));
-    snippet.getContainer().show(TEXT_SNIPPET_ID);
+    snippet.getContainer().append(TEXT_SNIPPET_ID);
     return snippet
   }
 
@@ -32387,29 +33364,92 @@
   }
 
   function _pasteDocument (tx, pasteDoc) {
+    let snippet = pasteDoc.get(SNIPPET_ID);
+    if (snippet.getLength() === 0) return
+
     let sel = tx.selection;
-    let containerId = sel.containerId;
-    let container = tx.get(containerId);
+    let containerPath = sel.containerPath;
     let insertPos;
+    
+    
+    
+    
     if (sel.isPropertySelection()) {
       let startPath = sel.start.path;
-      let nodeId = sel.start.getNodeId();
-      let startPos = container.getPosition(nodeId, 'strict');
-      let text = tx.get(startPath);
+      let node = getContainerRoot(tx, containerPath, sel.start.getNodeId());
       
       
-      if (text.length === 0) {
-        insertPos = startPos;
-        container.hide(nodeId);
-        deleteNode(tx, tx.get(nodeId));
-      } else if (text.length === sel.start.offset) {
-        insertPos = startPos + 1;
-      } else {
-        tx.break();
-        insertPos = startPos + 1;
+      
+      if (node.isText()) {
+        let startPos = node.getPosition();
+        let text = tx.get(startPath);
+        if (text.length === 0) {
+          insertPos = startPos;
+          removeAt(tx, containerPath, insertPos);
+          deepDeleteNode(tx, tx.get(node.id));
+        } else if (text.length === sel.start.offset) {
+          insertPos = startPos + 1;
+        } else {
+          tx.break();
+          insertPos = startPos + 1;
+        }
+      
+      
+      
+      
+      
+      } else if (node.isList()) {
+        let list = node;
+        let listItem = tx.get(sel.start.getNodeId());
+        let first = snippet.getNodeAt(0);
+        if (first.isList()) {
+          if (first.getLength() > 0) {
+            let itemPos = listItem.getPosition();
+            if (listItem.getLength() === 0) {
+              
+              removeAt(tx, list.getItemsPath(), itemPos);
+              deepDeleteNode(tx, listItem);
+              _pasteListItems(tx, list, first, itemPos);
+            } else if (sel.start.offset === 0) {
+              
+              _pasteListItems(tx, list, first, itemPos);
+            } else if (sel.start.offset >= listItem.getLength()) {
+              
+              _pasteListItems(tx, list, first, itemPos + 1);
+            } else {
+              tx.break();
+              _pasteListItems(tx, list, first, itemPos + 1);
+            }
+            
+            
+            if (snippet.getLength() > 1) {
+              _breakListApart(tx, containerPath, list);
+            }
+          }
+          
+          snippet.removeAt(0);
+          insertPos = list.getPosition() + 1;
+        } else {
+          
+          if (list.getLength() === 1 && listItem.getLength() === 0) {
+            insertPos = list.getPosition();
+            removeAt(tx, containerPath, insertPos);
+            deepDeleteNode(tx, list);
+          
+          } else if (listItem.getPosition() === 0 && sel.start.offset === 0) {
+            insertPos = list.getPosition();
+          
+          } else if (listItem.getPosition() === list.getLength() - 1 && sel.end.offset >= listItem.getLength()) {
+            insertPos = list.getPosition() + 1;
+          
+          } else {
+            insertPos = list.getPosition() + 1;
+            _breakListApart(tx, containerPath, list);
+          }
+        }
       }
     } else if (sel.isNodeSelection()) {
-      let nodePos = container.getPosition(sel.getNodeId(), 'strict');
+      let nodePos = getContainerPosition(tx, containerPath, sel.getNodeId());
       if (sel.isBefore()) {
         insertPos = nodePos;
       } else if (sel.isAfter()) {
@@ -32418,6 +33458,11 @@
         throw new Error('Illegal state: the selection should be collapsed.')
       }
     }
+
+    _pasteContainerNodes(tx, pasteDoc, containerPath, insertPos);
+  }
+
+  function _pasteContainerNodes (tx, pasteDoc, containerPath, insertPos) {
     
     let nodeIds = pasteDoc.get(SNIPPET_ID).nodes;
     let insertedNodes = [];
@@ -32425,13 +33470,12 @@
     let nodes = nodeIds.map(id => pasteDoc.get(id));
 
     
-    let contentProperty = tx.getProperty(container.getContentPath());
-    let targetTypes = contentProperty.targetTypes;
+    let containerProperty = tx.getProperty(containerPath);
+    let targetTypes = containerProperty.targetTypes;
     
     if (targetTypes && targetTypes.length > 0) {
       nodes = nodes.filter(node => targetTypes.indexOf(node.type) >= 0);
     }
-
     for (let node of nodes) {
       
       
@@ -32440,14 +33484,55 @@
       let newId = _transferWithDisambiguatedIds(node.getDocument(), tx, node.id, visited);
       
       node = tx.get(newId);
-      container.showAt(insertPos++, newId);
+      insertAt(tx, containerPath, insertPos++, newId);
       insertedNodes.push(node);
     }
 
     if (insertedNodes.length > 0) {
       let lastNode = last$1(insertedNodes);
-      setCursor(tx, lastNode, containerId, 'after');
+      setCursor(tx, lastNode, containerPath, 'after');
     }
+  }
+
+  function _pasteListItems (tx, list, otherList, insertPos) {
+    let sel = tx.getSelection();
+    let items = otherList.resolve('items');
+    let visited = {};
+    let lastItem;
+    for (let item of items) {
+      let newId = _transferWithDisambiguatedIds(item.getDocument(), tx, item.id, visited);
+      insertAt(tx, list.getItemsPath(), insertPos++, newId);
+      lastItem = tx.get(newId);
+    }
+    tx.setSelection({
+      type: 'property',
+      path: lastItem.getPath(),
+      startOffset: lastItem.getLength(),
+      surfaceId: sel.surfaceId,
+      containerPath: sel.containerPath
+    });
+  }
+
+  function _breakListApart (tx, containerPath, list) {
+    
+    let nodePos = list.getPosition();
+    
+    let oldSel = tx.selection;
+    tx.break();
+    let listItem = tx.get(tx.selection.start.getNodeId());
+    
+    
+    if (listItem.getLength() > 0) {
+      tx.setSelection(oldSel);
+      tx.break();
+    }
+    console.assert(tx.get(tx.selection.start.getNodeId()).getLength() === 0, 'at this point the current list-item should be empty');
+    
+    
+    
+    tx.break();
+    let p = removeAt(tx, containerPath, nodePos + 1);
+    deepDeleteNode(tx, p);
   }
 
   class Editing {
@@ -32459,8 +33544,8 @@
       if (!AnnotationClass) throw new Error('Unknown annotation type', annotation)
       let start = sel.start;
       let end = sel.end;
-      let containerId = sel.containerId;
-      let nodeData = { start, end, containerId };
+      let containerPath = sel.containerPath;
+      let nodeData = { start, end, containerPath };
       
       
       if (sel.isPropertySelection()) {
@@ -32479,50 +33564,52 @@
     break (tx) {
       let sel = tx.selection;
       if (sel.isNodeSelection()) {
-        let containerId = sel.containerId;
-        let container = tx.get(containerId);
+        let containerPath = sel.containerPath;
         let nodeId = sel.getNodeId();
-        let nodePos = container.getPosition(nodeId, 'strict');
-        let textNode = this.createTextNode(tx, container);
+        let nodePos = getContainerPosition(tx, containerPath, nodeId);
+        let textNode = this.createTextNode(tx, containerPath);
         if (sel.isBefore()) {
-          container.showAt(nodePos, textNode.id);
+          insertAt(tx, containerPath, nodePos, textNode.id);
           
         } else {
-          container.showAt(nodePos + 1, textNode.id);
-          setCursor(tx, textNode, containerId, 'before');
+          insertAt(tx, containerPath, nodePos + 1, textNode.id);
+          setCursor(tx, textNode, containerPath, 'before');
         }
       } else if (sel.isCustomSelection()) ; else if (sel.isCollapsed() || sel.isPropertySelection()) {
-        let containerId = sel.containerId;
+        let containerPath = sel.containerPath;
         if (!sel.isCollapsed()) {
           
           this._deletePropertySelection(tx, sel);
           tx.setSelection(sel.collapse('left'));
         }
         
-        if (containerId) {
-          let container = tx.get(containerId);
+        if (containerPath) {
           let nodeId = sel.start.path[0];
           let node = tx.get(nodeId);
-          this._breakNode(tx, node, sel.start, container);
+          this._breakNode(tx, node, sel.start, containerPath);
         }
       } else if (sel.isContainerSelection()) {
         let start = sel.start;
-        let containerId = sel.containerId;
-        let container = tx.get(containerId);
+        let containerPath = sel.containerPath;
         let startNodeId = start.path[0];
-        let nodePos = container.getPosition(startNodeId, 'strict');
+        let nodePos = getContainerPosition(tx, containerPath, startNodeId);
         this._deleteContainerSelection(tx, sel, { noMerge: true });
-        setCursor(tx, container.getNodeAt(nodePos + 1), containerId, 'before');
+        setCursor(tx, getNextNode(tx, containerPath, nodePos), containerPath, 'before');
       }
     }
 
-    createTextNode (tx, container, text) { 
-      
-      
-      return tx.createDefaultTextNode(text)
+    createTextNode (tx, containerPath, text) { 
+      let prop = tx.getProperty(containerPath);
+      if (!prop.defaultTextType) {
+        throw new Error('Container properties must have a "defaultTextType" defined in the schema')
+      }
+      return tx.create({
+        type: prop.defaultTextType,
+        content: text
+      })
     }
 
-    createListNode (tx, container, params = {}) { 
+    createListNode (tx, containerPath, params = {}) { 
       
       
       return tx.create({ type: 'list', items: [], listType: params.listType || 'bullet' })
@@ -32542,10 +33629,11 @@
         
         
         let path = sel.start.path;
-        let node = tx.get(path[0]);
+        let nodeId = path[0];
+        let containerPath = sel.containerPath;
         let text = tx.get(path);
         let offset = sel.start.offset;
-        let needsMerge = (sel.containerId && (
+        let needsMerge = (containerPath && (
           (offset === 0 && direction === 'left') ||
           (offset === text.length && direction === 'right')
         ));
@@ -32557,12 +33645,11 @@
           
           
           
-          let root = node.getContainerRoot();
+          let root = getContainerRoot(tx, containerPath, nodeId);
           if (root.isList() && offset === 0 && direction === 'left') {
             return this.toggleList(tx)
           } else {
-            let container = tx.get(sel.containerId);
-            this._merge(tx, root, sel.start, direction, container);
+            this._merge(tx, root, sel.start, direction, containerPath);
           }
         } else {
           
@@ -32579,7 +33666,7 @@
             type: 'property',
             path: path,
             startOffset: startOffset,
-            containerId: sel.containerId
+            containerPath: sel.containerPath
           });
         }
       
@@ -32596,27 +33683,27 @@
 
     _deleteNodeSelection (tx, sel, direction) {
       let nodeId = sel.getNodeId();
-      let container = tx.get(sel.containerId);
-      let nodePos = container.getPosition(nodeId, 'strict');
+      let containerPath = sel.containerPath;
+      let nodePos = getContainerPosition(tx, containerPath, nodeId);
       if (sel.isFull() ||
           (sel.isBefore() && direction === 'right') ||
           (sel.isAfter() && direction === 'left')) {
         
-        container.hideAt(nodePos);
-        deleteNode(tx, tx.get(nodeId));
-        let newNode = this.createTextNode(tx, container);
-        container.showAt(nodePos, newNode.id);
+        removeAt(tx, containerPath, nodePos);
+        deepDeleteNode(tx, tx.get(nodeId));
+        let newNode = this.createTextNode(tx, sel.containerPath);
+        insertAt(tx, containerPath, nodePos, newNode.id);
         tx.setSelection({
           type: 'property',
           path: newNode.getPath(),
           startOffset: 0,
-          containerId: container.id
+          containerPath
         });
       } else {
         
         if (sel.isBefore() && direction === 'left') {
           if (nodePos > 0) {
-            let previous = container.getNodeAt(nodePos - 1);
+            let previous = getPreviousNode(tx, containerPath, nodePos);
             if (previous.isText()) {
               tx.setSelection({
                 type: 'property',
@@ -32628,13 +33715,14 @@
               tx.setSelection({
                 type: 'node',
                 nodeId: previous.id,
-                containerId: container.id
+                containerPath
               });
             }
           }
         } else if (sel.isAfter() && direction === 'right') {
-          if (nodePos < container.getLength() - 1) {
-            let next = container.getNodeAt(nodePos + 1);
+          let nodeIds = tx.get(containerPath);
+          if (nodePos < nodeIds.length - 1) {
+            let next = getNextNode(tx, containerPath, nodePos);
             if (next.isText()) {
               tx.setSelection({
                 type: 'property',
@@ -32646,7 +33734,7 @@
               tx.setSelection({
                 type: 'node',
                 nodeId: next.id,
-                containerId: container.id
+                containerPath
               });
             }
           }
@@ -32666,19 +33754,18 @@
 
     
     _deleteContainerSelection (tx, sel, options = {}) {
-      let containerId = sel.containerId;
-      let container = tx.get(containerId);
+      let containerPath = sel.containerPath;
       let start = sel.start;
       let end = sel.end;
       let startId = start.getNodeId();
       let endId = end.getNodeId();
-      let startPos = container.getPosition(startId, 'strict');
-      let endPos = container.getPosition(endId, 'strict');
-
+      let startPos = getContainerPosition(tx, containerPath, startId);
+      let endPos = getContainerPosition(tx, containerPath, endId);
       
       if (startPos === endPos) {
         
-        let node = tx.get(startId).getContainerRoot();
+        
+        let node = getContainerRoot(tx, containerPath, startId);
         
         if (node.isText()) {
           deleteTextRange(tx, start, end);
@@ -32693,6 +33780,8 @@
 
       
 
+      let firstNodeId = start.getNodeId();
+      let lastNodeId = end.getNodeId();
       let firstNode = tx.get(start.getNodeId());
       let lastNode = tx.get(end.getNodeId());
       let firstEntirelySelected = isEntirelySelected(tx, firstNode, start, null);
@@ -32700,11 +33789,11 @@
 
       
       if (lastEntirelySelected) {
-        container.hideAt(endPos);
-        deleteNode(tx, lastNode);
+        removeAt(tx, containerPath, endPos);
+        deepDeleteNode(tx, lastNode);
       } else {
         
-        let node = lastNode.getContainerRoot();
+        let node = getContainerRoot(tx, containerPath, lastNodeId);
         
         if (node.isText()) {
           deleteTextRange(tx, null, end);
@@ -32715,18 +33804,17 @@
 
       
       for (let i = endPos - 1; i > startPos; i--) {
-        let nodeId = container.getNodeIdAt(i);
-        container.hideAt(i);
-        deleteNode(tx, tx.get(nodeId));
+        let nodeId = removeAt(tx, containerPath, i);
+        deepDeleteNode(tx, tx.get(nodeId));
       }
 
       
       if (firstEntirelySelected) {
-        container.hideAt(startPos);
-        deleteNode(tx, firstNode);
+        removeAt(tx, containerPath, startPos);
+        deepDeleteNode(tx, firstNode);
       } else {
         
-        let node = firstNode.getContainerRoot();
+        let node = getContainerRoot(tx, containerPath, firstNodeId);
         
         if (node.isText()) {
           deleteTextRange(tx, start, null);
@@ -32738,23 +33826,24 @@
       
       if (firstEntirelySelected && lastEntirelySelected) {
         
-        let textNode = this.createTextNode(tx, container);
-        container.showAt(startPos, textNode.id);
+        let textNode = this.createTextNode(tx, containerPath);
+        insertAt(tx, containerPath, startPos, textNode.id);
         tx.setSelection({
           type: 'property',
           path: textNode.getPath(),
           startOffset: 0,
-          containerId: containerId
+          containerPath: containerPath
         });
       } else if (!firstEntirelySelected && !lastEntirelySelected) {
         if (!options.noMerge) {
-          this._merge(tx, firstNode, sel.start, 'right', container);
+          let firstNodeRoot = getContainerRoot(tx, containerPath, firstNode.id);
+          this._merge(tx, firstNodeRoot, sel.start, 'right', containerPath);
         }
         tx.setSelection(sel.collapse('left'));
       } else if (firstEntirelySelected) {
-        setCursor(tx, lastNode, container.id, 'before');
+        setCursor(tx, lastNode, containerPath, 'before');
       } else {
-        setCursor(tx, firstNode, container.id, 'after');
+        setCursor(tx, firstNode, containerPath, 'after');
       }
     }
 
@@ -32780,6 +33869,7 @@
 
     insertBlockNode (tx, nodeData) {
       let sel = tx.selection;
+      let containerPath = sel.containerPath;
       
       let blockNode;
       if (!nodeData._isNode || !tx.get(nodeData.id)) {
@@ -32789,37 +33879,34 @@
       }
       
       if (sel.isNodeSelection()) {
-        let containerId = sel.containerId;
-        let container = tx.get(containerId);
         let nodeId = sel.getNodeId();
-        let nodePos = container.getPosition(nodeId, 'strict');
+        let nodePos = getContainerPosition(tx, containerPath, nodeId);
         
         if (sel.isBefore()) {
-          container.showAt(nodePos, blockNode.id);
+          insertAt(tx, containerPath, nodePos, blockNode.id);
         
         } else if (sel.isAfter()) {
-          container.showAt(nodePos + 1, blockNode.id);
+          insertAt(tx, containerPath, nodePos + 1, blockNode.id);
           tx.setSelection({
             type: 'node',
-            containerId: containerId,
+            containerPath,
             nodeId: blockNode.id,
             mode: 'after'
           });
         } else {
-          container.hideAt(nodePos);
-          deleteNode(tx, tx.get(nodeId));
-          container.showAt(nodePos, blockNode.id);
+          removeAt(tx, containerPath, nodePos);
+          deepDeleteNode(tx, tx.get(nodeId));
+          insertAt(tx, containerPath, nodePos, blockNode.id);
           tx.setSelection({
             type: 'node',
-            containerId: containerId,
+            containerPath,
             nodeId: blockNode.id,
             mode: 'after'
           });
         }
       } else if (sel.isPropertySelection()) {
         
-        if (!sel.containerId) throw new Error('insertBlockNode can only be used within a container.')
-        let container = tx.get(sel.containerId);
+        if (!containerPath) throw new Error('insertBlockNode can only be used within a container.')
         if (!sel.isCollapsed()) {
           this._deletePropertySelection(tx, sel);
           tx.setSelection(sel.collapse('left'));
@@ -32827,28 +33914,28 @@
         let node = tx.get(sel.path[0]);
         
         if (!node) throw new Error('Invalid selection.')
-        let nodePos = container.getPosition(node.id, 'strict');
+        let nodePos = getContainerPosition(tx, containerPath, node.id);
         
         if (node.isText()) {
           let text = node.getText();
           
           if (text.length === 0) {
-            container.hideAt(nodePos);
-            deleteNode(tx, node);
-            container.showAt(nodePos, blockNode.id);
-            setCursor(tx, blockNode, container.id, 'after');
+            removeAt(tx, containerPath, nodePos);
+            deepDeleteNode(tx, node);
+            insertAt(tx, containerPath, nodePos, blockNode.id);
+            setCursor(tx, blockNode, containerPath, 'after');
           
           } else if (sel.start.offset === 0) {
-            container.showAt(nodePos, blockNode.id);
+            insertAt(tx, containerPath, nodePos, blockNode.id);
           
           } else if (sel.start.offset === text.length) {
-            container.showAt(nodePos + 1, blockNode.id);
-            setCursor(tx, blockNode, container.id, 'before');
+            insertAt(tx, containerPath, nodePos + 1, blockNode.id);
+            setCursor(tx, blockNode, containerPath, 'before');
           
           } else {
             this.break(tx);
-            container.showAt(nodePos + 1, blockNode.id);
-            setCursor(tx, blockNode, container.id, 'after');
+            insertAt(tx, containerPath, nodePos + 1, blockNode.id);
+            setCursor(tx, blockNode, containerPath, 'after');
           }
         } else {
           console.error('Not supported: insertBlockNode() on a custom node');
@@ -32862,12 +33949,12 @@
               type: 'property',
               path: start.path,
               startOffset: start.offset,
-              containerId: sel.containerId
+              containerPath
             });
           } else if (start.isNodeCoordinate()) {
             tx.setSelection({
               type: 'node',
-              containerId: sel.containerId,
+              containerPath,
               nodeId: start.path[0],
               mode: start.offset === 0 ? 'before' : 'after'
             });
@@ -32889,21 +33976,20 @@
       
       
       if (sel.isNodeSelection()) {
-        let containerId = sel.containerId;
-        let container = tx.get(containerId);
+        let containerPath = sel.containerPath;
         let nodeId = sel.getNodeId();
-        let nodePos = container.getPosition(nodeId, 'strict');
-        let textNode = this.createTextNode(tx, container, text);
+        let nodePos = getContainerPosition(tx, containerPath, nodeId);
+        let textNode = this.createTextNode(tx, containerPath, text);
         if (sel.isBefore()) {
-          container.showAt(nodePos, textNode);
+          insertAt(tx, containerPath, nodePos, textNode.id);
         } else if (sel.isAfter()) {
-          container.showAt(nodePos + 1, textNode);
+          insertAt(tx, containerPath, nodePos + 1, textNode.id);
         } else {
-          container.hide(nodeId);
-          deleteNode(tx, tx.get(nodeId));
-          container.showAt(nodePos, textNode);
+          removeAt(tx, containerPath, nodePos);
+          deepDeleteNode(tx, tx.get(nodeId));
+          insertAt(tx, containerPath, nodePos, textNode.id);
         }
-        setCursor(tx, textNode, sel.containerId, 'after');
+        setCursor(tx, textNode, containerPath, 'after');
       } else if (sel.isCustomSelection()) ; else if (sel.isCollapsed() || sel.isPropertySelection()) {
         
         this._insertText(tx, sel, text);
@@ -32933,16 +34019,16 @@
       if (!sel.isPropertySelection()) {
         throw new Error('Selection must be a PropertySelection.')
       }
-      let containerId = sel.containerId;
+      let containerPath = sel.containerPath;
       
-      if (!containerId) {
+      if (!containerPath) {
         throw new Error('Selection must be within a container.')
       }
       let path = sel.path;
       let nodeId = path[0];
       let node = tx.get(nodeId);
       
-      if (!(node.isInstanceOf('text'))) {
+      if (!(node.isText())) {
         throw new Error('Trying to use switchTextType on a non text node.')
       }
       const newId = uuid(data.type);
@@ -32963,18 +34049,17 @@
       annotationHelpers.transferAnnotations(tx, path, 0, newPath, 0);
 
       
-      let container = tx.get(sel.containerId);
-      let pos = container.getPosition(nodeId, 'strict');
-      container.hide(nodeId);
-      deleteNode(tx, node);
-      container.showAt(pos, newNode.id);
+      let pos = getContainerPosition(tx, containerPath, nodeId);
+      removeAt(tx, containerPath, pos);
+      deepDeleteNode(tx, node);
+      insertAt(tx, containerPath, pos, newNode.id);
 
       tx.setSelection({
         type: 'property',
         path: newPath,
         startOffset: sel.start.offset,
         endOffset: sel.end.offset,
-        containerId: containerId
+        containerPath
       });
 
       return newNode
@@ -32982,47 +34067,47 @@
 
     toggleList (tx, params) {
       let sel = tx.selection;
-      let container = tx.get(sel.containerId);
+      let containerPath = sel.containerPath;
       
-      if (!container) {
+      if (!containerPath) {
         throw new Error('Selection must be within a container.')
       }
       if (sel.isPropertySelection()) {
         let nodeId = sel.start.path[0];
         
-        let node = tx.get(nodeId).getContainerRoot();
-        let nodePos = container.getPosition(node.id, 'strict');
+        let node = getContainerRoot(tx, containerPath, nodeId);
+        let nodePos = node.getPosition();
         
         if (node.isText()) {
-          container.hideAt(nodePos);
-          let newList = this.createListNode(tx, container, params);
+          removeAt(tx, containerPath, nodePos);
+          let newList = this.createListNode(tx, containerPath, params);
           let newItem = newList.createListItem(node.getText());
           annotationHelpers.transferAnnotations(tx, node.getPath(), 0, newItem.getPath(), 0);
           newList.appendItem(newItem);
-          deleteNode(tx, node);
-          container.showAt(nodePos, newList.id);
+          deepDeleteNode(tx, node);
+          insertAt(tx, containerPath, nodePos, newList.id);
           tx.setSelection({
             type: 'property',
             path: newItem.getPath(),
             startOffset: sel.start.offset,
-            containerId: sel.containerId
+            containerPath
           });
         } else if (node.isList()) {
           let itemId = sel.start.path[0];
           let item = tx.get(itemId);
           let itemPos = node.getItemPosition(item);
-          let newTextNode = this.createTextNode(tx, container, item.getText());
+          let newTextNode = this.createTextNode(tx, containerPath, item.getText());
           annotationHelpers.transferAnnotations(tx, item.getPath(), 0, newTextNode.getPath(), 0);
           
           node.removeItemAt(itemPos);
           if (node.isEmpty()) {
-            container.hideAt(nodePos);
-            deleteNode(tx, node);
-            container.showAt(nodePos, newTextNode.id);
+            removeAt(tx, containerPath, nodePos);
+            deepDeleteNode(tx, node);
+            insertAt(tx, containerPath, nodePos, newTextNode.id);
           } else if (itemPos === 0) {
-            container.showAt(nodePos, newTextNode.id);
+            insertAt(tx, containerPath, nodePos, newTextNode.id);
           } else if (node.getLength() <= itemPos) {
-            container.showAt(nodePos + 1, newTextNode.id);
+            insertAt(tx, containerPath, nodePos + 1, newTextNode.id);
           } else {
             
             let tail = [];
@@ -33032,18 +34117,18 @@
               tail.unshift(items[i]);
               node.removeItemAt(i);
             }
-            let newList = this.createListNode(tx, container, node);
+            let newList = this.createListNode(tx, containerPath, node);
             for (let i = 0; i < tail.length; i++) {
               newList.appendItem(tail[i]);
             }
-            container.showAt(nodePos + 1, newTextNode.id);
-            container.showAt(nodePos + 2, newList.id);
+            insertAt(tx, containerPath, nodePos + 1, newTextNode.id);
+            insertAt(tx, containerPath, nodePos + 2, newList.id);
           }
           tx.setSelection({
             type: 'property',
             path: newTextNode.getPath(),
             startOffset: sel.start.offset,
-            containerId: sel.containerId
+            containerPath
           });
         }
       } else if (sel.isContainerSelection()) {
@@ -33053,10 +34138,11 @@
 
     indent (tx) {
       let sel = tx.selection;
+      let containerPath = sel.containerPath;
       if (sel.isPropertySelection()) {
         let nodeId = sel.start.getNodeId();
         
-        let node = tx.get(nodeId).getContainerRoot();
+        let node = getContainerRoot(tx, containerPath, nodeId);
         if (node.isList()) {
           let itemId = sel.start.path[0];
           let item = tx.get(itemId);
@@ -33075,10 +34161,11 @@
 
     dedent (tx) {
       let sel = tx.selection;
+      let containerPath = sel.containerPath;
       if (sel.isPropertySelection()) {
         let nodeId = sel.start.getNodeId();
         
-        let node = tx.get(nodeId).getContainerRoot();
+        let node = getContainerRoot(tx, containerPath, nodeId);
         if (node.isList()) {
           let itemId = sel.start.path[0];
           let item = tx.get(itemId);
@@ -33165,28 +34252,28 @@
         type: 'property',
         path: start.path,
         startOffset: offset,
-        containerId: sel.containerId,
+        containerPath: sel.containerPath,
         surfaceId: sel.surfaceId
       });
     }
 
-    _breakNode (tx, node, coor, container) {
+    _breakNode (tx, node, coor, containerPath) {
       
-      node = node.getContainerRoot();
+      node = getContainerRoot(tx, containerPath, node.id);
       
       if (node.isText()) {
-        this._breakTextNode(tx, node, coor, container);
+        this._breakTextNode(tx, node, coor, containerPath);
       } else if (node.isList()) {
-        this._breakListNode(tx, node, coor, container);
+        this._breakListNode(tx, node, coor, containerPath);
       } else {
         console.error('FIXME: _breakNode() not supported for type', node.type);
       }
     }
 
-    _breakTextNode (tx, node, coor, container) {
+    _breakTextNode (tx, node, coor, containerPath) {
       let path = coor.path;
       let offset = coor.offset;
-      let nodePos = container.getPosition(node.id, 'strict');
+      let nodePos = node.getPosition();
       let text = node.getText();
 
       
@@ -33197,12 +34284,12 @@
           content: ''
         });
         
-        container.showAt(nodePos, newNode.id);
+        insertAt(tx, containerPath, nodePos, newNode.id);
         tx.setSelection({
           type: 'property',
           path: path,
           startOffset: 0,
-          containerId: container.id
+          containerPath
         });
       
       } else {
@@ -33225,18 +34312,18 @@
           tx.update(path, { type: 'delete', start: offset, end: text.length });
         }
         
-        container.showAt(nodePos + 1, newNode.id);
+        insertAt(tx, containerPath, nodePos + 1, newNode.id);
         
         tx.setSelection({
           type: 'property',
           path: newNode.getPath(),
           startOffset: 0,
-          containerId: container.id
+          containerPath
         });
       }
     }
 
-    _breakListNode (tx, node, coor, container) {
+    _breakListNode (tx, node, coor, containerPath) {
       let path = coor.path;
       let offset = coor.offset;
       let listItem = tx.get(path[0]);
@@ -33252,23 +34339,23 @@
         if (!text) {
           
           
-          let nodePos = container.getPosition(node.id, 'strict');
-          let newTextNode = this.createTextNode(tx, container);
+          let nodePos = node.getPosition();
+          let newTextNode = this.createTextNode(tx, containerPath);
           
           if (L < 2) {
-            container.hide(node.id);
-            deleteNode(tx, node);
-            container.showAt(nodePos, newTextNode.id);
+            removeAt(tx, containerPath, nodePos);
+            deepDeleteNode(tx, node);
+            insertAt(tx, containerPath, nodePos, newTextNode.id);
           
           } else if (itemPos === 0) {
             node.removeItem(listItem);
-            deleteNode(tx, listItem);
-            container.showAt(nodePos, newTextNode.id);
+            deepDeleteNode(tx, listItem);
+            insertAt(tx, containerPath, nodePos, newTextNode.id);
           
           } else if (itemPos >= L - 1) {
             node.removeItem(listItem);
-            deleteNode(tx, listItem);
-            container.showAt(nodePos + 1, newTextNode.id);
+            deepDeleteNode(tx, listItem);
+            insertAt(tx, containerPath, nodePos + 1, newTextNode.id);
           
           } else {
             let tail = [];
@@ -33278,12 +34365,12 @@
               node.removeItem(items[i]);
             }
             node.removeItem(items[itemPos]);
-            let newList = this.createListNode(tx, container, node);
+            let newList = this.createListNode(tx, containerPath, node);
             for (let i = 0; i < tail.length; i++) {
               newList.appendItem(tail[i]);
             }
-            container.showAt(nodePos + 1, newTextNode.id);
-            container.showAt(nodePos + 2, newList.id);
+            insertAt(tx, containerPath, nodePos + 1, newTextNode.id);
+            insertAt(tx, containerPath, nodePos + 2, newList.id);
           }
           tx.setSelection({
             type: 'property',
@@ -33321,7 +34408,7 @@
       }
     }
 
-    _merge (tx, node, coor, direction, container) {
+    _merge (tx, node, coor, direction, containerPath) {
       
       
       if (node.isList()) {
@@ -33342,31 +34429,35 @@
             type: 'property',
             path: target.getPath(),
             startOffset: targetLength,
-            containerId: container.id
+            containerPath
           });
           return
         }
       }
       
-      let nodePos = container.getPosition(node, 'strict');
+      let nodeIds = tx.get(containerPath);
+      let nodePos = node.getPosition();
       if (direction === 'left' && nodePos > 0) {
-        this._mergeNodes(tx, container, nodePos - 1, direction);
-      } else if (direction === 'right' && nodePos < container.getLength() - 1) {
-        this._mergeNodes(tx, container, nodePos, direction);
+        this._mergeNodes(tx, containerPath, nodePos - 1, direction);
+      } else if (direction === 'right' && nodePos < nodeIds.length - 1) {
+        this._mergeNodes(tx, containerPath, nodePos, direction);
       }
     }
 
-    _mergeNodes (tx, container, pos, direction) {
-      let first = container.getChildAt(pos);
-      let second = container.getChildAt(pos + 1);
+    _mergeNodes (tx, containerPath, pos, direction) {
+      let nodeIds = tx.get(containerPath);
+      let first = tx.get(nodeIds[pos]);
+      let secondPos = pos + 1;
+      let second = tx.get(nodeIds[secondPos]);
       if (first.isText()) {
         
         if (first.isEmpty()) {
-          container.hide(first.id);
-          deleteNode(tx, first);
+          removeAt(tx, containerPath, pos);
+          secondPos--;
+          deepDeleteNode(tx, first);
           
           
-          setCursor(tx, second, container.id, 'before');
+          setCursor(tx, second, containerPath, 'before');
           return
         }
         let target = first;
@@ -33375,17 +34466,17 @@
         if (second.isText()) {
           let source = second;
           let sourcePath = source.getPath();
-          container.hide(source.id);
+          removeAt(tx, containerPath, secondPos);
           
           tx.update(targetPath, { type: 'insert', start: targetLength, text: source.getText() });
           
           annotationHelpers.transferAnnotations(tx, sourcePath, 0, targetPath, targetLength);
-          deleteNode(tx, source);
+          deepDeleteNode(tx, source);
           tx.setSelection({
             type: 'property',
             path: targetPath,
             startOffset: targetLength,
-            containerId: container.id
+            containerPath
           });
         } else if (second.isList()) {
           let list = second;
@@ -33399,47 +34490,47 @@
             
             annotationHelpers.transferAnnotations(tx, sourcePath, 0, targetPath, targetLength);
             
-            deleteNode(tx, source);
+            deepDeleteNode(tx, source);
           }
           if (list.isEmpty()) {
-            container.hide(list.id);
-            deleteNode(tx, list);
+            removeAt(tx, containerPath, secondPos);
+            deepDeleteNode(tx, list);
           }
           tx.setSelection({
             type: 'property',
             path: targetPath,
             startOffset: targetLength,
-            containerId: container.id
+            containerPath
           });
         } else {
-          selectNode(tx, direction === 'left' ? first.id : second.id, container.id);
+          selectNode(tx, direction === 'left' ? first.id : second.id, containerPath);
         }
       } else if (first.isList()) {
         if (second.isText()) {
           let target = first.getLastItem();
           let targetPath = target.getPath();
           let targetLength = target.getLength();
-          let third = (container.length > pos + 2) ? container.getChildAt(pos + 2) : null;
+          let third = (nodeIds.length > pos + 2) ? tx.get(nodeIds[pos + 2]) : null;
           if (second.getLength() === 0) {
-            container.hide(second.id);
-            deleteNode(tx, second);
+            removeAt(tx, containerPath, secondPos);
+            deepDeleteNode(tx, second);
           } else {
             let source = second;
             let sourcePath = source.getPath();
-            container.hide(source.id);
+            removeAt(tx, containerPath, secondPos);
             tx.update(targetPath, { type: 'insert', start: targetLength, text: source.getText() });
             annotationHelpers.transferAnnotations(tx, sourcePath, 0, targetPath, targetLength);
-            deleteNode(tx, source);
+            deepDeleteNode(tx, source);
           }
           
           if (third && third.type === first.type) {
-            this._mergeTwoLists(tx, container, first, third);
+            this._mergeTwoLists(tx, containerPath, first, third);
           }
           tx.setSelection({
             type: 'property',
             path: target.getPath(),
             startOffset: targetLength,
-            containerId: container.id
+            containerPath
           });
         } else if (second.isList()) {
           
@@ -33449,35 +34540,36 @@
             throw new Error('Illegal state')
           }
           let item = first.getLastItem();
-          this._mergeTwoLists(tx, container, first, second);
+          this._mergeTwoLists(tx, containerPath, first, second);
           tx.setSelection({
             type: 'property',
             path: item.getPath(),
             startOffset: item.getLength(),
-            containerId: container.id
+            containerPath
           });
         } else {
-          selectNode(tx, direction === 'left' ? first.id : second.id, container.id);
+          selectNode(tx, direction === 'left' ? first.id : second.id, containerPath);
         }
       } else {
         if (second.isText() && second.isEmpty()) {
-          container.hide(second.id);
-          deleteNode(tx, second);
-          setCursor(tx, first, container.id, 'after');
+          removeAt(tx, containerPath, secondPos);
+          deepDeleteNode(tx, second);
+          setCursor(tx, first, containerPath, 'after');
         } else {
-          selectNode(tx, direction === 'left' ? first.id : second.id, container.id);
+          selectNode(tx, direction === 'left' ? first.id : second.id, containerPath);
         }
       }
     }
 
-    _mergeTwoLists (tx, container, first, second) {
-      container.hide(second.id);
+    _mergeTwoLists (tx, containerPath, first, second) {
+      let secondPos = second.getPosition();
+      removeAt(tx, containerPath, secondPos);
       let secondItems = second.getItems().slice();
       for (let i = 0; i < secondItems.length; i++) {
         second.removeItemAt(0);
         first.appendItem(secondItems[i]);
       }
-      deleteNode(tx, second);
+      deepDeleteNode(tx, second);
     }
   }
 
@@ -33509,16 +34601,24 @@
       return this._document.contains(id)
     }
 
+    find (cssSelector) {
+      return this._document.find(cssSelector)
+    }
+
+    findAll (cssSelector) {
+      return this._document.findAll(cssSelector)
+    }
+
     create (nodeData) {
       return this._document.create(nodeData)
     }
 
-    createDefaultTextNode (content) {
-      return this._document.createDefaultTextNode(content, this._direction)
-    }
-
     delete (nodeId) {
       return this._document.delete(nodeId)
+    }
+
+    deepDeleteNode (nodeId) {
+      return deepDeleteNode(this._document.get(nodeId))
     }
 
     set (path, value) {
@@ -33596,9 +34696,10 @@
     }
 
     copySelection () {
+      const doc = this.getDocument();
       const sel = this._selection;
       if (sel && !sel.isNull() && !sel.isCollapsed()) {
-        return copySelection(this.getDocument(), this._selection)
+        return copySelection(doc, this._selection)
       }
     }
 
@@ -33763,17 +34864,15 @@
       throw new Error('This method is abstract')
     }
 
-    convertContainer (container) {
-      if (!container) {
-        throw new Error('Illegal arguments: container is mandatory.')
+    convertContainer (doc, containerPath) {
+      if (!containerPath) {
+        throw new Error('Illegal arguments: containerPath is mandatory.')
       }
-      const doc = container.getDocument();
       this.state.doc = doc;
-      let elements = [];
-      container.getContent().forEach((id) => {
-        const node = doc.get(id);
-        const nodeEl = this.convertNode(node);
-        elements.push(nodeEl);
+      let ids = doc.get(containerPath);
+      let elements = ids.map(id => {
+        let node = doc.get(id);
+        return this.convertNode(node)
       });
       return elements
     }
@@ -34049,7 +35148,7 @@
       if (!content) {
         throw new Error('Illegal clipboard document: could not find container "' + SNIPPET_ID + '"')
       }
-      return this.convertContainer(content)
+      return this.convertContainer(doc, content.getContentPath())
     }
   }
 
@@ -34634,7 +35733,7 @@
       this.preserveWhitespace = false;
       this.nodes = [];
       this.annotations = [];
-      this.containerId = null;
+      this.containerPath = null;
       this.container = [];
       this.ids = {};
       
@@ -34652,7 +35751,7 @@
     }
 
     pushContext (tagName, converter) {
-      this.contexts.push({ tagName: tagName, converter: converter, annos: [] });
+      this.contexts.push({ tagName, converter, annos: [] });
     }
 
     popContext () {
@@ -34758,15 +35857,15 @@
         this._isGoogleDoc = true;
       }
 
-      let body = htmlDoc.find('body');
-      body = this._sanitizeBody(body);
-      if (!body) {
+      let bodyEl = htmlDoc.find('body');
+      bodyEl = this._sanitizeBody(bodyEl);
+      if (!bodyEl) {
         console.warn('Invalid HTML.');
         return null
       }
-      this._wrapIntoParagraph(body);
+      this._wrapIntoParagraph(bodyEl);
       this.reset();
-      this.convertBody(body);
+      this.convertBody(bodyEl);
       const doc = this.state.doc;
       return doc
     }
@@ -34865,8 +35964,8 @@
       return body
     }
 
-    _wrapIntoParagraph (body) {
-      let childNodes = body.getChildNodes();
+    _wrapIntoParagraph (bodyEl) {
+      let childNodes = bodyEl.getChildNodes();
       let shouldWrap = false;
       for (let i = 0; i < childNodes.length; i++) {
         const c = childNodes[i];
@@ -34881,9 +35980,9 @@
         }
       }
       if (shouldWrap) {
-        let p = body.createElement('p');
+        let p = bodyEl.createElement('p');
         p.append(childNodes);
-        body.append(p);
+        bodyEl.append(p);
       }
     }
 
@@ -34897,8 +35996,8 @@
     }
 
     
-    convertBody (body) {
-      this.convertContainer(body.childNodes, SNIPPET_ID);
+    convertBody (bodyEl) {
+      this.convertContainer(bodyEl.childNodes, SNIPPET_ID);
     }
 
     
@@ -34925,7 +36024,7 @@
 
   class ContainerAdapter extends Container {
     constructor (doc, path) {
-      super(doc, { id: String(path) });
+      super(doc, { id: getKeyForPath(path) });
       this.document = doc;
       this.path = path;
 
@@ -34962,8 +36061,8 @@
       this.byId.clear();
     }
 
-    get (containerId, type) {
-      var annotations = map(this.byId.get(containerId));
+    get (containerPath, type) {
+      var annotations = map(this.byId.get(String(containerPath)));
       if (isString(type)) {
         annotations = filter(annotations, DocumentIndex.filterByType);
       }
@@ -34971,11 +36070,11 @@
     }
 
     create (anno) {
-      this.byId.set([anno.containerId, anno.id], anno);
+      this.byId.set([String(anno.containerPath), anno.id], anno);
     }
 
     delete (anno) {
-      this.byId.delete([anno.containerId, anno.id]);
+      this.byId.delete([String(anno.containerPath), anno.id]);
     }
 
     update(node, path, newValue, oldValue) { 
@@ -35097,17 +36196,20 @@
       if (!path) return undefined
       let result;
       if (isString(path)) {
-        result = this.nodes[path];
+        let id = path;
+        result = this.nodes[id];
       } else if (path.length === 1) {
-        result = this.nodes[path[0]];
+        let id = path[0];
+        result = this.nodes[id];
       } else if (path.length > 1) {
-        let context = this.nodes[path[0]];
+        let id = path[0];
+        let obj = this.nodes[id];
         for (let i = 1; i < path.length - 1; i++) {
-          if (!context) return undefined
-          context = context[path[i]];
+          if (!obj) return undefined
+          obj = obj[path[i]];
         }
-        if (!context) return undefined
-        result = context[path[path.length - 1]];
+        if (!obj) return undefined
+        result = obj[path[path.length - 1]];
       }
       return result
     }
@@ -35192,16 +36294,23 @@
 
     
     update (path, diff) {
-      var realPath = this.getRealPath(path);
-      if (!realPath) {
-        console.error('Could not resolve path', path);
-        return
-      }
-      let node = this.get(realPath[0]);
-      let oldValue = this._get(realPath);
+      let node = this.get(path[0]);
+      let oldValue = this._get(path);
       let newValue;
-      if (diff.isOperation) {
-        newValue = diff.apply(oldValue);
+      if (diff._isOperation) {
+        
+        if (diff._isArrayOperation) {
+          let tmp = oldValue;
+          oldValue = Array.from(oldValue);
+          newValue = diff.apply(tmp);
+        
+        } else if (diff._isCoordinateOperation) {
+          let tmp = oldValue;
+          oldValue = oldValue.clone();
+          newValue = diff.apply(tmp);
+        } else {
+          newValue = diff.apply(oldValue);
+        }
       } else {
         diff = this._normalizeDiff(oldValue, diff);
         if (isString(oldValue)) {
@@ -35247,12 +36356,12 @@
           throw new Error('Diff is not supported:', JSON.stringify(diff))
         }
       }
-      this._set(realPath, newValue);
+      this._set(path, newValue);
 
       var change = {
         type: 'update',
         node: node,
-        path: realPath,
+        path: path,
         newValue: newValue,
         oldValue: oldValue
       };
@@ -35358,7 +36467,22 @@
           if (!index[change.type]) {
             console.error('Contract: every NodeIndex must implement ' + change.type);
           }
-          index[change.type](change.node, change.path, change.newValue, change.oldValue);
+          switch (change.type) {
+            case 'create':
+              index.create(change.node);
+              break
+            case 'delete':
+              index.delete(change.node);
+              break
+            case 'set':
+              index.set(change.node, change.path, change.newValue, change.oldValue);
+              break
+            case 'update':
+              index.update(change.node, change.path, change.newValue, change.oldValue);
+              break
+            default:
+              throw new Error('Illegal state.')
+          }
         }
       });
     }
@@ -35379,14 +36503,24 @@
   }
 
   function _setValue (root, path, newValue) {
+    
+    if (isArray(newValue)) newValue = newValue.slice();
+    else if (isPlainObject(newValue)) newValue = cloneDeep(newValue);
+
     let ctx = root;
     let L = path.length;
     for (let i = 0; i < L - 1; i++) {
       ctx = ctx[path[i]];
       if (!ctx) throw new Error('Can not set value.')
     }
-    let oldValue = ctx[path[L - 1]];
-    ctx[path[L - 1]] = newValue;
+    let propName = path[L - 1];
+    let oldValue = ctx[propName];
+    if (ctx._isNode) {
+      ctx._set(propName, newValue);
+    } else {
+      
+      ctx[propName] = newValue;
+    }
     return oldValue
   }
 
@@ -35653,28 +36787,8 @@
       } else if (op.type === ObjectOperation.DELETE) {
         super.delete(op.val.id);
       } else if (op.type === ObjectOperation.UPDATE) {
-        var oldVal = this.get(op.path);
-        var diff = op.diff;
-        if (op.propertyType === 'array') {
-          if (!(diff._isArrayOperation)) {
-            diff = ArrayOperation.fromJSON(diff);
-          }
-          
-          diff.apply(oldVal);
-        } else if (op.propertyType === 'string') {
-          if (!(diff._isTextOperation)) {
-            diff = TextOperation.fromJSON(diff);
-          }
-          var newVal = diff.apply(oldVal);
-          super.set(op.path, newVal);
-        } else if (op.propertyType === 'coordinate') {
-          if (!(diff._isCoordinateOperation)) {
-            diff = CoordinateOperation.fromJSON(diff);
-          }
-          diff.apply(oldVal);
-        } else {
-          throw new Error('Unsupported type for operational update.')
-        }
+        let diff = op.diff;
+        super.update(op.path, diff);
       } else if (op.type === ObjectOperation.SET) {
         super.set(op.path, op.val);
       } else {
@@ -35754,32 +36868,41 @@
   class ParentNodeHook {
     constructor (doc) {
       this.doc = doc;
+
+      
       
       this.parents = {};
+
       doc.data.on('operation:applied', this._onOperationApplied, this);
     }
 
     _onOperationApplied (op) {
       const doc = this.doc;
       let node = doc.get(op.path[0]);
-      let nodeSchema, hasOwnedProperties;
+      let hasOwnedProperties = false;
+      let isAnnotation = false;
+      let nodeSchema;
       if (node) {
         nodeSchema = node.getSchema();
         hasOwnedProperties = nodeSchema.hasOwnedProperties();
+        isAnnotation = node.isAnnotation();
       }
-      
-      
       switch (op.type) {
         case 'create': {
           if (hasOwnedProperties) {
-            nodeSchema.getOwnedProperties().forEach(p => {
+            for (let p of nodeSchema.getOwnedProperties()) {
+              let isChildren = p.isArray();
               let refs = node[p.name];
               if (refs) {
-                this._setParent(node, refs);
+                this._setParent(node, refs, p.name, isChildren);
               }
-              this._setRegisteredParent(node);
-            });
+              if (isChildren) this._updateContainerPositions([node.id, p.name]);
+            }
           }
+          if (isAnnotation) {
+            this._setAnnotationParent(node);
+          }
+          this._setRegisteredParent(node);
           break
         }
         case 'update': {
@@ -35787,11 +36910,13 @@
             let propName = op.path[1];
             if (nodeSchema.isOwned(propName)) {
               let update = op.diff;
+              let isChildren = update._isArrayOperation;
               if (update.isDelete()) {
-                this._setParent(null, update.getValue());
+                this._setParent(null, update.getValue(), propName, isChildren);
               } else {
-                this._setParent(node, update.getValue());
+                this._setParent(node, update.getValue(), propName, isChildren);
               }
+              if (isChildren) this._updateContainerPositions(op.path);
             }
           }
           break
@@ -35800,12 +36925,18 @@
           if (hasOwnedProperties) {
             let propName = op.path[1];
             if (nodeSchema.isOwned(propName)) {
+              let prop = nodeSchema.getProperty(propName);
+              let isChildren = prop.isArray();
               let oldValue = op.getOldValue();
               let newValue = op.getValue();
               
-              this._setParent(null, oldValue);
-              this._setParent(node, newValue);
+              this._setParent(null, oldValue, propName, isChildren);
+              this._setParent(node, newValue, propName, isChildren);
+              if (isChildren) this._updateContainerPositions(op.path);
             }
+          }
+          if (isAnnotation && op.path[1] === 'start' && op.path[2] === 'path') {
+            this._setAnnotationParent(node);
           }
           break
         }
@@ -35814,35 +36945,77 @@
       }
     }
 
-    _setParent (parent, ids) {
+    _setParent (parent, ids, property, isChildren) {
       if (ids) {
         if (isArray(ids)) {
-          ids.forEach(id => this.__setParent(parent, id));
+          ids.forEach(id => this.__setParent(parent, id, property, isChildren));
         } else {
-          this.__setParent(parent, ids);
+          this.__setParent(parent, ids, property, isChildren);
         }
       }
     }
 
-    __setParent (parent, id) {
-      
-      
-      
-      
-      
-      
-      this.parents[id] = parent;
+    __setParent (parent, id, property, isChildren) {
       let child = this.doc.get(id);
       if (child) {
-        child.setParent(parent);
+        this._setParentAndXpath(parent, child, property);
+      } else {
+        
+        
+        
+        
+        
+        
+        this.parents[id] = { parent, property, isChildren };
       }
     }
 
     _setRegisteredParent (child) {
-      let parent = this.parents[child.id];
-      if (parent) {
-        child.setParent(parent);
+      let entry = this.parents[child.id];
+      if (entry) {
+        let { parent, property, isChildren } = entry;
+        this._setParentAndXpath(parent, child, property);
+        if (isChildren) {
+          child._xpath.pos = parent[property].indexOf(child.id);
+        }
+        delete this.parents[child.id];
       }
+    }
+
+    _setParentAndXpath (parent, child, property) {
+      child.setParent(parent);
+      let xpath = child._xpath;
+      if (parent) {
+        xpath.prev = parent._xpath;
+        xpath.property = property;
+      } else {
+        xpath.prev = null;
+        xpath.property = null;
+        
+        
+        xpath.pos = null;
+      }
+    }
+
+    _updateContainerPositions (containerPath) {
+      let doc = this.doc;
+      let ids = doc.get(containerPath);
+      if (ids) {
+        for (let pos = 0; pos < ids.length; pos++) {
+          let id = ids[pos];
+          let child = doc.get(id);
+          if (child) {
+            child._xpath.pos = pos;
+          }
+        }
+      }
+    }
+
+    _setAnnotationParent (anno) {
+      let doc = anno.getDocument();
+      let path = anno.start.path;
+      let annoParent = doc.get(path[0]);
+      this._setParent(annoParent, anno.id, path[1]);
     }
   }
 
@@ -35910,6 +37083,27 @@
     
     get (path, strict) {
       return this.data.get(path, strict)
+    }
+
+    resolve (path, strict) {
+      let prop = this.getProperty(path);
+      if (!prop) {
+        if (strict) {
+          throw new Error('Invalid path')
+        } else {
+          return undefined
+        }
+      }
+      let val = this.get(path, strict);
+      if (prop.isReference()) {
+        if (prop.isArray()) {
+          return val.map(id => this.get(id))
+        } else {
+          return this.get(val)
+        }
+      } else {
+        return val
+      }
     }
 
     
@@ -36060,25 +37254,18 @@
             break
           }
           case 'container': {
-            let container = this.get(data.containerId, 'strict');
-            if (!container) throw new Error('Can not create ContainerSelection: container "' + data.containerId + '" does not exist.')
-            let start = this._normalizeCoor({ path: data.startPath, offset: data.startOffset });
-            let end = this._normalizeCoor({ path: data.endPath, offset: data.endOffset });
-            let startAddress = container.getAddress(start);
-            let endAddress = container.getAddress(end);
-            if (!startAddress) {
-              throw new Error('Invalid arguments for ContainerSelection: ', start.toString())
-            }
-            if (!endAddress) {
-              throw new Error('Invalid arguments for ContainerSelection: ', end.toString())
-            }
+            let containerPath = data.containerPath;
+            let ids = this.get(containerPath);
+            if (!ids) throw new Error('Can not create ContainerSelection: container "' + containerPath + '" does not exist.')
+            let start = this._normalizeCoor({ path: data.startPath, offset: data.startOffset, containerPath });
+            let end = this._normalizeCoor({ path: data.endPath, offset: data.endOffset, containerPath });
             if (!data.hasOwnProperty('reverse')) {
-              if (endAddress.isBefore(startAddress, 'strict')) {
+              if (compareCoordinates(this, containerPath, start, end) > 0) {
                 [start, end] = [end, start];
                 data.reverse = true;
               }
             }
-            sel = new ContainerSelection(container.id, start.path, start.offset, end.path, end.offset, data.reverse, data.surfaceId);
+            sel = new ContainerSelection(containerPath, start.path, start.offset, end.path, end.offset, data.reverse, data.surfaceId);
             break
           }
           case 'node': {
@@ -36086,7 +37273,7 @@
               doc: this,
               nodeId: data.nodeId,
               mode: data.mode,
-              containerId: data.containerId,
+              containerPath: data.containerPath,
               reverse: data.reverse,
               surfaceId: data.surfaceId
             });
@@ -36122,6 +37309,16 @@
         return snippetContainer
       };
       return snippet
+    }
+
+    rebase (change, onto) {
+      if (onto.length > 0) {
+        
+        
+        
+        transformDocumentChange(onto, change, { rebase: true, immutableLeft: true });
+      }
+      return change
     }
 
     createFromDocument (doc) {
@@ -36201,9 +37398,10 @@
     }
 
     _apply (documentChange) {
-      forEach(documentChange.ops, (op) => {
+      let ops = documentChange.ops;
+      for (let op of ops) {
         this._applyOp(op);
-      });
+      }
       
       documentChange._extractInformation(this);
     }
@@ -36248,7 +37446,7 @@
         if (range.start.isNodeCoordinate()) {
           
           
-          return new NodeSelection(range.containerId, range.start.getNodeId(), 'full', range.reverse, range.surfaceId)
+          return new NodeSelection(range.containerPath, range.start.getNodeId(), 'full', range.reverse, range.surfaceId)
         } else {
           return this.createSelection({
             type: 'property',
@@ -36256,7 +37454,7 @@
             startOffset: range.start.offset,
             endOffset: range.end.offset,
             reverse: range.reverse,
-            containerId: range.containerId,
+            containerPath: range.containerPath,
             surfaceId: range.surfaceId
           })
         }
@@ -36268,16 +37466,18 @@
           endPath: range.end.path,
           endOffset: range.end.offset,
           reverse: range.reverse,
-          containerId: range.containerId,
+          containerPath: range.containerPath,
           surfaceId: range.surfaceId
         })
       }
     }
 
-    _normalizeCoor ({ path, offset }) {
+    _normalizeCoor ({ path, offset, containerPath }) {
       
       if (path.length === 1) {
-        let node = this.get(path[0]).getContainerRoot();
+        
+        
+        let node = getContainerRoot(this, containerPath, path[0]);
         if (node.isText()) {
           
           return new Coordinate(node.getPath(), offset === 0 ? 0 : node.getLength())
@@ -36296,6 +37496,80 @@
     }
 
     get _isDocument () { return true }
+  }
+
+  class DocumentSession extends EventEmitter {
+    constructor (doc) {
+      super();
+
+      this._document = doc;
+      this._history = [];
+
+      
+      
+      doc.on('document:changed', this._onDocumentChange, this);
+    }
+
+    dispose () {
+      this._document.off(this);
+    }
+
+    getDocument () {
+      return this._document
+    }
+
+    
+    
+    updateNodeStates (tuples, options = {}) {
+      
+      const doc = this._document;
+      let change = new DocumentChange([], {}, {});
+      let info = { action: 'node-state-update' };
+      change._extractInformation();
+      change.info = info;
+      for (let [id, state] of tuples) {
+        let node = doc.get(id);
+        if (!node) continue
+        if (!node.state) node.state = {};
+        Object.assign(node.state, state);
+        change.updated[id] = true;
+      }
+      if (!options.silent) {
+        doc._notifyChangeListeners(change, info);
+        this.emit('change', change, info);
+      }
+    }
+
+    revert (changeIdx) {
+      let change = this._history[changeIdx];
+      if (!change) throw new Error('Illegal change index')
+      const doc = this.getDocument();
+      let inverted = doc.invert(change);
+      let otherChanges = this._history.slice(changeIdx + 1);
+      let rebased = doc.rebase(inverted, otherChanges);
+      this._applyChange(rebased, { replay: 'true' });
+      return rebased
+    }
+
+    _commitChange (change, info) {
+      change.timestamp = Date.now();
+      this._applyChange(change, info);
+    }
+
+    _applyChange (change, info) {
+      if (!change) throw new Error('Invalid change')
+      const doc = this.getDocument();
+      
+      doc._apply(change);
+      doc._notifyChangeListeners(change, info);
+      this.emit('change', change, info);
+    }
+
+    _onDocumentChange (change) {
+      if (change && change.ops.length > 0) {
+        this._history.push(change);
+      }
+    }
   }
 
   class FileNode extends DocumentNode {
@@ -36449,6 +37723,70 @@
     return AbstractList
   }
 
+  const STRING = { type: 'string', default: '' };
+
+  function TEXT$1 (...targetTypes) {
+    targetTypes = flatten$1(targetTypes);
+    return { type: 'text', targetTypes }
+  }
+
+  const PLAIN_TEXT = Object.freeze(TEXT$1());
+
+  const STRING_ARRAY = { type: ['array', 'string'], default: [] };
+
+  const BOOLEAN = { type: 'boolean', default: false };
+
+  function ENUM (values, opts = {}) {
+    let def = { type: 'enum', values };
+    Object.assign(def, opts);
+    return def
+  }
+
+  function MANY (...nodeTypes) {
+    nodeTypes = flatten$1(nodeTypes);
+    return { type: ['array', 'id'], targetTypes: nodeTypes, default: [] }
+  }
+
+  function ONE (...nodeTypes) {
+    nodeTypes = flatten$1(nodeTypes);
+    return { type: 'id', targetTypes: nodeTypes, default: null }
+  }
+
+  function CHILDREN (...nodeTypes) {
+    nodeTypes = flatten$1(nodeTypes);
+    return { type: ['array', 'id'], targetTypes: nodeTypes, default: [], owned: true }
+  }
+
+
+
+  function CHILD (...nodeTypes) {
+    nodeTypes = flatten$1(nodeTypes);
+    return { type: 'id', targetTypes: nodeTypes, owned: true }
+  }
+
+  function CONTAINER (spec) {
+    let nodeTypes, defaultTextType;
+    
+    if (isString(spec)) {
+      nodeTypes = [spec];
+      defaultTextType = spec;
+    
+    } else {
+      ({ nodeTypes, defaultTextType } = spec);
+    }
+    if (!nodeTypes) throw new Error('CONTAINER({ nodeTypes: [...] }) is mandatory.')
+    if (!defaultTextType) throw new Error('CONTAINER({ defaultTextType: [...] }) is mandatory.')
+    let def = CHILDREN(...nodeTypes);
+    def.defaultTextType = defaultTextType;
+    def._isContainer = true;
+    return def
+  }
+
+  function OPTIONAL (type) {
+    type.optional = true;
+    return type
+  }
+
   function TextNodeMixin (SuperClass) {
     class TextNodeMixin extends SuperClass {
       getTextPath () {
@@ -36459,6 +37797,11 @@
 
       getText () {
         return this.content
+      }
+
+      setText (text) {
+        setText(this.getDocument(), this.getPath(), text);
+        return this
       }
 
       isEmpty () {
@@ -36489,10 +37832,10 @@
   }
 
   TextNode.schema = {
-    type: 'text',
+    type: 'text-node',
     content: 'text',
-    direction: { type: 'string', optional: true },
-    textAlign: { type: 'string', default: 'left' }
+    direction: { type: 'enum', optional: true, values: ['left', 'right'] },
+    textAlign: { type: 'enum', default: 'left', values: ['left', 'right'] }
   };
 
   class TextBlock extends TextNode {
@@ -37209,7 +38552,7 @@
           contentEditable: false
         })
         .append(
-          JSON.stringify(this.props.node.properties, null, 2)
+          JSON.stringify(this.props.node.toJSON(), null, 2)
         )
     }
   }
@@ -37297,7 +38640,7 @@
     render ($$) {
       let tagName = this.props.tagName || 'div';
       let el = $$(tagName)
-        .addClass('sc-surface')
+        .addClass(this._getClassNames())
         .attr('tabindex', 2)
         .attr('data-surface-id', this.id);
 
@@ -37334,6 +38677,10 @@
         el.on('copy', this._onCopy);
       }
       return el
+    }
+
+    _getClassNames () {
+      return `sc-surface sm-${this.name}`
     }
 
     getName () {
@@ -37412,7 +38759,7 @@
       return this.props.spellcheck === 'native'
     }
 
-    getContainerId () {
+    getContainerPath () {
       return null
     }
 
@@ -38036,20 +39383,18 @@
   class ContainerEditor extends Surface {
     constructor (parent, props, el) {
       
-      
-      props.containerId = props.containerId || props.node.id;
-      props.name = props.name || props.containerId || props.node.id;
+      props.containerPath = props.containerPath || props.node.getContentPath();
+      props.name = props.name || props.containerPath.join('.') || props.node.id;
 
       super(parent, props, el);
+    }
 
-      this.containerId = this.props.containerId;
-      if (!isString(this.containerId)) {
-        throw new Error("Property 'containerId' is mandatory.")
-      }
-      let doc = this.getDocument();
-      this.container = doc.get(this.containerId);
-      if (!this.container) {
-        throw new Error('Container with id ' + this.containerId + ' does not exist.')
+    _initialize () {
+      super._initialize();
+
+      this.containerPath = this.props.containerPath;
+      if (!isArray(this.containerPath)) {
+        throw new Error("Property 'containerPath' is mandatory.")
       }
 
       this._deriveInternalState(this.props);
@@ -38072,9 +39417,8 @@
       super.didMount.apply(this, arguments);
       let editorSession = this.getEditorSession();
       editorSession.onUpdate('document', this._onContainerChanged, this, {
-        path: this.container.getContentPath()
+        path: this.getContainerPath()
       });
-      this._attachPlaceholder();
     }
 
     dispose () {
@@ -38087,20 +39431,18 @@
       let el = super.render($$);
 
       let doc = this.getDocument();
-      let containerId = this.getContainerId();
-      let containerNode = doc.get(containerId);
-      if (!containerNode) {
-        console.warn('No container node found for ', containerId);
-      }
-      el.addClass('sc-container-editor container-node ' + containerId)
-        .attr('data-id', containerId);
+      let containerPath = this.getContainerPath();
+      el.attr('data-id', containerPath.join('.'));
 
       
       el.attr('spellcheck', this.props.spellcheck === 'native');
 
-      containerNode.getNodes().forEach(function (node, index) {
-        el.append(this._renderNode($$, node, index));
-      }.bind(this));
+      let ids = doc.get(containerPath);
+      el.append(
+        ids.map((id, index) => {
+          return this._renderNode($$, doc.get(id), index)
+        })
+      );
 
       
       if (!this.props.disabled && !this.isEmpty()) {
@@ -38111,12 +39453,18 @@
       return el
     }
 
+    _getClassNames () {
+      return 'sc-container-editor sc-surface'
+    }
+
     selectFirst () {
-      const container = this.getContainer();
-      if (container.getLength() > 0) {
+      let doc = this.getDocument();
+      let containerPath = this.getContainerPath();
+      let nodeIds = doc.get();
+      if (nodeIds.length > 0) {
         const editorSession = this.getEditorSession();
-        const first = container.getChildAt(0);
-        setCursor(editorSession, first, container.id, 'before');
+        const first = doc.get(nodeIds[0]);
+        setCursor(editorSession, first, containerPath, 'before');
       }
     }
 
@@ -38157,7 +39505,7 @@
         this.getEditorSession().setSelection({
           type: 'node',
           nodeId: node.id,
-          containerId: selState.container.id,
+          containerPath: this.getContainerPath(),
           surfaceId: this.id
         });
         return true
@@ -38174,17 +39522,16 @@
       const direction = left ? 'left' : 'right';
 
       if (sel && !sel.isNull()) {
-        const container = doc.get(sel.containerId, 'strict');
-
+        let containerPath = sel.containerPath;
         
         if (sel.isNodeSelection()) {
-          let nodePos = container.getPosition(doc.get(sel.getNodeId()));
-          if ((left && nodePos === 0) || (right && nodePos === container.length - 1)) {
+          let nodeIds = doc.get(containerPath);
+          let nodePos = getContainerPosition(doc, containerPath, sel.getNodeId());
+          if ((left && nodePos === 0) || (right && nodePos === nodeIds.length - 1)) {
             event.preventDefault();
             return
           }
         }
-
         if (sel.isNodeSelection() && !event.shiftKey) {
           this.domSelection.collapse(direction);
         }
@@ -38204,11 +39551,12 @@
       const direction = up ? 'left' : 'right';
 
       if (sel && !sel.isNull()) {
-        const container = doc.get(sel.containerId, 'strict');
+        let containerPath = sel.containerPath;
         
         if (sel.isNodeSelection()) {
-          let nodePos = container.getPosition(doc.get(sel.getNodeId()));
-          if ((up && nodePos === 0) || (down && nodePos === container.length - 1)) {
+          let nodeIds = doc.get(containerPath);
+          let nodePos = getContainerPosition(doc, containerPath, sel.getNodeId());
+          if ((up && nodePos === 0) || (down && nodePos === nodeIds.length - 1)) {
             event.preventDefault();
             return
           }
@@ -38221,12 +39569,12 @@
           if (!event.shiftKey) {
             event.preventDefault();
             if (up) {
-              let prev = container.getChildAt(nodePos - 1);
-              setCursor(editorSession, prev, sel.containerId, 'after');
+              let prev = doc.get(nodeIds[nodePos - 1]);
+              setCursor(editorSession, prev, containerPath, 'after');
               return
             } else {
-              let next = container.getChildAt(nodePos + 1);
-              setCursor(editorSession, next, sel.containerId, 'before');
+              let next = doc.get(nodeIds[nodePos + 1]);
+              setCursor(editorSession, next, containerPath, 'before');
               return
             }
           }
@@ -38272,35 +39620,13 @@
     }
 
     
-    getContainerId () {
-      return this.containerId
-    }
-
-    getContainer () {
-      return this.getDocument().get(this.getContainerId())
+    getContainerPath () {
+      return this.containerPath
     }
 
     isEmpty () {
-      let containerNode = this.getContainer();
-      return (containerNode && containerNode.length === 0)
-    }
-
-    
-    _attachPlaceholder () {
-      let firstNode = this.childNodes[0];
-      
-      if (this.placeholderNode) {
-        this.placeholderNode.extendProps({
-          placeholder: undefined
-        });
-      }
-
-      if (this.childNodes.length === 1 && this.props.placeholder) {
-        firstNode.extendProps({
-          placeholder: this.props.placeholder
-        });
-        this.placeholderNode = firstNode;
-      }
+      let ids = this.getDocument().get(this.containerPath);
+      return (!ids || ids.length === 0)
     }
 
     isEditable () {
@@ -38313,31 +39639,34 @@
       
       let renderContext = RenderingEngine.createContext(this);
       let $$ = renderContext.$$;
-      let container = this.getContainer();
-      let path = container.getContentPath();
+      let containerPath = this.getContainerPath();
       for (let i = 0; i < change.ops.length; i++) {
         let op = change.ops[i];
-        if (op.type === 'update' && op.path[0] === path[0]) {
-          let diff = op.diff;
-          if (diff.type === 'insert') {
-            let nodeId = diff.getValue();
-            let node = doc.get(nodeId);
-            let nodeEl;
-            if (node) {
-              nodeEl = this._renderNode($$, node);
-            } else {
-              
-              
-              
-              nodeEl = $$('div');
+        if (isArrayEqual(op.path, containerPath)) {
+          if (op.type === 'update') {
+            let diff = op.diff;
+            if (diff.type === 'insert') {
+              let nodeId = diff.getValue();
+              let node = doc.get(nodeId);
+              let nodeEl;
+              if (node) {
+                nodeEl = this._renderNode($$, node);
+              } else {
+                
+                
+                
+                nodeEl = $$('div');
+              }
+              this.insertAt(diff.getOffset(), nodeEl);
+            } else if (diff.type === 'delete') {
+              this.removeAt(diff.getOffset());
             }
-            this.insertAt(diff.getOffset(), nodeEl);
-          } else if (diff.type === 'delete') {
-            this.removeAt(diff.getOffset());
+          } else {
+            this.empty();
+            this.rerender();
           }
         }
       }
-      this._attachPlaceholder();
     }
 
     get _isContainerEditor () { return true }
@@ -38448,12 +39777,13 @@
       
       
       if (annos.length > 0) {
-        annos.forEach(anno => {
+        for (let anno of annos) {
           if (anno.getSelection().equals(sel)) {
             newState.disabled = false;
             newState.nodeId = anno.id;
+            break
           }
-        });
+        }
       }
       return newState
     }
@@ -38615,7 +39945,7 @@
         disabled: true,
         active: false
       };
-      if (sel && !sel.isNull() && !sel.isCustomSelection() && sel.containerId) {
+      if (sel && !sel.isNull() && !sel.isCustomSelection() && sel.containerPath) {
         newState.disabled = false;
       }
       newState.showInContext = this.showInContext(sel, params, context);
@@ -38676,7 +40006,7 @@
       let el = $$('span');
       el.addClass(this.getClassNames())
         .addClass('sc-inline-node')
-        .addClass('sm-' + this.props.node.type)
+        .addClass('sm-' + node.type)
         .attr('data-id', node.id)
         .attr('data-inline', '1');
 
@@ -38716,7 +40046,9 @@
       
       
       
-      el.attr('draggable', true);
+      if (node.shouldBeDraggable) {
+        el.attr('draggable', true);
+      }
 
       return el
     }
@@ -38730,25 +40062,31 @@
     }
 
     onClick (event) {
-      if (!this._shouldConsumeEvent(event)) {
-        return
+      if (this._shouldConsumeEvent(event)) {
+        event.stopPropagation();
+        event.preventDefault();
+        this.selectNode();
       }
-      this.selectNode();
     }
 
     selectNode () {
       
       const editorSession = this.getEditorSession();
-      const surface = this.getParentSurface();
       const node = this.props.node;
-      editorSession.setSelection({
+      let selData = {
         type: 'property',
         path: node.start.path,
         startOffset: node.start.offset,
-        endOffset: node.end.offset,
-        containerId: surface.getContainerId(),
-        surfaceId: surface.id
-      });
+        endOffset: node.end.offset
+      };
+      const surface = this.getParentSurface();
+      if (surface) {
+        Object.assign(selData, {
+          containerPath: surface.getContainerPath(),
+          surfaceId: surface.id
+        });
+      }
+      editorSession.setSelection(selData);
     }
 
     _getContentClass () {
@@ -38858,16 +40196,18 @@
     }
 
     getRouteString () {
+      let window = DefaultDOMElement.getBrowserWindow().getNativeElement();
       return window.location.hash.slice(1)
     }
 
     _writeRoute (route, opts) {
+      let window = DefaultDOMElement.getBrowserWindow().getNativeElement();
       this.__isSaving__ = true;
       try {
         if (opts.replace) {
-          window.history.replaceState({}, '', '#' + route);
+          window.history.replaceState({}, '', `#${route}`);
         } else {
-          window.history.pushState({}, '', '#' + route);
+          window.history.pushState({}, '', `#${route}`);
         }
       } finally {
         this.__isSaving__ = false;
@@ -38896,30 +40236,33 @@
         this.__isLoading__ = false;
       }
     }
-  }
 
-  Router.objectToRouteString = function (obj) {
-    let route = [];
-    forEach(obj, function (val, key) {
-      route.push(key + '=' + val);
-    });
-    return route.join(',')
-  };
+    static objectToRouteString (obj) {
+      let routeStr = map(obj, (val, key) => {
+        return `${key}=${val}`
+      }).join(',');
+      return routeStr
+    }
 
-  Router.routeStringToObject = function (routeStr) {
-    let obj = {};
-    
-    if (!routeStr) return obj
-    let params = routeStr.split(',');
-    params.forEach(function (param) {
-      let tuple = param.split('=');
-      if (tuple.length !== 2) {
-        throw new Error('Illegal route.')
+    static routeStringToObject (routeStr) {
+      let obj = {};
+      
+      if (!routeStr) return obj
+      let params = routeStr.split(',');
+      for (let param of params) {
+        if (param.indexOf('=') >= 0) {
+          let tuple = param.split('=');
+          if (tuple.length !== 2) {
+            throw new Error('Illegal route.')
+          }
+          obj[tuple[0].trim()] = tuple[1].trim();
+        } else {
+          obj[param] = true;
+        }
       }
-      obj[tuple[0].trim()] = tuple[1].trim();
-    });
-    return obj
-  };
+      return obj
+    }
+  }
 
   class SwitchTextTypeCommand extends Command {
     constructor (config) {
@@ -39011,8 +40354,9 @@
     }
 
     render ($$) {
+      const TextPropertyComponent = this.getComponent('text-property');
+
       let el = super.render.apply(this, arguments);
-      el.addClass('sc-text-property-editor');
 
       if (!this.props.disabled) {
         el.addClass('sm-enabled');
@@ -39033,6 +40377,10 @@
       );
 
       return el
+    }
+
+    _getClassNames () {
+      return 'sc-text-property-editor sc-surface'
     }
 
     selectFirst () {
@@ -39184,8 +40532,8 @@
         let sel;
         
         if (surface._isContainerEditor) {
-          let container = surface.getContainer();
-          let nodeIds = container.getContent();
+          let containerPath = surface.getContainerPath();
+          let nodeIds = doc.get(containerPath);
           if (nodeIds.length === 0) return false
           let firstNodeId = nodeIds[0];
           let lastNodeId = last$1(nodeIds);
@@ -39195,7 +40543,7 @@
             startOffset: 0,
             endPath: [lastNodeId],
             endOffset: 1,
-            containerId: container.id,
+            containerPath,
             surfaceId: surface.id
           });
         } else if (surface._isTextPropertyEditor) {
@@ -39653,802 +41001,10 @@
     return str.replace(/\r?\n/g, '\n')
   }
 
-  function appendChild (xmlNode, child) {
-    insertAt(xmlNode, xmlNode._childNodes.length, child);
-    return xmlNode
-  }
-
-  function getChildPos (xmlNode, child) {
-    return xmlNode._childNodes.indexOf(child.id)
-  }
-
-  function removeChild (xmlNode, child) {
-    const childPos = getChildPos(xmlNode, child);
-    if (childPos >= 0) {
-      removeAt(xmlNode, childPos);
-    } else {
-      throw new Error(`Node ${child.id} is not a child of ${xmlNode.id}`)
-    }
-    return xmlNode
-  }
-
-  function replaceChild (xmlNode, oldChild, newChild) {
-    const childPos = getChildPos(xmlNode, oldChild);
-    if (childPos >= 0) {
-      removeAt(xmlNode, childPos);
-      insertAt(xmlNode, childPos, newChild);
-    } else {
-      throw new Error(`Node ${oldChild.id} is not a child of ${xmlNode.id}`)
-    }
-    return xmlNode
-  }
-
-  function insertBefore (xmlNode, newChild, ref) {
-    if (!ref) {
-      appendChild(xmlNode, newChild);
-    } else {
-      let pos = getChildPos(xmlNode, ref);
-      if (pos < 0) {
-        throw new Error(`Node ${newChild.id} is not a child of ${xmlNode.id}`)
-      }
-      insertAt(xmlNode, pos, newChild);
-    }
-    return xmlNode
-  }
-
-  function insertAt (xmlNode, pos, child) {
-    const length = xmlNode._childNodes.length;
-    if (pos >= 0 && pos <= length) {
-      const doc = xmlNode.getDocument();
-      doc.update([xmlNode.id, '_childNodes'], { type: 'insert', pos, value: child.id });
-    } else {
-      throw new Error('Index out of bounds.')
-    }
-    return xmlNode
-  }
-
-  function removeAt (xmlNode, pos) {
-    const length = xmlNode._childNodes.length;
-    if (pos >= 0 && pos < length) {
-      const doc = xmlNode.getDocument();
-      doc.update([xmlNode.id, '_childNodes'], { type: 'delete', pos: pos });
-    } else {
-      throw new Error('Index out of bounds.')
-    }
-    return xmlNode
-  }
-
-  function getInnerXML (xmlNode) {
-    if (xmlNode._childNodes) {
-      return xmlNode.getChildNodes().map(child => {
-        return child.toXML().serialize()
-      }).join('')
-    } else if (xmlNode.isText()) {
-      return xmlNode.toXML().getInnerXML()
-    }
-    return ''
-  }
-
-  function getChildAt (xmlNode, idx) {
-    let childId = xmlNode._childNodes[idx];
-    if (childId) {
-      return xmlNode.getDocument().get(childId)
-    }
-  }
-
-
-  function node2element (node) {
-    
-    let dom = DefaultDOMElement.createDocument('xml');
-    let el = _node2element(dom, node);
-    return el
-  }
-
-  function _node2element (dom, node) {
-    let el;
-    switch (node._elementType) {
-      case 'text': {
-        el = _renderTextNode(dom, node);
-        break
-      }
-      case 'element':
-      case 'inline-element':
-      case 'container': {
-        el = _renderElementNode(dom, node);
-        break
-      }
-      case 'anchor':
-      case 'annotation': {
-        el = _createElement$1(dom, node);
-        break
-      }
-      case 'external': {
-        el = DefaultDOMElement.parseSnippet(node.xml, 'xml');
-        break
-      }
-      default:
-        throw new Error('Invalid element type.')
-    }
-    return el
-  }
-
-  function _createElement$1 (dom, node) {
-    let el = dom.createElement(node.type);
-    el.attr('id', node.id);
-    el.attr(node.attributes);
-    return el
-  }
-
-  function _renderElementNode (dom, node) {
-    let el = _createElement$1(dom, node);
-    el.append(node.getChildren().map(child => _node2element(dom, child)));
-    return el
-  }
-
-  function _renderTextNode (dom, node) {
-    const annos = node.getAnnotations();
-    const text = node.getText();
-    let el = _createElement$1(dom, node);
-    if (annos && annos.length > 0) {
-      let fragmenter = new Fragmenter({
-        onText: (context, text) => {
-          const node = context.node;
-          if (node.isText() || node.isAnnotation()) {
-            context.el.append(text);
-          }
-        },
-        onEnter: (fragment) => {
-          return {
-            el: _node2element(dom, fragment.node),
-            node: fragment.node
-          }
-        },
-        onExit: (fragment, context, parentContext) => {
-          parentContext.el.append(context.el);
-        }
-      });
-      fragmenter.start({ el, node }, text, annos);
-    } else {
-      el.append(text);
-    }
-    return el
-  }
-
-  function nameWithoutNS$1 (name) {
-    const idx = name.indexOf(':');
-    if (idx > 0) {
-      return name.slice(idx + 1)
-    } else {
-      return name
-    }
-  }
-
-  class Adapter extends domUtils.DomUtils {
-    
-    isTag () {
-      return true
-    }
-
-    getChildren (elem) {
-      if (elem.getChildren) {
-        return elem.getChildren()
-      } else {
-        return []
-      }
-    }
-
-    getAttributeValue (elem, name) {
-      if (elem.getAttribute) {
-        return elem.getAttribute(name)
-      }
-    }
-
-    getAttributes (elem) {
-      if (elem.hasOwnProperty('attributes')) {
-        return ['id', elem.id].concat(map(elem.attributes, (val, key) => { return [key, val] }))
-      } else {
-        return ['id', elem.id]
-      }
-    }
-
-    hasAttrib (elem, name) {
-      if (name === 'id') {
-        return true
-      } else if (elem.hasOwnProperty('attributes')) {
-        return elem.attributes.hasOwnProperty(name)
-      } else {
-        return false
-      }
-    }
-
-    getName (elem) {
-      return elem.type
-    }
-
-    getNameWithoutNS (elem) {
-      return nameWithoutNS$1(this.getName(elem))
-    }
-
-    getText (elem) {
-      if (elem._elementType === 'text') {
-        return elem.getText()
-      }
-      
-      return ''
-    }
-  }
-
-  const cssSelectAdapter = new Adapter();
-
-  class XMLDocumentNode extends DocumentNode {
-    _initialize (doc, props) {
-      
-      
-      
-      if (props.attributes) {
-        delete props.attributes.id;
-      }
-      super._initialize(doc, props);
-    }
-
-    toXML () {
-      return node2element(this)
-    }
-
-    
-    findChild (tagName) {
-      const children = this.getChildren();
-      for (let i = 0; i < children.length; i++) {
-        const child = children[i];
-        if (child.type === tagName) return child
-      }
-    }
-
-    find (cssSelector) {
-      return cssSelect.selectOne(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
-    }
-
-    findAll (cssSelector) {
-      return cssSelect.selectAll(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter })
-    }
-
-    isContainer () {
-      return false
-    }
-
-    
-    isBlock () {
-      const parentNode = this.parentNode;
-      return (parentNode && parentNode.isContainer())
-    }
-
-    get children () {
-      return this.getChildren()
-    }
-
-    getChildren () {
-      
-      return this.getChildNodes()
-    }
-
-    getChildNodes () {
-      if (this._childNodes) {
-        return getNodes(this.getDocument(), this._childNodes)
-      } else {
-        return []
-      }
-    }
-
-    getChildCount () {
-      if (this._childNodes) {
-        return this._childNodes.length
-      } else {
-        return 0
-      }
-    }
-
-    getChildPosition (child) {
-      if (!child || !this._childNodes) return -1
-      return this._childNodes.indexOf(child.id)
-    }
-
-    getChildNodeIterator () {
-      return new ArrayIterator(this.getChildNodes())
-    }
-
-    getFirstChild () {
-      if (this._childNodes) {
-        return this.getDocument().get(this._childNodes[0])
-      }
-    }
-
-    getLastChild () {
-      if (this._childNodes) {
-        return this.getDocument().get(last$1(this._childNodes))
-      }
-    }
-
-    getParent () {
-      return this.parentNode
-    }
-
-    setParent (parentNode) {
-      this.parentNode = parentNode;
-    }
-
-    get tagName () {
-      return this.type
-    }
-
-    
-    get parent () {
-      return this.parentNode
-    }
-
-    setAttribute (name, val) {
-      if (name === 'id') {
-        throw new Error("'id' is read-only and can not be changed")
-      }
-      this.getDocument().set([this.id, 'attributes', name], val);
-      return this
-    }
-
-    getAttribute (name) {
-      if (name === 'id') return this.id
-      return this.attributes[name]
-    }
-
-    removeAttribute (name) {
-      if (this.attributes.hasOwnProperty(name)) {
-        this.getDocument().set([this.id, 'attributes', name], undefined);
-        delete this.attributes[name];
-      }
-      return this
-    }
-
-    getAttributes () {
-      return clone(this.attributes)
-    }
-
-    getElementSchema () {
-      return this.getDocument().getElementSchema(this.type)
-    }
-
-    serialize () {
-      return this.toXML()
-    }
-
-    isTextNode () {
-      return false
-    }
-
-    isElementNode () {
-      return false
-    }
-
-    getInnerXML () {
-      return getInnerXML(this)
-    }
-
-    get _isXMLNode () { return true }
-  }
-
-  XMLDocumentNode.prototype.attr = DOMElement.prototype.attr;
-
-  XMLDocumentNode.schema = {
-    attributes: { type: 'object', default: {} }
-  };
-
-  class XMLAnchorNode extends XMLDocumentNode {
-    
-    get parentNode () {
-      const path = this.coor.start.path;
-      const doc = this.getDocument();
-      return doc.get(path[0])
-    }
-  }
-
-  XMLAnchorNode.prototype._elementType = 'anchor';
-
-  XMLAnchorNode.type = 'anchor';
-
-  XMLAnchorNode.schema = {
-    coor: { type: 'coordinate', optional: true }
-  };
-
-  class XMLAnnotationNode extends AnnotationMixin(XMLDocumentNode) {
-    
-    get parentNode () {
-      const path = this.start.path;
-      const doc = this.getDocument();
-      return doc.get(path[0])
-    }
-
-    static isPropertyAnnotation () { return true }
-
-    get _elementType () { return 'annotation' }
-  }
-
-
-  XMLAnnotationNode.schema = {
-    type: '@annotation'
-  };
-
-  class XMLElementNode extends XMLDocumentNode {
-    appendChild (child) {
-      return appendChild(this, child)
-    }
-
-    removeChild (child) {
-      return removeChild(this, child)
-    }
-
-    insertBefore (newChild, ref) {
-      return insertBefore(this, newChild, ref)
-    }
-
-    insertAt (pos, child) {
-      return insertAt(this, pos, child)
-    }
-
-    removeAt (pos) {
-      return removeAt(this, pos)
-    }
-
-    getChildAt (idx) {
-      return getChildAt(this, idx)
-    }
-
-    isElementNode () {
-      return true
-    }
-
-    append () {
-      return DOMElement.prototype.append.apply(this, arguments)
-    }
-
-    replaceChild (oldChild, newChild) {
-      return replaceChild(this, oldChild, newChild)
-    }
-
-    get _elementType () { return 'element' }
-
-    static isBlock () { return true }
-  }
-
-  XMLElementNode.schema = {
-    type: 'element',
-    _childNodes: { type: ['array', 'id'], default: [], owned: true }
-  };
-
-  class XMLContainerNode extends ContainerMixin(XMLElementNode) {
-    getContentPath () {
-      return [this.id, '_childNodes']
-    }
-
-    getContent () {
-      return this._childNodes
-    }
-
-    isContainer () {
-      return true
-    }
-
-    appendChild (child) {
-      super.show(child.id);
-    }
-
-    get _elementType () { return 'container' }
-
-    static isBlock () { return true }
-  }
-
-  XMLContainerNode.schema = {
-    
-    type: 'container'
-  };
-
-  class XMLParentNodeHook {
-    constructor (doc) {
-      this.doc = doc;
-      
-      this.parents = {};
-      doc.data.on('operation:applied', this._onOperationApplied, this);
-    }
-
-    _onOperationApplied (op) {
-      const doc = this.doc;
-      const parents = this.parents;
-      let node = doc.get(op.path[0]);
-      switch (op.type) {
-        case 'create': {
-          if (node._childNodes) {
-            _setParent(node, node._childNodes);
-          }
-          _setRegisteredParent(node);
-          break
-        }
-        case 'update': {
-          
-          
-          let update = op.diff;
-          if (op.path[1] === '_childNodes') {
-            if (update.isInsert()) {
-              _setParent(node, update.getValue());
-            } else if (update.isDelete()) {
-              _setParent(null, update.getValue());
-            }
-          }
-          break
-        }
-        case 'set': {
-          if (op.path[1] === '_childNodes') {
-            _setParent(null, op.getOldValue());
-            _setParent(node, op.getValue());
-          }
-          break
-        }
-        default:
-          
-      }
-
-      function _setParent (parent, ids) {
-        if (ids) {
-          if (isArray(ids)) {
-            ids.forEach(_set);
-          } else {
-            _set(ids);
-          }
-        }
-        function _set (id) {
-          
-          
-          
-          parents[id] = parent;
-          let child = doc.get(id);
-          if (child) {
-            child.parentNode = parent;
-          }
-        }
-      }
-      function _setRegisteredParent (child) {
-        let parent = parents[child.id];
-        if (parent) {
-          child.parentNode = parent;
-        }
-      }
-    }
-
-    static register (doc) {
-      return new XMLParentNodeHook(doc)
-    }
-  }
-
-  class XMLEditingInterface extends EditingInterface {
-    find (cssSelector) {
-      return this.getDocument().find(cssSelector)
-    }
-
-    findAll (cssSelector) {
-      return this.getDocument().findAll(cssSelector)
-    }
-
-    createElement (...args) {
-      return this.getDocument().createElement(...args)
-    }
-  }
-
-  class XMLDocument extends Document {
-    _initialize () {
-      this.nodeFactory = new DocumentNodeFactory(this);
-      this.data = new IncrementalData(this.schema, this.nodeFactory);
-      
-      this.addIndex('type', new PropertyIndex('type'));
-      
-      this.addIndex('annotations', new AnnotationIndex());
-      XMLParentNodeHook.register(this);
-    }
-
-    toXML () {
-      let dom = DefaultDOMElement.createDocument('xml');
-      dom.setDoctype(...this.getDocTypeParams());
-      let rootElement = this.getRootNode().toXML();
-      dom.append(rootElement);
-      return dom
-    }
-
-    getDocTypeParams () {
-      
-      throw new Error('This method is abstract')
-    }
-
-    getXMLSchema () {
-      
-      throw new Error('This method is abstract')
-    }
-
-    getRootNode () {
-      
-      throw new Error('This method is abstract')
-    }
-
-    
-    getDocTypeAsString () {
-      return new Error('This method is abstract')
-    }
-
-    createEditingInterface () {
-      return new XMLEditingInterface(this)
-    }
-
-    find (cssSelector) {
-      return this.getRootNode().find(cssSelector)
-    }
-
-    findAll (cssSelector) {
-      return this.getRootNode().findAll(cssSelector)
-    }
-
-    createElement (tagName, data) {
-      let node = this.create(Object.assign({
-        id: uuid(tagName),
-        type: tagName
-      }, data));
-      return node
-    }
-
-    getElementSchema (type) {
-      return this.getXMLSchema().getElementSchema(type)
-    }
-
-    _validateChange (change) {
-      let changed = {};
-      let deleted = [];
-      change.ops.forEach((op) => {
-        switch (op.type) {
-          case 'delete': {
-            deleted.push(op.val.id);
-            break
-          }
-          case 'create': {
-            changed[op.val.id] = true;
-            break
-          }
-          default: {
-            if (op.path) {
-              changed[op.path[0]] = true;
-            }
-          }
-        }
-      });
-      
-      deleted.forEach(id => delete changed[id]);
-
-      const xmlSchema = this.getXMLSchema();
-      let errors = [];
-      Object.keys(changed).forEach((id) => {
-        let node = this.get(id);
-        if (node && node._isXMLNode) {
-          let res = xmlSchema.validateElement(node);
-          if (!res.ok) {
-            errors = errors.concat(res.errors);
-          }
-        }
-      });
-      return {
-        ok: errors.length === 0,
-        errors
-      }
-    }
-
-    
-    _apply (documentChange) {
-      
-      if (!documentChange.ops) return
-
-      let created = {};
-      let deleted = {};
-      let updated = {};
-
-      const doc = this;
-
-      function _recordUpdate (id, op) {
-        let record = updated[id];
-        if (!record) {
-          record = updated[id] = { ops: [] };
-        }
-        if (op) record.ops.push(op);
-        return record
-      }
-
-      
-      function _checkAnnotation (op) {
-        
-        switch (op.type) {
-          case 'create':
-          case 'delete': {
-            const annoData = op.val;
-            if (annoData.hasOwnProperty('start')) {
-              updated[annoData.start.path] = true;
-              let node = doc.get(annoData.start.path[0]);
-              if (node) {
-                _recordUpdate(node.id, op);
-              }
-            }
-            if (annoData.hasOwnProperty('end')) {
-              updated[annoData.end.path] = true;
-              let node = doc.get(annoData.start.path[0]);
-              if (node) {
-                _recordUpdate(node.id, op);
-              }
-            }
-            break
-          }
-          case 'update':
-          case 'set': {
-            let anno = doc.get(op.path[0]);
-            if (anno) {
-              if (anno.isPropertyAnnotation()) {
-                updated[anno.start.path] = true;
-                let node = doc.get(anno.start.path[0]);
-                if (node) {
-                  _recordUpdate(node.id, op);
-                }
-              } else if (anno.isContainerAnnotation()) ;
-            }
-            break
-          }
-          default:
-            
-        }
-      }
-
-      documentChange.ops.forEach((op) => {
-        
-        
-        
-        switch (op.type) {
-          case 'create': {
-            created[op.path[0]] = op.val;
-            break
-          }
-          case 'delete': {
-            let node = this.get(op.path[0]);
-            deleted[node.id] = node;
-            break
-          }
-          case 'update':
-          case 'set': {
-            updated[op.path] = true;
-            let node = this.get(op.path[0]);
-            _recordUpdate(node.id, op);
-            break
-          }
-          default:
-            
-        }
-        
-        _checkAnnotation(op);
-
-        this._applyOp(op);
-      });
-      
-      Object.keys(deleted).forEach((id) => {
-        delete updated[id];
-      });
-      documentChange.created = created;
-      documentChange.updated = updated;
-      documentChange.deleted = deleted;
-      documentChange._extracted = true;
-    }
-  }
-
-  XMLDocument.prototype._isXMLDocument = true;
-
   const START = 'START';
   const END = 'END';
   const EPSILON = 'EPSILON';
-  const TEXT$1 = 'TEXT';
+  const TEXT$2 = 'TEXT';
 
   class DFA {
     constructor (transitions) {
@@ -40553,317 +41109,7 @@
   DFA.START = START;
   DFA.END = END;
   DFA.EPSILON = EPSILON;
-  DFA.TEXT = TEXT$1;
-
-  function _isTextNodeEmpty (el) {
-    return Boolean(/^\s*$/.exec(el.textContent))
-  }
-
-  const { TEXT: TEXT$2 } = DFA;
-
-  class ValidatingChildNodeIterator {
-    constructor (el, it, expr) {
-      this.el = el;
-      this.it = it;
-      this.expr = expr;
-      this.state = expr.getInitialState();
-      this._oldStates = [];
-    }
-
-    hasNext () {
-      return this.it.hasNext()
-    }
-
-    next () {
-      const state = this.state;
-      const expr = this.expr;
-      let next = this.it.next();
-      let oldState = cloneDeep(this.state);
-      let ok;
-      if (next.isTextNode()) {
-        ok = expr.consume(state, TEXT$2);
-      } else if (next.isElementNode()) {
-        ok = expr.consume(state, next.tagName);
-      }
-      if (!ok) {
-        if (next.isTextNode()) {
-          if (!_isTextNodeEmpty(next)) {
-            console.error(`TEXT is invalid within <${expr.name}>. Skipping.`, next.textContent);
-          }
-        } else if (next.isElementNode()) {
-          let error = last$1(state.errors);
-          console.error(error.msg, this.el.getNativeElement());
-        }
-        
-        this.state = oldState;
-        return next.createComment(next.outerHTML)
-      } else {
-        this._oldStates.push(oldState);
-        return next
-      }
-    }
-
-    back () {
-      this.it.back();
-      this.state = this._oldStates.pop();
-      return this
-    }
-
-    peek () {
-      return this.it.peek()
-    }
-  }
-
-  function _mapParams (config) {
-    const schema = config.schema;
-    
-    
-    const xmlSchema = config.xmlSchema || schema.xmlSchema;
-    const converters = config.converters;
-    const idAttribute = config.idAttribute || xmlSchema.getIdAttribute();
-    return {
-      schema,
-      xmlSchema,
-      converters,
-      idAttribute
-    }
-  }
-
-  class XMLDocumentImporter extends DOMImporter {
-    constructor (config, context) {
-      super(_mapParams(config, context), context);
-
-      this.xmlSchema = config.xmlSchema || config.schema.xmlSchema;
-    }
-
-    importDocument (dom) {
-      this.reset();
-      const doc = this.state.doc;
-      if (isString(dom)) {
-        dom = DefaultDOMElement.parseXML(dom);
-      }
-      const startTag = this.xmlSchema.getStartElement();
-      let rootEl;
-      if (dom.is(startTag)) {
-        rootEl = dom;
-      } else {
-        rootEl = dom.find(startTag);
-      }
-      if (!rootEl) throw new Error(`Could not find <${startTag}> element.`)
-      
-      
-      doc.root = this.convertElement(rootEl);
-      return this.state.doc
-    }
-
-    _initialize () {
-      const schema = this.schema;
-      const defaultTextType = schema.getDefaultTextType();
-      const converters = this.converters;
-
-      this._allConverters = [];
-      this._propertyAnnotationConverters = [];
-      this._blockConverters = [];
-
-      for (let i = 0; i < converters.length; i++) {
-        let converter;
-        if (typeof converters[i] === 'function') {
-          const Converter = converters[i];
-          converter = new Converter();
-        } else {
-          converter = converters[i];
-        }
-        if (!converter.type) {
-          throw new Error('Converter must provide the type of the associated node.')
-        }
-        if (!converter.matchElement && !converter.tagName) {
-          throw new Error('Converter must provide a matchElement function or a tagName property.')
-        }
-        if (!converter.matchElement) {
-          converter.matchElement = this._defaultElementMatcher.bind(converter);
-        }
-        const NodeClass = schema.getNodeClass(converter.type);
-        if (!NodeClass) {
-          throw new Error('No node type defined for converter')
-        }
-        if (!this._defaultBlockConverter && defaultTextType === converter.type) {
-          this._defaultBlockConverter = converter;
-        }
-
-        
-        if (NodeClass.isAnnotation() || NodeClass.isInlineNode()) {
-          this._propertyAnnotationConverters.push(converter);
-        } else {
-          this._blockConverters.push(converter);
-        }
-      }
-      this._allConverters = this._blockConverters.concat(this._propertyAnnotationConverters);
-    }
-
-    _createNodeData (el, type) {
-      let nodeData = super._createNodeData(el, type);
-      let attributes = {};
-      el.getAttributes().forEach((value, key) => {
-        attributes[key] = value;
-      });
-      nodeData.attributes = attributes;
-      return nodeData
-    }
-
-    getChildNodeIterator (el) {
-      
-      let schema = this.xmlSchema.getElementSchema(el.tagName);
-      let it = el.getChildNodeIterator();
-      if (schema) {
-        return new ValidatingChildNodeIterator(el, it, schema.expr)
-      } else {
-        return it
-      }
-    }
-
-    _convertPropertyAnnotation () {
-      throw new Error('stand-alone annotations are not supported.')
-    }
-
-    _convertInlineNode (el, nodeData, converter) {
-      const path = [];
-      if (converter.import) {
-        nodeData = converter.import(el, nodeData, this) || nodeData;
-      }
-      nodeData.start = { path, offset: 0 };
-      nodeData.end = { offset: 0 };
-      return nodeData
-    }
-  }
-
-  class XMLNodeConverter {
-    constructor (type) {
-      this.type = type;
-      this.tagName = nameWithoutNS$1(type);
-      this.tagNameNS = type;
-    }
-
-    matchElement (el) {
-      return (el.tagName === this.tagNameNS)
-    }
-
-    export (node, el) {
-      el.tagName = this.tagNameNS;
-      el.attr(node.attributes);
-    }
-  }
-
-  class ElementNodeConverter extends XMLNodeConverter {
-    import (el, node, converter) {
-      let it = converter.getChildNodeIterator(el);
-      let childNodeIds = [];
-      while (it.hasNext()) {
-        const childEl = it.next();
-        if (childEl.isElementNode()) {
-          let childNode = converter.convertElement(childEl);
-          childNodeIds.push(childNode.id);
-        }
-      }
-      node._childNodes = childNodeIds;
-    }
-
-    export (node, el, converter) {
-      el.tagName = this.tagNameNS;
-      el.attr(node.attributes);
-      node.getChildren().forEach(childNode => {
-        let childEl = converter.convertNode(childNode);
-        el.appendChild(childEl);
-      });
-    }
-  }
-
-  class XMLExternalNode extends XMLDocumentNode {
-    get _elementType () { return 'external' }
-
-    static isBlock () { return true }
-  }
-
-  XMLExternalNode.schema = {
-    
-    type: 'external',
-    xml: { type: 'string', default: '' }
-  };
-
-  class ExternalNodeConverter extends XMLNodeConverter {
-    import (el, node) {
-      node.xml = el.innerHTML;
-    }
-
-    export (node, el) {
-      el.tagName = this.tagNameNS;
-      el.setAttributes(node.attributes);
-      el.innerHTML = node.xml;
-    }
-  }
-
-  class XMLInlineElementNode extends AnnotationMixin(XMLDocumentNode) {
-    
-    get parentNode () {
-      const path = this.start.path;
-      if (path[0]) {
-        const doc = this.getDocument();
-        return doc.get(path[0])
-      }
-      return this._parentNode
-    }
-
-    set parentNode (parent) {
-      const path = this.start.path;
-      if (path[0]) {
-        throw new Error('parent of inline-element is implicitly given')
-      }
-      this._parentNode = parent;
-    }
-
-    getChildAt (idx) {
-      return getChildAt(this, idx)
-    }
-
-    appendChild (child) {
-      return appendChild(this, child)
-    }
-
-    removeChild (child) {
-      return removeChild(this, child)
-    }
-
-    insertBefore (newChild, ref) {
-      return insertBefore(this, newChild, ref)
-    }
-
-    insertAt (pos, child) {
-      return insertAt(this, pos, child)
-    }
-
-    removeAt (pos) {
-      return removeAt(this, pos)
-    }
-
-    getInnerXML () {
-      return this.getChildren().map(child => {
-        return child.toXML().outerHTML
-      }).join('')
-    }
-
-    static isInlineNode () { return true }
-
-    get _elementType () { return 'inline-element' }
-
-    
-    
-    get _isInlineNode () { return true }
-  }
-
-  XMLInlineElementNode.schema = {
-    
-    type: 'inline-element',
-    _childNodes: { type: ['array', 'id'], default: [], owned: true }
-  };
+  DFA.TEXT = TEXT$2;
 
   const START$1 = DFA.START;
   const END$1 = DFA.END;
@@ -41064,6 +41310,10 @@
       
     }
     T[token] = to;
+  }
+
+  function _isTextNodeEmpty (el) {
+    return Boolean(/^\s*$/.exec(el.textContent))
   }
 
   const { START: START$2, END: END$2, TEXT: TEXT$3, EPSILON: EPSILON$2 } = DFA;
@@ -41717,326 +41967,6 @@
 
   const { TEXT: TEXT$4 } = DFA;
 
-  class XMLSchema {
-    constructor (elementSchemas, startElement) {
-      if (!elementSchemas[startElement]) {
-        throw new Error('startElement must be a valid element.')
-      }
-      this._elementSchemas = {};
-      this.startElement = startElement;
-      
-      forEach(elementSchemas, (spec, name) => {
-        this._elementSchemas[name] = new ElementSchema(spec.name, spec.type, spec.attributes, spec.expr);
-      });
-    }
-
-    getIdAttribute () {
-      return 'id'
-    }
-
-    getTagNames () {
-      return Object.keys(this._elementSchemas)
-    }
-
-    getElementSchema (name) {
-      return this._elementSchemas[name]
-    }
-
-    getStartElement () {
-      return this.startElement
-    }
-
-    toJSON () {
-      let result = {
-        start: this.getStartElement(),
-        elements: {}
-      };
-      forEach(this._elementSchemas, (schema, name) => {
-        result.elements[name] = schema.toJSON();
-      });
-      return result
-    }
-
-    
-    toMD () {
-      let result = [];
-      let elementNames = Object.keys(this._elementSchemas);
-      elementNames.sort();
-      elementNames.forEach((name) => {
-        let elementSchema = this._elementSchemas[name];
-        result.push(`# <${elementSchema.name}>`);
-        result.push('');
-        result.push(`type: ${elementSchema.type}`);
-        result.push('attributes: ' + map(elementSchema.attributes, (_, name) => { return name }).join(', '));
-        result.push('children:');
-        result.push('  ' + elementSchema.expr.toString());
-        result.push('');
-      });
-      return result.join('\n')
-    }
-
-    validateElement (el) {
-      let tagName = el.tagName;
-      let elementSchema = this.getElementSchema(tagName);
-      return _validateElement(elementSchema, el)
-    }
-  }
-
-  XMLSchema.fromJSON = function (data) {
-    let elementSchemas = {};
-    forEach(data.elements, (elData) => {
-      let elSchema = ElementSchema.fromJSON(elData);
-      elementSchemas[elSchema.name] = elSchema;
-    });
-    return new XMLSchema(elementSchemas, data.start)
-  };
-
-  class ElementSchema {
-    constructor (name, type, attributes, expr) {
-      this.name = name;
-      this.type = type;
-      this.attributes = attributes;
-      this.expr = expr;
-
-      if (!name) {
-        throw new Error("'name' is mandatory")
-      }
-      if (!type) {
-        throw new Error("'type' is mandatory")
-      }
-      if (!attributes) {
-        throw new Error("'attributes' is mandatory")
-      }
-      if (!expr) {
-        throw new Error("'expr' is mandatory")
-      }
-    }
-
-    toJSON () {
-      return {
-        name: this.name,
-        type: this.type,
-        attributes: this.attributes,
-        elements: this.expr.toJSON()
-      }
-    }
-
-    isAllowed (tagName) {
-      return this.expr.isAllowed(tagName)
-    }
-
-    isTextAllowed () {
-      return this.expr.isAllowed(TEXT$4)
-    }
-
-    printStructure () {
-      return `${this.name} ::= ${this.expr.toString()}`
-    }
-
-    findFirstValidPos (el, newTag) {
-      return this.expr._findInsertPos(el, newTag, 'first')
-    }
-
-    findLastValidPos (el, newTag) {
-      return this.expr._findInsertPos(el, newTag, 'last')
-    }
-  }
-
-  ElementSchema.fromJSON = function (data) {
-    return new ElementSchema(
-      data.name,
-      data.type,
-      data.attributes,
-      Expression.fromJSON(data.elements)
-    )
-  };
-
-  function _validateElement (elementSchema, el) {
-    let errors = [];
-    let valid = true;
-    { 
-      const res = _checkAttributes(elementSchema, el);
-      if (!res.ok) {
-        errors = errors.concat(res.errors);
-        valid = false;
-      }
-    }
-    
-    if (elementSchema.type === 'external' || elementSchema.type === 'not-implemented') ; else {
-      
-      let res;
-      if (el._isXMLTextElement) {
-        res = _checkChildren(elementSchema, el.toXML());
-      } else {
-        res = _checkChildren(elementSchema, el);
-      }
-      if (!res.ok) {
-        errors = errors.concat(res.errors);
-        valid = false;
-      }
-    }
-    return {
-      errors,
-      ok: valid
-    }
-  }
-
-  function _checkAttributes(elementSchema, el) { 
-    return { ok: true }
-  }
-
-  function _checkChildren (elementSchema, el) {
-    
-    
-    if (elementSchema.type === 'external' || elementSchema.type === 'not-implemented') {
-      return true
-    }
-    const expr = elementSchema.expr;
-    const state = expr.getInitialState();
-    const iterator = el.getChildNodeIterator();
-    let valid = true;
-    while (valid && iterator.hasNext()) {
-      const childEl = iterator.next();
-      let token;
-      if (childEl.isTextNode()) {
-        
-        if (elementSchema.type !== 'text' && _isTextNodeEmpty(childEl)) {
-          continue
-        }
-        token = TEXT$4;
-      } else if (childEl.isElementNode()) {
-        token = childEl.tagName;
-      } else {
-        continue
-      }
-      if (!expr.consume(state, token)) {
-        valid = false;
-      }
-    }
-    
-    if (state.errors.length > 0) {
-      state.errors.forEach((err) => {
-        err.el = el;
-      });
-    }
-    if (valid && !expr.isFinished(state)) {
-      state.errors.push({
-        msg: `<${el.tagName}> is incomplete.\nSchema: ${expr.toString()}`,
-        el
-      });
-      valid = false;
-    }
-    if (valid) {
-      state.ok = true;
-    }
-    return state
-  }
-
-  class XMLTextElement extends TextNodeMixin(XMLDocumentNode) {
-    getPath () {
-      return [this.id, 'content']
-    }
-
-    getText () {
-      return this.content
-    }
-
-    
-    getChildren () {
-      const annos = this.getAnnotations();
-      
-      annos.sort(_byStartOffset);
-      return annos
-    }
-
-    setText (text) {
-      const doc = this.getDocument();
-      const path = this.getPath();
-      const oldText = this.getText();
-      
-      if (oldText.length > 0) {
-        doc.update(path, { type: 'delete', start: 0, end: oldText.length });
-      }
-      doc.update(path, { type: 'insert', start: 0, text });
-      return this
-    }
-
-    
-
-    getTextContent () {
-      return this.getText()
-    }
-
-    setTextContent (text) {
-      return this.setText(text)
-    }
-
-    get textContent () {
-      return this.getText()
-    }
-
-    set textContent (text) {
-      this.setText(text);
-    }
-
-    appendChild(child) { 
-      
-      
-      
-      
-      
-      
-      
-      throw new Error('This is not implemented yet.')
-    }
-
-    removeChild(child) { 
-      
-      throw new Error('This is not implemented yet.')
-    }
-
-    
-    isElementNode () {
-      return true
-    }
-
-    text () {
-      return DOMElement.prototype.text.apply(this, arguments)
-    }
-
-    get _isXMLTextElement () { return true }
-
-    get _elementType () { return 'text' }
-
-    static isText () { return true }
-
-    static isBlock () { return true }
-  }
-
-  XMLTextElement.schema = {
-    
-    type: 'text',
-    content: 'text'
-  };
-
-  function _byStartOffset (a, b) {
-    return a.start.offset - b.start.offset
-  }
-
-  class XMLTextElementConverter extends XMLNodeConverter {
-    import (el, node, converter) {
-      node.content = converter.annotatedText(el, [node.id, 'content'], { preserveWhitespace: true });
-    }
-
-    export (node, el, converter) {
-      el.tagName = this.tagNameNS;
-      el.attr(node.attributes);
-      el.append(converter.annotatedText([node.id, 'content']));
-    }
-  }
-
-  const { TEXT: TEXT$5 } = DFA;
-
   function analyze (elementSchemas) {
     forEach(elementSchemas, elementSchema => {
       Object.assign(elementSchema, {
@@ -42079,7 +42009,7 @@
     let hasElements = false;
     _siblings.forEach((tagNames) => {
       
-      let _hasText = tagNames.indexOf(TEXT$5) >= 0;
+      let _hasText = tagNames.indexOf(TEXT$4) >= 0;
       let _hasElements = (!_hasText && tagNames.length > 0);
       if (_hasText) {
         hasText = true;
@@ -42250,6 +42180,240 @@
       return !(usedInlineBy[name])
     });
     return usedStructuredBy
+  }
+
+  function nameWithoutNS$1 (name) {
+    const idx = name.indexOf(':');
+    if (idx > 0) {
+      return name.slice(idx + 1)
+    } else {
+      return name
+    }
+  }
+
+  const { TEXT: TEXT$5 } = DFA;
+
+  class XMLSchema {
+    constructor (elementSchemas, startElement) {
+      if (!elementSchemas[startElement]) {
+        throw new Error('startElement must be a valid element.')
+      }
+      this._elementSchemas = {};
+      this.startElement = startElement;
+      
+      forEach(elementSchemas, (spec, name) => {
+        this._elementSchemas[name] = new ElementSchema(spec.name, spec.type, spec.attributes, spec.expr);
+      });
+    }
+
+    getIdAttribute () {
+      return 'id'
+    }
+
+    getTagNames () {
+      return Object.keys(this._elementSchemas)
+    }
+
+    getElementSchema (name) {
+      return this._elementSchemas[name]
+    }
+
+    getStartElement () {
+      return this.startElement
+    }
+
+    toJSON () {
+      let result = {
+        start: this.getStartElement(),
+        elements: {}
+      };
+      forEach(this._elementSchemas, (schema, name) => {
+        result.elements[name] = schema.toJSON();
+      });
+      return result
+    }
+
+    
+    toMD () {
+      let result = [];
+      let elementNames = Object.keys(this._elementSchemas);
+      elementNames.sort();
+      elementNames.forEach((name) => {
+        let elementSchema = this._elementSchemas[name];
+        result.push(`# <${elementSchema.name}>`);
+        result.push('');
+        result.push(`type: ${elementSchema.type}`);
+        result.push('attributes: ' + map(elementSchema.attributes, (_, name) => { return name }).join(', '));
+        result.push('children:');
+        result.push('  ' + elementSchema.expr.toString());
+        result.push('');
+      });
+      return result.join('\n')
+    }
+
+    validateElement (el) {
+      let tagName = el.tagName;
+      let elementSchema = this.getElementSchema(tagName);
+      return _validateElement(elementSchema, el)
+    }
+  }
+
+  XMLSchema.fromJSON = function (data) {
+    let elementSchemas = {};
+    forEach(data.elements, (elData) => {
+      let elSchema = ElementSchema.fromJSON(elData);
+      elementSchemas[elSchema.name] = elSchema;
+    });
+    return new XMLSchema(elementSchemas, data.start)
+  };
+
+  class ElementSchema {
+    constructor (name, type, attributes, expr) {
+      this.name = name;
+      this.type = type;
+      this.attributes = attributes;
+      this.expr = expr;
+
+      if (!name) {
+        throw new Error("'name' is mandatory")
+      }
+      if (!type) {
+        throw new Error("'type' is mandatory")
+      }
+      if (!attributes) {
+        throw new Error("'attributes' is mandatory")
+      }
+      if (!expr) {
+        throw new Error("'expr' is mandatory")
+      }
+    }
+
+    toJSON () {
+      return {
+        name: this.name,
+        type: this.type,
+        attributes: this.attributes,
+        elements: this.expr.toJSON()
+      }
+    }
+
+    isAllowed (tagName) {
+      return this.expr.isAllowed(tagName)
+    }
+
+    isTextAllowed () {
+      return this.expr.isAllowed(TEXT$5)
+    }
+
+    printStructure () {
+      return `${this.name} ::= ${this.expr.toString()}`
+    }
+
+    findFirstValidPos (el, newTag) {
+      return this.expr._findInsertPos(el, newTag, 'first')
+    }
+
+    findLastValidPos (el, newTag) {
+      return this.expr._findInsertPos(el, newTag, 'last')
+    }
+  }
+
+  ElementSchema.fromJSON = function (data) {
+    return new ElementSchema(
+      data.name,
+      data.type,
+      data.attributes,
+      Expression.fromJSON(data.elements)
+    )
+  };
+
+  function _validateElement (elementSchema, el) {
+    let errors = [];
+    let valid = true;
+    { 
+      const res = _checkAttributes(elementSchema, el);
+      if (!res.ok) {
+        errors = errors.concat(res.errors);
+        valid = false;
+      }
+    }
+    
+    if (elementSchema.type === 'external' || elementSchema.type === 'not-implemented') ; else {
+      
+      let res;
+      if (el._isXMLTextElement) {
+        res = _checkChildren(elementSchema, el.toXML());
+      } else {
+        res = _checkChildren(elementSchema, el);
+      }
+      if (!res.ok) {
+        errors = errors.concat(res.errors);
+        valid = false;
+      }
+    }
+    return {
+      errors,
+      ok: valid
+    }
+  }
+
+  function _checkAttributes(elementSchema, el) { 
+    return { ok: true }
+  }
+
+  function _checkChildren (elementSchema, el) {
+    
+    
+    if (elementSchema.type === 'external' || elementSchema.type === 'not-implemented') {
+      return true
+    }
+    const isText = elementSchema.type === 'text';
+    const expr = elementSchema.expr;
+    const state = expr.getInitialState();
+    const iterator = el.getChildNodeIterator();
+    let valid = true;
+    while (valid && iterator.hasNext()) {
+      const childEl = iterator.next();
+      let token;
+      if (childEl.isTextNode()) {
+        
+        if (_isTextNodeEmpty(childEl)) {
+          continue
+        } else {
+          token = TEXT$5;
+        }
+      } else if (childEl.isElementNode()) {
+        token = childEl.tagName;
+      } else if (childEl.getNodeType() === 'cdata') {
+        
+        token = TEXT$5;
+      } else {
+        continue
+      }
+      if (!expr.consume(state, token)) {
+        valid = false;
+      }
+    }
+    
+    if (state.errors.length > 0) {
+      state.errors.forEach((err) => {
+        err.el = el;
+      });
+    }
+    const isFinished = expr.isFinished(state);
+    
+    
+    if (valid && !isFinished && !isText) {
+      state.errors.push({
+        msg: `<${el.tagName}> is incomplete.\nSchema: ${expr.toString()}`,
+        el
+      });
+      valid = false;
+    }
+    if (valid) {
+      state.ok = true;
+    }
+    return state
   }
 
   function _lookupRNG (fs, searchDirs, file) {
@@ -42715,6 +42879,964 @@
     }
   }
 
+  class Adapter extends domUtils.DomUtils {
+    
+    isTag () {
+      return true
+    }
+
+    getChildren (elem) {
+      if (elem.getChildren) {
+        return elem.getChildren()
+      } else {
+        return []
+      }
+    }
+
+    getAttributeValue (elem, name) {
+      if (elem.getAttribute) {
+        return elem.getAttribute(name)
+      }
+    }
+
+    getAttributes (elem) {
+      if (elem.hasOwnProperty('attributes')) {
+        return ['id', elem.id].concat(map(elem.attributes, (val, key) => { return [key, val] }))
+      } else {
+        return ['id', elem.id]
+      }
+    }
+
+    hasAttrib (elem, name) {
+      if (name === 'id') {
+        return true
+      } else if (elem.hasOwnProperty('attributes')) {
+        return elem.attributes.hasOwnProperty(name)
+      } else {
+        return false
+      }
+    }
+
+    getName (elem) {
+      return elem.type
+    }
+
+    getNameWithoutNS (elem) {
+      return nameWithoutNS$1(this.getName(elem))
+    }
+
+    getText (elem) {
+      if (elem._elementType === 'text') {
+        return elem.getText()
+      }
+      
+      return ''
+    }
+  }
+
+  const cssSelectAdapter$1 = new Adapter();
+
+  function prettyPrintXML (xml) {
+    let dom;
+    if (isString(xml)) {
+      dom = DefaultDOMElement.parseXML(xml);
+    } else {
+      dom = xml;
+    }
+    const result = [];
+    
+    
+    
+    
+    
+    let childNodes = dom.getChildNodes();
+    if (dom.isDocumentNode()) {
+      let xml = dom.empty().serialize();
+      if (/<\?\s*xml/.exec(xml)) {
+        result.push(xml);
+      }
+    }
+    childNodes.forEach(el => {
+      _prettyPrint(result, el, 0);
+    });
+    return result.join('\n')
+  }
+
+  function _prettyPrint (result, el, level) {
+    let indent = new Array(level * 2).fill(' ').join('');
+    if (el.isElementNode()) {
+      const isMixed = _isMixed(el);
+      const containsCDATA = _containsCDATA(el);
+      if (isMixed || containsCDATA) {
+        result.push(indent + el.outerHTML);
+      } else {
+        let children = el.children;
+        const tagName = el.tagName;
+        let tagStr = [`<${tagName}`];
+        el.getAttributes().forEach((val, name) => {
+          tagStr.push(`${name}="${val}"`);
+        });
+        if (children.length > 0) {
+          result.push(indent + tagStr.join(' ') + '>');
+          el.children.forEach((child) => {
+            _prettyPrint(result, child, level + 1);
+          });
+          result.push(indent + `</${tagName}>`);
+        } else {
+          result.push(indent + tagStr.join(' ') + ' />');
+        }
+      }
+    } else if (level === 0 && el.isTextNode()) ; else {
+      result.push(indent + el.outerHTML);
+    }
+  }
+
+  function _isMixed (el) {
+    const childNodes = el.childNodes;
+    for (let i = 0; i < childNodes.length; i++) {
+      let child = childNodes[i];
+      if (child.isTextNode() && !_isTextNodeEmpty(child)) {
+        return true
+      }
+    }
+  }
+
+  function _containsCDATA (el) {
+    const childNodes = el.childNodes;
+    for (let i = 0; i < childNodes.length; i++) {
+      let child = childNodes[i];
+      if (child.getNodeType() === 'cdata') {
+        return true
+      }
+    }
+  }
+
+  function appendChild (xmlNode, child) {
+    insertAt$1(xmlNode, xmlNode._childNodes.length, child);
+    return xmlNode
+  }
+
+  function getChildPos (xmlNode, child) {
+    return xmlNode._childNodes.indexOf(child.id)
+  }
+
+  function removeChild (xmlNode, child) {
+    const childPos = getChildPos(xmlNode, child);
+    if (childPos >= 0) {
+      removeAt$1(xmlNode, childPos);
+    } else {
+      throw new Error(`Node ${child.id} is not a child of ${xmlNode.id}`)
+    }
+    return xmlNode
+  }
+
+  function replaceChild (xmlNode, oldChild, newChild) {
+    const childPos = getChildPos(xmlNode, oldChild);
+    if (childPos >= 0) {
+      removeAt$1(xmlNode, childPos);
+      insertAt$1(xmlNode, childPos, newChild);
+    } else {
+      throw new Error(`Node ${oldChild.id} is not a child of ${xmlNode.id}`)
+    }
+    return xmlNode
+  }
+
+  function insertBefore (xmlNode, newChild, ref) {
+    if (!ref) {
+      appendChild(xmlNode, newChild);
+    } else {
+      let pos = getChildPos(xmlNode, ref);
+      if (pos < 0) {
+        throw new Error(`Node ${newChild.id} is not a child of ${xmlNode.id}`)
+      }
+      insertAt$1(xmlNode, pos, newChild);
+    }
+    return xmlNode
+  }
+
+  function insertAt$1 (xmlNode, pos, child) {
+    const length = xmlNode._childNodes.length;
+    if (pos >= 0 && pos <= length) {
+      const doc = xmlNode.getDocument();
+      doc.update([xmlNode.id, '_childNodes'], { type: 'insert', pos, value: child.id });
+    } else {
+      throw new Error('Index out of bounds.')
+    }
+    return xmlNode
+  }
+
+  function removeAt$1 (xmlNode, pos) {
+    const length = xmlNode._childNodes.length;
+    if (pos >= 0 && pos < length) {
+      const doc = xmlNode.getDocument();
+      doc.update([xmlNode.id, '_childNodes'], { type: 'delete', pos: pos });
+    } else {
+      throw new Error('Index out of bounds.')
+    }
+    return xmlNode
+  }
+
+  function getInnerXML (xmlNode) {
+    if (xmlNode._childNodes) {
+      return xmlNode.getChildNodes().map(child => {
+        return child.toXML().serialize()
+      }).join('')
+    } else if (xmlNode.isText()) {
+      return xmlNode.toXML().getInnerXML()
+    }
+    return ''
+  }
+
+  function getChildAt (xmlNode, idx) {
+    let childId = xmlNode._childNodes[idx];
+    if (childId) {
+      return xmlNode.getDocument().get(childId)
+    }
+  }
+
+
+  function node2element (node) {
+    
+    let dom = DefaultDOMElement.createDocument('xml');
+    let el = _node2element(dom, node);
+    return el
+  }
+
+  function _node2element (dom, node) {
+    let el;
+    switch (node._elementType) {
+      case 'text': {
+        el = _renderTextNode(dom, node);
+        break
+      }
+      case 'element':
+      case 'inline-element':
+      case 'container': {
+        el = _renderElementNode(dom, node);
+        break
+      }
+      case 'anchor':
+      case 'annotation': {
+        el = _createElement(dom, node);
+        break
+      }
+      case 'external': {
+        el = DefaultDOMElement.parseSnippet(node.xml, 'xml');
+        break
+      }
+      default:
+        throw new Error('Invalid element type.')
+    }
+    return el
+  }
+
+  function _createElement (dom, node) {
+    let el = dom.createElement(node.type);
+    el.attr('id', node.id);
+    el.attr(node.attributes);
+    return el
+  }
+
+  function _renderElementNode (dom, node) {
+    let el = _createElement(dom, node);
+    el.append(node.getChildren().map(child => _node2element(dom, child)));
+    return el
+  }
+
+  function _renderTextNode (dom, node) {
+    const annos = node.getAnnotations();
+    const text = node.getText();
+    let el = _createElement(dom, node);
+    if (annos && annos.length > 0) {
+      let fragmenter = new Fragmenter({
+        onText: (context, text) => {
+          const node = context.node;
+          if (node.isText() || node.isAnnotation()) {
+            context.el.append(text);
+          }
+        },
+        onEnter: (fragment) => {
+          return {
+            el: _node2element(dom, fragment.node),
+            node: fragment.node
+          }
+        },
+        onExit: (fragment, context, parentContext) => {
+          parentContext.el.append(context.el);
+        }
+      });
+      fragmenter.start({ el, node }, text, annos);
+    } else {
+      el.append(text);
+    }
+    return el
+  }
+
+  class XMLDocumentNode extends DocumentNode {
+    _initialize (doc, props) {
+      
+      
+      
+      if (props.attributes) {
+        delete props.attributes.id;
+      }
+      super._initialize(doc, props);
+    }
+
+    toXML () {
+      return node2element(this)
+    }
+
+    
+    findChild (tagName) {
+      const children = this.getChildren();
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        if (child.type === tagName) return child
+      }
+    }
+
+    find (cssSelector) {
+      return cssSelect.selectOne(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter$1 })
+    }
+
+    findAll (cssSelector) {
+      return cssSelect.selectAll(cssSelector, this, { xmlMode: true, adapter: cssSelectAdapter$1 })
+    }
+
+    isContainer () {
+      return false
+    }
+
+    
+    isBlock () {
+      const parentNode = this.parentNode;
+      return (parentNode && parentNode.isContainer())
+    }
+
+    get children () {
+      return this.getChildren()
+    }
+
+    getChildren () {
+      
+      return this.getChildNodes()
+    }
+
+    getChildNodes () {
+      if (this._childNodes) {
+        return getNodesForIds(this.getDocument(), this._childNodes)
+      } else {
+        return []
+      }
+    }
+
+    getChildCount () {
+      if (this._childNodes) {
+        return this._childNodes.length
+      } else {
+        return 0
+      }
+    }
+
+    getChildPosition (child) {
+      if (!child || !this._childNodes) return -1
+      return this._childNodes.indexOf(child.id)
+    }
+
+    getChildNodeIterator () {
+      return new ArrayIterator(this.getChildNodes())
+    }
+
+    getFirstChild () {
+      if (this._childNodes) {
+        return this.getDocument().get(this._childNodes[0])
+      }
+    }
+
+    getLastChild () {
+      if (this._childNodes) {
+        return this.getDocument().get(last$1(this._childNodes))
+      }
+    }
+
+    getParent () {
+      return this.parentNode
+    }
+
+    setParent (parentNode) {
+      this.parentNode = parentNode;
+    }
+
+    get tagName () {
+      return this.type
+    }
+
+    
+    get parent () {
+      return this.parentNode
+    }
+
+    setAttribute (name, val) {
+      if (name === 'id') {
+        throw new Error("'id' is read-only and can not be changed")
+      }
+      this.getDocument().set([this.id, 'attributes', name], val);
+      return this
+    }
+
+    getAttribute (name) {
+      if (name === 'id') return this.id
+      return this.attributes[name]
+    }
+
+    removeAttribute (name) {
+      if (this.attributes.hasOwnProperty(name)) {
+        this.getDocument().set([this.id, 'attributes', name], undefined);
+        delete this.attributes[name];
+      }
+      return this
+    }
+
+    getAttributes () {
+      return clone(this.attributes)
+    }
+
+    getElementSchema () {
+      return this.getDocument().getElementSchema(this.type)
+    }
+
+    serialize () {
+      return this.toXML()
+    }
+
+    isTextNode () {
+      return false
+    }
+
+    isElementNode () {
+      return false
+    }
+
+    getInnerXML () {
+      return getInnerXML(this)
+    }
+
+    get _isXMLNode () { return true }
+  }
+
+  XMLDocumentNode.prototype.attr = DOMElement.prototype.attr;
+
+  XMLDocumentNode.schema = {
+    attributes: { type: 'object', default: {} }
+  };
+
+  class XMLTextElement extends TextNodeMixin(XMLDocumentNode) {
+    getPath () {
+      return [this.id, 'content']
+    }
+
+    getText () {
+      return this.content
+    }
+
+    
+    getChildren () {
+      const annos = this.getAnnotations();
+      
+      annos.sort(_byStartOffset);
+      return annos
+    }
+
+    
+
+    getTextContent () {
+      return this.getText()
+    }
+
+    setTextContent (text) {
+      return this.setText(text)
+    }
+
+    get textContent () {
+      return this.getText()
+    }
+
+    set textContent (text) {
+      this.setText(text);
+    }
+
+    appendChild(child) { 
+      
+      
+      
+      
+      
+      
+      
+      throw new Error('This is not implemented yet.')
+    }
+
+    removeChild(child) { 
+      
+      throw new Error('This is not implemented yet.')
+    }
+
+    
+    isElementNode () {
+      return true
+    }
+
+    text () {
+      return DOMElement.prototype.text.apply(this, arguments)
+    }
+
+    get _isXMLTextElement () { return true }
+
+    get _elementType () { return 'text' }
+
+    static isText () { return true }
+
+    static isBlock () { return true }
+  }
+
+  XMLTextElement.schema = {
+    
+    type: 'text',
+    content: 'text'
+  };
+
+  function _byStartOffset (a, b) {
+    return a.start.offset - b.start.offset
+  }
+
+  class XMLNodeConverter {
+    constructor (type) {
+      this.type = type;
+      this.tagName = nameWithoutNS$1(type);
+      this.tagNameNS = type;
+    }
+
+    matchElement (el) {
+      return (el.tagName === this.tagNameNS)
+    }
+
+    export (node, el) {
+      el.tagName = this.tagNameNS;
+      el.attr(node.attributes);
+    }
+  }
+
+  class XMLTextElementConverter extends XMLNodeConverter {
+    import (el, node, converter) {
+      node.content = converter.annotatedText(el, [node.id, 'content'], { preserveWhitespace: true });
+    }
+
+    export (node, el, converter) {
+      el.tagName = this.tagNameNS;
+      el.attr(node.attributes);
+      el.append(converter.annotatedText([node.id, 'content']));
+    }
+  }
+
+  class XMLElementNode extends XMLDocumentNode {
+    appendChild (child) {
+      return appendChild(this, child)
+    }
+
+    removeChild (child) {
+      return removeChild(this, child)
+    }
+
+    insertBefore (newChild, ref) {
+      return insertBefore(this, newChild, ref)
+    }
+
+    insertAt (pos, child) {
+      return insertAt$1(this, pos, child)
+    }
+
+    removeAt (pos) {
+      return removeAt$1(this, pos)
+    }
+
+    getChildAt (idx) {
+      return getChildAt(this, idx)
+    }
+
+    isElementNode () {
+      return true
+    }
+
+    append () {
+      return DOMElement.prototype.append.apply(this, arguments)
+    }
+
+    replaceChild (oldChild, newChild) {
+      return replaceChild(this, oldChild, newChild)
+    }
+
+    get _elementType () { return 'element' }
+
+    static isBlock () { return true }
+  }
+
+  XMLElementNode.schema = {
+    type: 'element',
+    _childNodes: { type: ['array', 'id'], default: [], owned: true }
+  };
+
+  class ElementNodeConverter extends XMLNodeConverter {
+    import (el, node, converter) {
+      let it = converter.getChildNodeIterator(el);
+      let childNodeIds = [];
+      while (it.hasNext()) {
+        const childEl = it.next();
+        if (childEl.isElementNode()) {
+          let childNode = converter.convertElement(childEl);
+          childNodeIds.push(childNode.id);
+        }
+      }
+      node._childNodes = childNodeIds;
+    }
+
+    export (node, el, converter) {
+      el.tagName = this.tagNameNS;
+      el.attr(node.attributes);
+      node.getChildren().forEach(childNode => {
+        let childEl = converter.convertNode(childNode);
+        el.appendChild(childEl);
+      });
+    }
+  }
+
+  class XMLAnnotationNode extends AnnotationMixin(XMLDocumentNode) {
+    
+    get parentNode () {
+      const path = this.start.path;
+      const doc = this.getDocument();
+      return doc.get(path[0])
+    }
+
+    static isPropertyAnnotation () { return true }
+
+    get _elementType () { return 'annotation' }
+  }
+
+
+  XMLAnnotationNode.schema = {
+    type: '@annotation'
+  };
+
+  class XMLAnchorNode extends XMLDocumentNode {
+    
+    get parentNode () {
+      const path = this.coor.start.path;
+      const doc = this.getDocument();
+      return doc.get(path[0])
+    }
+  }
+
+  XMLAnchorNode.prototype._elementType = 'anchor';
+
+  XMLAnchorNode.type = 'anchor';
+
+  XMLAnchorNode.schema = {
+    coor: { type: 'coordinate', optional: true }
+  };
+
+  class XMLInlineElementNode extends AnnotationMixin(XMLDocumentNode) {
+    
+    get parentNode () {
+      const path = this.start.path;
+      if (path[0]) {
+        const doc = this.getDocument();
+        return doc.get(path[0])
+      }
+      return this._parentNode
+    }
+
+    set parentNode (parent) {
+      const path = this.start.path;
+      if (path[0]) {
+        throw new Error('parent of inline-element is implicitly given')
+      }
+      this._parentNode = parent;
+    }
+
+    getChildAt (idx) {
+      return getChildAt(this, idx)
+    }
+
+    appendChild (child) {
+      return appendChild(this, child)
+    }
+
+    removeChild (child) {
+      return removeChild(this, child)
+    }
+
+    insertBefore (newChild, ref) {
+      return insertBefore(this, newChild, ref)
+    }
+
+    insertAt (pos, child) {
+      return insertAt$1(this, pos, child)
+    }
+
+    removeAt (pos) {
+      return removeAt$1(this, pos)
+    }
+
+    getInnerXML () {
+      return this.getChildren().map(child => {
+        return child.toXML().outerHTML
+      }).join('')
+    }
+
+    static isInlineNode () { return true }
+
+    get _elementType () { return 'inline-element' }
+
+    
+    
+    get _isInlineNode () { return true }
+  }
+
+  XMLInlineElementNode.schema = {
+    
+    type: 'inline-element',
+    _childNodes: { type: ['array', 'id'], default: [], owned: true }
+  };
+
+  class XMLExternalNode extends XMLDocumentNode {
+    get _elementType () { return 'external' }
+
+    static isBlock () { return true }
+  }
+
+  XMLExternalNode.schema = {
+    
+    type: 'external',
+    xml: { type: 'string', default: '' }
+  };
+
+  class ExternalNodeConverter extends XMLNodeConverter {
+    import (el, node) {
+      node.xml = el.innerHTML;
+    }
+
+    export (node, el) {
+      el.tagName = this.tagNameNS;
+      el.setAttributes(node.attributes);
+      el.innerHTML = node.xml;
+    }
+  }
+
+  class XMLContainerNode extends ContainerMixin(XMLElementNode) {
+    getContentPath () {
+      return [this.id, '_childNodes']
+    }
+
+    getContent () {
+      return this._childNodes
+    }
+
+    isContainer () {
+      return true
+    }
+
+    appendChild (child) {
+      super.append(child.id);
+    }
+
+    get _elementType () { return 'container' }
+
+    static isBlock () { return true }
+  }
+
+  XMLContainerNode.schema = {
+    
+    type: 'container'
+  };
+
+  const { TEXT: TEXT$7 } = DFA;
+
+  class ValidatingChildNodeIterator {
+    constructor (el, it, expr) {
+      this.el = el;
+      this.it = it;
+      this.expr = expr;
+      this.state = expr.getInitialState();
+      this._oldStates = [];
+    }
+
+    hasNext () {
+      return this.it.hasNext()
+    }
+
+    next () {
+      const state = this.state;
+      const expr = this.expr;
+      let next = this.it.next();
+      let oldState = cloneDeep(this.state);
+      let ok;
+      if (next.isTextNode()) {
+        ok = expr.consume(state, TEXT$7);
+      } else if (next.isElementNode()) {
+        ok = expr.consume(state, next.tagName);
+      }
+      if (!ok) {
+        if (next.isTextNode()) {
+          if (!_isTextNodeEmpty(next)) {
+            console.error(`TEXT is invalid within <${expr.name}>. Skipping.`, next.textContent);
+          }
+        } else if (next.isElementNode()) {
+          let error = last$1(state.errors);
+          console.error(error.msg, this.el.getNativeElement());
+        }
+        
+        this.state = oldState;
+        return next.createComment(next.outerHTML)
+      } else {
+        this._oldStates.push(oldState);
+        return next
+      }
+    }
+
+    back () {
+      this.it.back();
+      this.state = this._oldStates.pop();
+      return this
+    }
+
+    peek () {
+      return this.it.peek()
+    }
+  }
+
+  function _mapParams (config) {
+    const schema = config.schema;
+    
+    
+    const xmlSchema = config.xmlSchema || schema.xmlSchema;
+    const converters = config.converters;
+    const idAttribute = config.idAttribute || xmlSchema.getIdAttribute();
+    return {
+      schema,
+      xmlSchema,
+      converters,
+      idAttribute
+    }
+  }
+
+  class XMLDocumentImporter extends DOMImporter {
+    constructor (config, context) {
+      super(_mapParams(config, context), context);
+
+      this.xmlSchema = config.xmlSchema || config.schema.xmlSchema;
+    }
+
+    importDocument (dom) {
+      this.reset();
+      const doc = this.state.doc;
+      if (isString(dom)) {
+        dom = DefaultDOMElement.parseXML(dom);
+      }
+      const startTag = this.xmlSchema.getStartElement();
+      let rootEl;
+      if (dom.is(startTag)) {
+        rootEl = dom;
+      } else {
+        rootEl = dom.find(startTag);
+      }
+      if (!rootEl) throw new Error(`Could not find <${startTag}> element.`)
+      
+      
+      doc.root = this.convertElement(rootEl);
+      return this.state.doc
+    }
+
+    _initialize () {
+      const schema = this.schema;
+      const defaultTextType = schema.getDefaultTextType();
+      const converters = this.converters;
+
+      this._allConverters = [];
+      this._propertyAnnotationConverters = [];
+      this._blockConverters = [];
+
+      for (let i = 0; i < converters.length; i++) {
+        let converter;
+        if (typeof converters[i] === 'function') {
+          const Converter = converters[i];
+          converter = new Converter();
+        } else {
+          converter = converters[i];
+        }
+        if (!converter.type) {
+          throw new Error('Converter must provide the type of the associated node.')
+        }
+        if (!converter.matchElement && !converter.tagName) {
+          throw new Error('Converter must provide a matchElement function or a tagName property.')
+        }
+        if (!converter.matchElement) {
+          converter.matchElement = this._defaultElementMatcher.bind(converter);
+        }
+        const NodeClass = schema.getNodeClass(converter.type);
+        if (!NodeClass) {
+          throw new Error('No node type defined for converter')
+        }
+        if (!this._defaultBlockConverter && defaultTextType === converter.type) {
+          this._defaultBlockConverter = converter;
+        }
+
+        
+        if (NodeClass.isAnnotation() || NodeClass.isInlineNode()) {
+          this._propertyAnnotationConverters.push(converter);
+        } else {
+          this._blockConverters.push(converter);
+        }
+      }
+      this._allConverters = this._blockConverters.concat(this._propertyAnnotationConverters);
+    }
+
+    _createNodeData (el, type) {
+      let nodeData = super._createNodeData(el, type);
+      let attributes = {};
+      el.getAttributes().forEach((value, key) => {
+        attributes[key] = value;
+      });
+      nodeData.attributes = attributes;
+      return nodeData
+    }
+
+    getChildNodeIterator (el) {
+      
+      let schema = this.xmlSchema.getElementSchema(el.tagName);
+      let it = el.getChildNodeIterator();
+      if (schema) {
+        return new ValidatingChildNodeIterator(el, it, schema.expr)
+      } else {
+        return it
+      }
+    }
+
+    _convertPropertyAnnotation () {
+      throw new Error('stand-alone annotations are not supported.')
+    }
+
+    _convertInlineNode (el, nodeData, converter) {
+      const path = [];
+      if (converter.import) {
+        nodeData = converter.import(el, nodeData, this) || nodeData;
+      }
+      nodeData.start = { path, offset: 0 };
+      nodeData.end = { offset: 0 };
+      return nodeData
+    }
+  }
+
   function registerSchema (config, xmlSchema, DocumentClass, options = {}) {
     const schemaName = xmlSchema.getName();
     let defaultTextType;
@@ -42917,7 +44039,7 @@
 
         
         
-        if (!parentNode || !sel.containerId || !isInsideText || !parentNode.isContainer()) {
+        if (!parentNode || !sel.containerPath || !isInsideText || !parentNode.isContainer()) {
           _disable(this.switchTypeCommands);
         } else {
           
@@ -42998,80 +44120,302 @@
     }
   }
 
-  function prettyPrintXML (xml) {
-    let dom;
-    if (isString(xml)) {
-      dom = DefaultDOMElement.parseXML(xml);
-    } else {
-      dom = xml;
+  class XMLParentNodeHook {
+    constructor (doc) {
+      this.doc = doc;
+      
+      this.parents = {};
+      doc.data.on('operation:applied', this._onOperationApplied, this);
     }
-    const result = [];
-    
-    
-    
-    
-    
-    let childNodes = dom.getChildNodes();
-    if (dom.isDocumentNode()) {
-      let xml = dom.empty().serialize();
-      if (/<\?\s*xml/.exec(xml)) {
-        result.push(xml);
-      }
-    }
-    childNodes.forEach(el => {
-      _prettyPrint(result, el, 0);
-    });
-    return result.join('\n')
-  }
 
-  function _prettyPrint (result, el, level) {
-    let indent = new Array(level * 2).fill(' ').join('');
-    if (el.isElementNode()) {
-      const isMixed = _isMixed(el);
-      const containsCDATA = _containsCDATA(el);
-      if (isMixed || containsCDATA) {
-        result.push(indent + el.outerHTML);
-      } else {
-        let children = el.children;
-        const tagName = el.tagName;
-        let tagStr = [`<${tagName}`];
-        el.getAttributes().forEach((val, name) => {
-          tagStr.push(`${name}="${val}"`);
-        });
-        if (children.length > 0) {
-          result.push(indent + tagStr.join(' ') + '>');
-          el.children.forEach((child) => {
-            _prettyPrint(result, child, level + 1);
-          });
-          result.push(indent + `</${tagName}>`);
-        } else {
-          result.push(indent + tagStr.join(' ') + ' />');
+    _onOperationApplied (op) {
+      const doc = this.doc;
+      const parents = this.parents;
+      let node = doc.get(op.path[0]);
+      switch (op.type) {
+        case 'create': {
+          if (node._childNodes) {
+            _setParent(node, node._childNodes);
+          }
+          _setRegisteredParent(node);
+          break
+        }
+        case 'update': {
+          
+          
+          let update = op.diff;
+          if (op.path[1] === '_childNodes') {
+            if (update.isInsert()) {
+              _setParent(node, update.getValue());
+            } else if (update.isDelete()) {
+              _setParent(null, update.getValue());
+            }
+          }
+          break
+        }
+        case 'set': {
+          if (op.path[1] === '_childNodes') {
+            _setParent(null, op.getOldValue());
+            _setParent(node, op.getValue());
+          }
+          break
+        }
+        default:
+          
+      }
+
+      function _setParent (parent, ids) {
+        if (ids) {
+          if (isArray(ids)) {
+            ids.forEach(_set);
+          } else {
+            _set(ids);
+          }
+        }
+        function _set (id) {
+          
+          
+          
+          parents[id] = parent;
+          let child = doc.get(id);
+          if (child) {
+            child.parentNode = parent;
+          }
         }
       }
-    } else if (level === 0 && el.isTextNode()) ; else {
-      result.push(indent + el.outerHTML);
+      function _setRegisteredParent (child) {
+        let parent = parents[child.id];
+        if (parent) {
+          child.parentNode = parent;
+        }
+      }
+    }
+
+    static register (doc) {
+      return new XMLParentNodeHook(doc)
     }
   }
 
-  function _isMixed (el) {
-    const childNodes = el.childNodes;
-    for (let i = 0; i < childNodes.length; i++) {
-      let child = childNodes[i];
-      if (child.isTextNode() && !_isTextNodeEmpty(child)) {
-        return true
-      }
+  class XMLEditingInterface extends EditingInterface {
+    find (cssSelector) {
+      return this.getDocument().find(cssSelector)
+    }
+
+    findAll (cssSelector) {
+      return this.getDocument().findAll(cssSelector)
+    }
+
+    createElement (...args) {
+      return this.getDocument().createElement(...args)
     }
   }
 
-  function _containsCDATA (el) {
-    const childNodes = el.childNodes;
-    for (let i = 0; i < childNodes.length; i++) {
-      let child = childNodes[i];
-      if (child.getNodeType() === 'cdata') {
-        return true
+  class XMLDocument extends Document {
+    _initialize () {
+      this.nodeFactory = new DocumentNodeFactory(this);
+      this.data = new IncrementalData(this.schema, this.nodeFactory);
+      
+      this.addIndex('type', new PropertyIndex('type'));
+      
+      this.addIndex('annotations', new AnnotationIndex());
+      XMLParentNodeHook.register(this);
+    }
+
+    toXML () {
+      let dom = DefaultDOMElement.createDocument('xml');
+      dom.setDoctype(...this.getDocTypeParams());
+      let rootElement = this.getRootNode().toXML();
+      dom.append(rootElement);
+      return dom
+    }
+
+    getDocTypeParams () {
+      
+      throw new Error('This method is abstract')
+    }
+
+    getXMLSchema () {
+      
+      throw new Error('This method is abstract')
+    }
+
+    getRootNode () {
+      
+      throw new Error('This method is abstract')
+    }
+
+    
+    getDocTypeAsString () {
+      return new Error('This method is abstract')
+    }
+
+    createEditingInterface () {
+      return new XMLEditingInterface(this)
+    }
+
+    find (cssSelector) {
+      return this.getRootNode().find(cssSelector)
+    }
+
+    findAll (cssSelector) {
+      return this.getRootNode().findAll(cssSelector)
+    }
+
+    createElement (tagName, data) {
+      let node = this.create(Object.assign({
+        id: uuid(tagName),
+        type: tagName
+      }, data));
+      return node
+    }
+
+    getElementSchema (type) {
+      return this.getXMLSchema().getElementSchema(type)
+    }
+
+    _validateChange (change) {
+      let changed = {};
+      let deleted = [];
+      change.ops.forEach((op) => {
+        switch (op.type) {
+          case 'delete': {
+            deleted.push(op.val.id);
+            break
+          }
+          case 'create': {
+            changed[op.val.id] = true;
+            break
+          }
+          default: {
+            if (op.path) {
+              changed[op.path[0]] = true;
+            }
+          }
+        }
+      });
+      
+      deleted.forEach(id => delete changed[id]);
+
+      const xmlSchema = this.getXMLSchema();
+      let errors = [];
+      Object.keys(changed).forEach((id) => {
+        let node = this.get(id);
+        if (node && node._isXMLNode) {
+          let res = xmlSchema.validateElement(node);
+          if (!res.ok) {
+            errors = errors.concat(res.errors);
+          }
+        }
+      });
+      return {
+        ok: errors.length === 0,
+        errors
       }
     }
+
+    
+    _apply (documentChange) {
+      
+      if (!documentChange.ops) return
+
+      let created = {};
+      let deleted = {};
+      let updated = {};
+
+      const doc = this;
+
+      function _recordUpdate (id, op) {
+        let record = updated[id];
+        if (!record) {
+          record = updated[id] = { ops: [] };
+        }
+        if (op) record.ops.push(op);
+        return record
+      }
+
+      
+      function _checkAnnotation (op) {
+        
+        switch (op.type) {
+          case 'create':
+          case 'delete': {
+            const annoData = op.val;
+            if (annoData.hasOwnProperty('start')) {
+              updated[annoData.start.path] = true;
+              let node = doc.get(annoData.start.path[0]);
+              if (node) {
+                _recordUpdate(node.id, op);
+              }
+            }
+            if (annoData.hasOwnProperty('end')) {
+              updated[annoData.end.path] = true;
+              let node = doc.get(annoData.start.path[0]);
+              if (node) {
+                _recordUpdate(node.id, op);
+              }
+            }
+            break
+          }
+          case 'update':
+          case 'set': {
+            let anno = doc.get(op.path[0]);
+            if (anno) {
+              if (anno.isPropertyAnnotation()) {
+                updated[anno.start.path] = true;
+                let node = doc.get(anno.start.path[0]);
+                if (node) {
+                  _recordUpdate(node.id, op);
+                }
+              } else if (anno.isContainerAnnotation()) ;
+            }
+            break
+          }
+          default:
+            
+        }
+      }
+
+      documentChange.ops.forEach((op) => {
+        
+        
+        
+        switch (op.type) {
+          case 'create': {
+            created[op.path[0]] = op.val;
+            break
+          }
+          case 'delete': {
+            let node = this.get(op.path[0]);
+            deleted[node.id] = node;
+            break
+          }
+          case 'update':
+          case 'set': {
+            updated[op.path] = true;
+            let node = this.get(op.path[0]);
+            _recordUpdate(node.id, op);
+            break
+          }
+          default:
+            
+        }
+        
+        _checkAnnotation(op);
+
+        this._applyOp(op);
+      });
+      
+      Object.keys(deleted).forEach((id) => {
+        delete updated[id];
+      });
+      documentChange.created = created;
+      documentChange.updated = updated;
+      documentChange.deleted = deleted;
+      documentChange._extracted = true;
+    }
   }
+
+  XMLDocument.prototype._isXMLDocument = true;
 
   var ButtonPackage = {
     name: 'button',
@@ -43453,6 +44797,7 @@
         de: 'Container einfügen'
       });
 
+      config.addComponent('text-property', TextPropertyComponent);
       config.addComponent('isolated-node', IsolatedNodeComponent);
       config.addComponent('inline-node', IsolatedInlineNodeComponent);
       config.addComponent('annotation', AnnotationComponent);
@@ -46076,7 +47421,7 @@
           path: node.start.path,
           startOffset: node.start.offset,
           endOffset: node.end.offset,
-          containerId: sel.containerId
+          containerPath: sel.containerPath
         });
         tx.insertText(suggestion);
       });
@@ -46136,7 +47481,7 @@
     }
 
     check (path) {
-      this._runSpellCheck(String(path));
+      this._runSpellCheck(getKeyForPath(path));
     }
 
     runGlobalCheck () {
@@ -46159,7 +47504,7 @@
 
     _runSpellCheck (pathStr) {
       
-      let path = pathStr.split(',');
+      let path = pathStr.split('.');
       let text = this.editorSession.getDocument().get(path);
       let lang = this.editorSession.getLanguage();
       if (!text || !isString(text)) return
@@ -46488,19 +47833,19 @@
   exports.documentHelpers = documentHelpers;
   exports.operationHelpers = operationHelpers;
   exports.selectionHelpers = selectionHelpers;
+  exports.AbstractEditorSession = AbstractEditorSession;
   exports.annotationHelpers = annotationHelpers;
   exports.AnnotationIndex = AnnotationIndex;
   exports.AnnotationMixin = AnnotationMixin;
   exports.ArrayOperation = ArrayOperation;
   exports.BlockNode = BlockNode;
-  exports.ChangeHistory = ChangeHistory;
+  exports.ChangeHistoryView = ChangeHistoryView;
   exports.ChangeRecorder = ChangeRecorder;
   exports.ClipboardExporter = ClipboardExporter;
   exports.ClipboardImporter = ClipboardImporter;
   exports.Conflict = Conflict;
   exports.Container = Container;
   exports.ContainerAdapter = ContainerAdapter;
-  exports.ContainerAddress = ContainerAddress;
   exports.ContainerAnnotation = ContainerAnnotation;
   exports.ContainerAnnotationIndex = ContainerAnnotationIndex;
   exports.ContainerMixin = ContainerMixin;
@@ -46520,6 +47865,7 @@
   exports.DocumentNode = DocumentNode;
   exports.DocumentNodeFactory = DocumentNodeFactory;
   exports.DocumentSchema = DocumentSchema;
+  exports.DocumentSession = DocumentSession;
   exports.DOMExporter = DOMExporter;
   exports.DOMImporter = DOMImporter;
   exports.Editing = Editing;
@@ -46558,6 +47904,18 @@
   exports.Transaction = Transaction;
   exports.XMLExporter = XMLExporter;
   exports.XMLImporter = XMLImporter;
+  exports.STRING = STRING;
+  exports.TEXT = TEXT$1;
+  exports.PLAIN_TEXT = PLAIN_TEXT;
+  exports.STRING_ARRAY = STRING_ARRAY;
+  exports.BOOLEAN = BOOLEAN;
+  exports.ENUM = ENUM;
+  exports.MANY = MANY;
+  exports.ONE = ONE;
+  exports.CHILDREN = CHILDREN;
+  exports.CHILD = CHILD;
+  exports.CONTAINER = CONTAINER;
+  exports.OPTIONAL = OPTIONAL;
   exports.AbstractClipboard = AbstractClipboard;
   exports.AbstractIsolatedNodeComponent = AbstractIsolatedNodeComponent;
   exports.AbstractScrollPane = AbstractScrollPane;
@@ -46625,9 +47983,10 @@
   exports.filter = filter;
   exports.find = find;
   exports.findIndex = findIndex$1;
-  exports.flatten = flatten;
+  exports.flatten = flatten$1;
   exports.flattenOften = flattenOften;
   exports.forEach = forEach;
+  exports.getKeyForPath = getKeyForPath;
   exports.getRangeFromMatrix = getRangeFromMatrix$1;
   exports.getRelativeBoundingRect = getRelativeBoundingRect;
   exports.getRelativeMouseBounds = getRelativeMouseBounds;
@@ -46654,6 +48013,7 @@
   exports.parseKeyEvent = parseKeyEvent;
   exports.PathObject = PathObject;
   exports.percentage = percentage;
+  exports.pick = pick;
   exports.platform = platform;
   exports.pluck = pluck;
   exports.printStacktrace = printStacktrace;
@@ -46676,6 +48036,16 @@
   exports.isMouseInsideDOMSelection = isMouseInsideDOMSelection;
   exports.getQueryStringParam = getQueryStringParam;
   exports.setDOMSelection = setDOMSelection;
+  exports._analyzeElementSchemas = analyze;
+  exports.checkSchema = checkSchema;
+  exports.compileRNG = compileRNG;
+  exports.cssSelectAdapter = cssSelectAdapter$1;
+  exports.loadRNG = _loadRNG;
+  exports.prettyPrintXML = prettyPrintXML;
+  exports.registerSchema = registerSchema;
+  exports.SchemaDrivenCommandManager = SchemaDrivenCommandManager;
+  exports.validateXMLSchema = validateXML;
+  exports.ValidatingChildNodeIterator = ValidatingChildNodeIterator;
   exports.XMLAnchorNode = XMLAnchorNode;
   exports.XMLAnnotationNode = XMLAnnotationNode;
   exports.XMLContainerNode = XMLContainerNode;
@@ -46691,15 +48061,6 @@
   exports.XMLSchema = XMLSchema;
   exports.XMLTextElement = XMLTextElement;
   exports.XMLTextElementConverter = XMLTextElementConverter;
-  exports._analyzeElementSchemas = analyze;
-  exports.checkSchema = checkSchema;
-  exports.compileRNG = compileRNG;
-  exports.registerSchema = registerSchema;
-  exports.SchemaDrivenCommandManager = SchemaDrivenCommandManager;
-  exports.loadRNG = _loadRNG;
-  exports.validateXMLSchema = validateXML;
-  exports.ValidatingChildNodeIterator = ValidatingChildNodeIterator;
-  exports.prettyPrintXML = prettyPrintXML;
   exports.BasePackage = BasePackage;
   exports.BlockquotePackage = BlockquotePackage;
   exports.BodyScrollPanePackage = BodyScrollPanePackage;

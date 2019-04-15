@@ -1,27 +1,27 @@
 {
-  "_from": "inter-ui@^2.5.1",
-  "_id": "inter-ui@2.5.1",
+  "_from": "inter-ui@3.3.2",
+  "_id": "inter-ui@3.3.2",
   "_inBundle": false,
-  "_integrity": "sha512-jGBt0qpKsABtlkdciTrR4u+WecTWBpns3KAZu2q5LlsM5O466MZnsQLHZBKP9KEXOsNY/nwxICxQL/4Pga7Ayg==",
+  "_integrity": "sha512-0D1YFpwt+e9WMqP9iaSLqEblkVqIpMqZUtNaHx8TPvCOSSyY20Jvwj71ppv2CpsZXoWRM9smi7giqOe841NTdg==",
   "_location": "/inter-ui",
   "_phantomChildren": {},
   "_requested": {
-    "type": "range",
+    "type": "version",
     "registry": true,
-    "raw": "inter-ui@^2.5.1",
+    "raw": "inter-ui@3.3.2",
     "name": "inter-ui",
     "escapedName": "inter-ui",
-    "rawSpec": "^2.5.1",
+    "rawSpec": "3.3.2",
     "saveSpec": null,
-    "fetchSpec": "^2.5.1"
+    "fetchSpec": "3.3.2"
   },
   "_requiredBy": [
     "#DEV:/"
   ],
-  "_resolved": "http://registry.npmjs.org/inter-ui/-/inter-ui-2.5.1.tgz",
-  "_shasum": "1ed9b84eac5ced06cd6734fad8c6c366ef22cd8a",
-  "_spec": "inter-ui@^2.5.1",
-  "_where": "/home/wit/projects/texture",
+  "_resolved": "https://registry.npmjs.org/inter-ui/-/inter-ui-3.3.2.tgz",
+  "_shasum": "6ece88e00b2d27f80a4b7687c916291f6524f082",
+  "_spec": "inter-ui@3.3.2",
+  "_where": "/home/withanage/projects/texture-2.2",
   "author": {
     "name": "Rasmus Andersson",
     "url": "https://rsms.me"
@@ -31,21 +31,22 @@
   },
   "bundleDependencies": false,
   "deprecated": false,
-  "description": "Font files for the Inter UI font family.",
+  "description": "Font files for the Inter font family.",
   "homepage": "https://github.com/philipbelesky/inter-ui#readme",
   "keywords": [
+    "inter",
     "inter-ui",
     "typeface",
     "font",
     "font family"
   ],
   "license": "OFL-1.1",
-  "main": "inter-ui.css",
+  "main": "inter.css",
   "name": "inter-ui",
   "private": false,
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/philipbelesky/inter-ui.git"
   },
-  "version": "2.5.1"
+  "version": "3.3.2"
 }

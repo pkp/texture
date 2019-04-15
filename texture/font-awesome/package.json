@@ -1,11 +1,4 @@
 {
-  "_args": [
-    [
-      "font-awesome@4.5.0",
-      "/private/tmp/texture"
-    ]
-  ],
-  "_development": true,
   "_from": "font-awesome@4.5.0",
   "_id": "font-awesome@4.5.0",
   "_inBundle": false,
@@ -26,8 +19,9 @@
     "#DEV:/"
   ],
   "_resolved": "https://registry.npmjs.org/font-awesome/-/font-awesome-4.5.0.tgz",
-  "_spec": "4.5.0",
-  "_where": "/private/tmp/texture",
+  "_shasum": "1e9d7ccf7d63bdbe57000e18d5188cb2557e70f8",
+  "_spec": "font-awesome@4.5.0",
+  "_where": "/home/withanage/projects/texture-2.2",
   "author": {
     "name": "Dave Gandy",
     "email": "dave@fontawesome.io",
@@ -36,6 +30,7 @@
   "bugs": {
     "url": "http://github.com/FortAwesome/Font-Awesome/issues"
   },
+  "bundleDependencies": false,
   "contributors": [
     {
       "name": "Rob Madole",
@@ -51,6 +46,7 @@
     }
   ],
   "dependencies": {},
+  "deprecated": false,
   "description": "The iconic font and CSS framework",
   "engines": {
     "node": ">=0.10.3"
