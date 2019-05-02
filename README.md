@@ -17,7 +17,7 @@ Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/
 
 * After plugin installation,  go to a `Production Stage` of the submission
 * Upload [JATS](https://jats.nlm.nih.gov/archiving/1.1/) XML  to the  `Production Ready` state . 
-Sample files files are available here [blank manuscript](https://github.com/substance/texture/tree/master/data/blank) or a [list of samples](https://github.com/substance/texture/tree/master/data/) here.
+Sample files files are available to be downloaded . [blank manuscript](https://github.com/substance/texture/tree/master/data/blank)  and a full list list of [samples](https://github.com/substance/texture/tree/master/data/) .
 * Click the `forward arrow` button to edit the file.
 * Click `Edit with Texture`, to edit the XML files.    
 
