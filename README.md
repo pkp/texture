@@ -21,7 +21,8 @@ Sample files files are available here [blank manuscript](https://github.com/subs
 * Click the `forward arrow` button to edit the file.
 * Click `Edit with Texture`, to edit the XML files.    
 
-Note: Currently texture may not support all the JATS tags, but it is constantly developped to support newer tags in the [JATS](https://jats.nlm.nih.gov/archiving/1.1/) standard.
+
+Note: Currently texture may not support all the tags in the [JATS](https://jats.nlm.nih.gov/archiving/1.1/) XML standard, but it is constantly developped to support newer tags in the [JATS](https://jats.nlm.nih.gov/archiving/1.1/) standard.
   
  
 ## Issues
