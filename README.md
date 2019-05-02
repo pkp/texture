@@ -2,16 +2,16 @@ Texture plugin for OJS3
 =======================
 
 
-# About
+## About
 This plugin integrates the Texture editor with OJS workflow for direct editing of JATS XML documents.
 
-# Installation
+## Installation
 
 Texture is available under Plugin gallery
  
 * Settings -> Web site -> Plugins -> Plugin gallery 
 
-# Usage
+## Usage
 
 Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/1.1/) XML standard.
 
@@ -22,6 +22,6 @@ Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/
 * Click `Edit with Texture`, to edit the XML files.    
   
  
-# Issues
+## Issues
 Please find any issues here 
 * https://github.com/pkp/texture/issues
