@@ -413,8 +413,11 @@ class TextureHandler extends Handler {
 		$newMediaFile->setAssocId($submissionFile->getFileId());
 		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
 		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
+		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $tmpfname);
 
-		return $submissionFileDao->insertObject($newMediaFile, $tmpfname);
+		unlink($tmpfname);
+
+		return $insertedMediaFile;
 	}
 
 	/**
@@ -452,8 +455,11 @@ class TextureHandler extends Handler {
 		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 		$newSubmissionFile->setFileId($submissionFile->getFileId());
 		$newSubmissionFile->setRevision($submissionFile->getRevision() + 1);
+		$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
 
-		return $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
+		unlink($tmpfname);
+
+		return $insertedSubmissionFile;
 	}
 
 	/**
