@@ -110,8 +110,10 @@ class TexturePlugin extends GenericPlugin {
 				$fileExtension = strtolower($submissionFile->getExtension());
 
 				// get stage ID
-				$stage = $submissionFile->getFileStage();
-				$stageId = (int) $request->getUserVar('stageId');
+				$submissionId = $submissionFile->getSubmissionId();
+				$submissionDao = $submissionDao = Application::getSubmissionDAO();
+				$submission = $submissionDao->getById($submissionId);
+				$stageId = $submission->getStageId();
 
 				if (strtolower($fileExtension) == 'xml') {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
