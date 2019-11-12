@@ -35,15 +35,10 @@ class TexturePlugin extends GenericPlugin {
 	}
 
 	/**
-	 * Register the plugin
-	 *
-	 * @param $category string Plugin category
-	 * @param $path string Plugin path
-	 * @param null $mainContextId
-	 * @return bool True on successful registration false otherwise
+	 * @copydoc Plugin::register()
 	 */
-	function register($category, $path, $mainContextId = NULL) {
-		if (parent::register($category, $path)) {
+	function register($category, $path, $mainContextId = null) {
+		if (parent::register($category, $path, $mainContextId)) {
 			if ($this->getEnabled()) {
 				// Register callbacks.
 				HookRegistry::register('LoadHandler', array($this, 'callbackLoadHandler'));
