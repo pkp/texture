@@ -3,8 +3,8 @@
 /**
  * @file plugins/generic/texture/TextureHandler.inc.php
  *
- * Copyright (c) 2014-2018 Simon Fraser University
- * Copyright (c) 2003-2018 John Willinsky
+ * Copyright (c) 2014-2019 Simon Fraser University
+ * Copyright (c) 2003-2019 John Willinsky
  * Distributed under the GNU GPL v2. For full terms see the file docs/COPYING.
  *
  * @class TextureHandler
@@ -23,11 +23,13 @@ class TextureHandler extends Handler {
 	 * Constructor
 	 */
 	function __construct() {
+
 		parent::__construct();
+
 		$this->_plugin = PluginRegistry::getPlugin('generic', TEXTURE_PLUGIN_NAME);
 		$this->addRoleAssignment(
 			array(ROLE_ID_MANAGER, ROLE_ID_SUB_EDITOR, ROLE_ID_ASSISTANT, ROLE_ID_REVIEWER, ROLE_ID_AUTHOR),
-			array('editor', 'json', 'media')
+			array('editor', 'json', 'media', 'createGalleyForm', 'createGalley')
 		);
 	}
 
@@ -40,28 +42,74 @@ class TextureHandler extends Handler {
 		return parent::authorize($request, $args, $roleAssignments);
 	}
 
+
+	/**
+	 * Create galley form
+	 * @param $args array
+	 * @param $request PKPRequest
+	 * @return JSONMessage JSON object
+	 */
+	public function createGalleyForm($args, $request) {
+
+		import('plugins.generic.texture.controllers.grid.form.TextureArticleGalleyForm');
+		$galleyForm = new TextureArticleGalleyForm(
+			$request,
+			$this->getPlugin(),
+			$this->getSubmission()
+		);
+
+		$galleyForm->initData();
+		return new JSONMessage(true, $galleyForm->fetch($request));
+	}
+
+	/**
+	 * @param $args
+	 * @param $request PKPRequest
+	 * @return JSONMessage
+	 */
+	public function createGalley($args, $request) {
+
+		import('plugins.generic.texture.controllers.grid.form.TextureArticleGalleyForm');
+
+		$galleyForm = new TextureArticleGalleyForm($request, $this->getPlugin(), $this->getSubmission());
+		$galleyForm->readInputData();
+
+		if ($galleyForm->validate()) {
+
+			$galleyForm->execute();
+
+			return $request->redirectUrlJson($request->getDispatcher()->url($request, ROUTE_PAGE, null, 'workflow', 'access', null,
+				array(
+					'submissionId' => $request->getUserVar('submissionId'),
+					'stageId' => $request->getUserVar('stageId')
+				)
+			));
+
+		}
+
+		return new JSONMessage(false);
+	}
+
 	/**
 	 * Display substance editor
 	 *
 	 * @param $args array
 	 * @param $request PKPRequest
-	 *
 	 * @return string
 	 */
 	public function editor($args, $request) {
 		$stageId = (int)$request->getUserVar('stageId');
-
-		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		if (!$submissionFile) {
+		$fileId = (int)$request->getUserVar('fileId');
+		$submissionId = (int)$request->getUserVar('submissionId');;
+		if (!$submissionId || !$stageId || !$fileId) {
 			fatalError('Invalid request');
 		}
 
-		$fileId = $submissionFile->getFileId();
 		$editorTemplateFile = method_exists($this->_plugin, 'getTemplateResource') ? $this->_plugin->getTemplateResource('editor.tpl') : ($this->_plugin->getTemplateResourceName() . ':templates/editor.tpl');
 		$router = $request->getRouter();
 		$documentUrl = $router->url($request, null, 'texture', 'json', null,
 			array(
-				'submissionId' => $submissionFile->getSubmissionId(),
+				'submissionId' => $submissionId,
 				'fileId' => $fileId,
 				'stageId' => $stageId,
 			)
@@ -299,30 +347,31 @@ class TextureHandler extends Handler {
 			$pos = $k + 1;
 			$figItem = $figElements->item($k);
 			$graphic = $figItem->getElementsByTagName('graphic');
+			if (sizeof($graphic) > 0) {
 
-			// figure without graphic?
-			if (!$figItem || !$graphic) {
-				continue;
+				// figure without graphic?
+				if (!$figItem || !$graphic) {
+					continue;
+				}
+
+				// get fig id
+				$figId = null;
+				if ($figItem->hasAttribute('id')) {
+					$figId = $figItem->getAttribute('id');
+				} else {
+					$figId = "ojs-fig-{$pos}";
+				}
+
+				// get path
+				$figGraphPath = $graphic->item(0)->getAttribute('xlink:href');
+
+				// save assets
+				$assets[] = array(
+					'id' => $figId,
+					'type' => 'image/jpg',
+					'path' => $figGraphPath,
+				);
 			}
-
-			// get fig id
-			$figId = null;
-			if ($figItem->hasAttribute('id')) {
-				$figId = $figItem->getAttribute('id');
-			} else {
-				$figId = "ojs-fig-{$pos}";
-			}
-
-			// get path
-			$figGraphPath = $graphic->item(0)->getAttribute('xlink:href');
-
-			// save assets
-			$assets[] = array(
-				'id' => $figId,
-				'type' => 'image/jpg',
-				'path' => $figGraphPath,
-			);
-
 			$k++;
 		}
 
@@ -413,8 +462,11 @@ class TextureHandler extends Handler {
 		$newMediaFile->setAssocId($submissionFile->getFileId());
 		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
 		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
+		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $tmpfname);
 
-		return $submissionFileDao->insertObject($newMediaFile, $tmpfname);
+		unlink($tmpfname);
+
+		return $insertedMediaFile;
 	}
 
 	/**
@@ -452,8 +504,11 @@ class TextureHandler extends Handler {
 		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 		$newSubmissionFile->setFileId($submissionFile->getFileId());
 		$newSubmissionFile->setRevision($submissionFile->getRevision() + 1);
+		$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
 
-		return $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
+		unlink($tmpfname);
+
+		return $insertedSubmissionFile;
 	}
 
 	/**
@@ -475,4 +530,30 @@ class TextureHandler extends Handler {
 		}
 		return $manuscriptXmlDom;
 	}
+
+	/**
+	 * Get the submission associated with this grid.
+	 * @return Submission
+	 */
+	function getSubmission() {
+		return $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION);
+	}
+
+	/**
+	 * Get the plugin.
+	 * @return TexuturePlugin
+	 */
+	function getPlugin() {
+		return $this->_plugin;
+	}
+
+	/**
+	 * Get the authorized galley.
+	 * @return ArticleGalley
+	 */
+	function getGalley() {
+		return $this->getAuthorizedContextObject(ASSOC_TYPE_REPRESENTATION);
+	}
+
+
 }

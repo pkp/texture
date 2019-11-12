@@ -1,10 +1,10 @@
 <?php
 
 /**
- * @file plugins/generic/texture/SubstancePlugin.inc.php
+ * @file plugins/generic/texture/TexturePlugin.inc.php
  *
- * Copyright (c) 2003-2018 Simon Fraser University
- * Copyright (c) 2003-2018 John Willinsky
+ * Copyright (c) 2003-2019 Simon Fraser University
+ * Copyright (c) 2003-2019 John Willinsky
  * Distributed under the GNU GPL v2. For full terms see the file docs/COPYING.
  *
  * @class SubstancePlugin
@@ -16,6 +16,9 @@
 
 import('lib.pkp.classes.plugins.GenericPlugin');
 
+/**
+ * Class TexturePlugin
+ */
 class TexturePlugin extends GenericPlugin {
 	/**
 	 * @copydoc Plugin::getDisplayName()
@@ -31,16 +34,15 @@ class TexturePlugin extends GenericPlugin {
 		return __('plugins.generic.texture.description');
 	}
 
-
 	/**
 	 * Register the plugin
 	 *
 	 * @param $category string Plugin category
 	 * @param $path string Plugin path
-	 *
+	 * @param null $mainContextId
 	 * @return bool True on successful registration false otherwise
 	 */
-	function register($category, $path) {
+	function register($category, $path, $mainContextId = NULL) {
 		if (parent::register($category, $path)) {
 			if ($this->getEnabled()) {
 				// Register callbacks.
@@ -80,9 +82,11 @@ class TexturePlugin extends GenericPlugin {
 		$op = $args[1];
 
 		switch ("$page/$op") {
+			case 'texture/createGalley':
 			case 'texture/editor':
 			case 'texture/json':
 			case 'texture/save':
+			case 'texture/createGalleyForm':
 			case 'texture/media':
 				define('HANDLER_CLASS', 'TextureHandler');
 				define('TEXTURE_PLUGIN_NAME', $this->getName());
@@ -96,14 +100,12 @@ class TexturePlugin extends GenericPlugin {
 	/**
 	 * Adds additional links to submission files grid row
 	 * @param $hookName string The name of the invoked hook
-	 * @param $args array Hook parameters
+	 * @param $params array Hook parameters
 	 */
 	public function templateFetchCallback($hookName, $params) {
 		$request = $this->getRequest();
 		$router = $request->getRouter();
 		$dispatcher = $router->getDispatcher();
-		$journal = $request->getJournal();
-		$journalId = $journal->getId();
 
 		$templateMgr = $params[0];
 		$resourceName = $params[1];
@@ -115,27 +117,74 @@ class TexturePlugin extends GenericPlugin {
 				$fileExtension = strtolower($submissionFile->getExtension());
 
 				// get stage ID
-				$stage = $submissionFile->getFileStage();
-				$stageId = (int) $request->getUserVar('stageId');
+				$stageId = (int)$request->getUserVar('stageId');
+				$fileStage = SUBMISSION_FILE_PRODUCTION_READY;
 
 				if (strtolower($fileExtension) == 'xml') {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
-					$row->addAction(new LinkAction(
-						'editor',
-						new OpenWindowAction(
-							$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'editor', null,
-								array(
-									'submissionId' => $submissionFile->getSubmissionId(),
-									'fileId' => $submissionFile->getFileId(),
-									'stageId' => $stageId
-								)
-							)
-						),
-						__('plugins.generic.texture.links.editWithTexture'),
-						null
-					));
+					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
+					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				}
 			}
 		}
+	}
+
+	/**
+	 * Adds edit with Texture action to files grid
+	 * @param $row SubmissionFilesGridRow
+	 * @param Dispatcher $dispatcher
+	 * @param PKPRequest $request
+	 * @param $submissionFile SubmissionFile
+	 * @param int $stageId
+	 */
+	private function _editWithTextureAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId): void {
+		$row->addAction(new LinkAction(
+			'texture_editor',
+			new OpenWindowAction(
+				$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'editor', null,
+					array(
+						'submissionId' => $submissionFile->getSubmissionId(),
+						'fileId' => $submissionFile->getFileId(),
+						'stageId' => $stageId
+					)
+				)
+			),
+			__('plugins.generic.texture.links.editWithTexture'),
+			null
+		));
+	}
+
+	/**
+	 * Adds create galley action to files grid
+	 * @param $row SubmissionFilesGridRow
+	 * @param Dispatcher $dispatcher
+	 * @param PKPRequest $request
+	 * @param $submissionFile SubmissionFile
+	 * @param int $stageId
+	 */
+	private function _createGalleyAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage): void {
+
+		$actionArgs = array(
+			'submissionId' => $submissionFile->getSubmissionId(),
+			'stageId' => $stageId,
+			'fileStage' => $fileStage,
+			'fileId' => $submissionFile->getFileId()
+		);
+		$row->addAction(new LinkAction(
+			'createGalleyForm',
+			new AjaxModal(
+				$dispatcher->url(
+					$request, ROUTE_PAGE, null,
+					'texture',
+					'createGalleyForm', null,
+					$actionArgs
+				),
+				__('submission.layout.newGalley')
+			),
+			__('plugins.generic.texture.links.createGalley'),
+			null
+		));
+
+
 	}
 }
