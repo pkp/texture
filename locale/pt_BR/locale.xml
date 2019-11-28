@@ -10,7 +10,7 @@
   *
   * Localization strings.
   -->
-  
+
 <locale name="pt_BR" full_name="Português Brasileiro">
 	<message key="plugins.generic.texture.displayName">Texture Editor Plugin do Editor Texture</message>
 	<message key="plugins.generic.texture.description">Plugin para integrar o editor Texture JATS XML editor com o OJS.</message>
