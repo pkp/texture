@@ -463,7 +463,6 @@ class TextureHandler extends Handler {
 		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
 		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
 		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $tmpfname);
-
 		unlink($tmpfname);
 
 		return $insertedMediaFile;
