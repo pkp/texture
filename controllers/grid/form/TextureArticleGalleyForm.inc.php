@@ -20,14 +20,20 @@ class TextureArticleGalleyForm extends Form {
 	/** @var the $_submission */
 	var $_submission = null;
 
+	/** @var Publication */
+	var $_publication = null;
+
+
 	/**
 	 * Constructor.
 	 * @param $request Request
 	 * @param $plugin Plugin
+	 * @param $publication
 	 * @param $submission Submission
 	 */
-	function __construct($request, $plugin, $submission) {
+	function __construct($request, $plugin, $publication, $submission) {
 		$this->_submission = $submission;
+		$this->_publication = $publication;
 
 		parent::__construct($plugin->getTemplateResource('TextureArticleGalley.tpl'));
 
@@ -57,20 +63,21 @@ class TextureArticleGalleyForm extends Form {
 	 * @param $request
 	 * @return string
 	 */
-	function fetch($request) {
+	function fetch($request, $template = null, $display = false) {
 		$journal = $request->getJournal();
 		$templateMgr = TemplateManager::getManager($request);
 
 		$templateMgr->assign(array(
 			'supportedLocales' => $journal->getSupportedSubmissionLocaleNames(),
-			'submissionId' => $this->getSubmission()->getId(),
+			'submissionId' => $this->_submission->getId(),
 			'stageId' => $request->getUserVar('stageId'),
 			'fileStage' => $request->getUserVar('fileStage'),
-			'fileId' => $request->getUserVar('fileId')
+			'fileId' => $request->getUserVar('fileId'),
+			'publicationId' => $this->_publication->getId(),
 
 		));
 
-		return parent::fetch($request);
+		return parent::fetch($request, $template, $display);
 	}
 
 	/**
@@ -91,15 +98,16 @@ class TextureArticleGalleyForm extends Form {
 	 * Create article galley and dependent files
 	 * @return ArticleGalley The resulting article galley.
 	 */
-	function execute() {
+	function execute(...$functionArgs) {
 
 		$context = Application::getRequest()->getJournal();
-		$submissionId = $this->getSubmission()->getId();
+		$submissionId = $this->_submission->getId();
 
 		// Create  new galley
 		$articleGalleyDao = DAORegistry::getDAO('ArticleGalleyDAO');
 		$articleGalley = $articleGalleyDao->newDataObject();
-		$articleGalley->setSubmissionId($this->getSubmission()->getId());
+		$articleGalley->setId($this->_submission->getId());
+		$articleGalley->setData('publicationId', $this->_publication->getId());
 		$articleGalley->setLabel($this->getData('label'));
 		$articleGalley->setLocale($this->getData('galleyLocale'));
 		$newGalleyId = $articleGalleyDao->insertObject($articleGalley);
@@ -150,13 +158,7 @@ class TextureArticleGalleyForm extends Form {
 		return $articleGalley;
 	}
 
-	/**
-	 * Get the submission
-	 * @return Submission
-	 */
-	private function getSubmission() {
-		return $this->_submission;
-	}
+
 }
 
 
