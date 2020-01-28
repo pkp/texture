@@ -19,6 +19,14 @@ class TextureHandler extends Handler {
 	/** @var MarkupPlugin The Texture plugin */
 	protected $_plugin;
 
+
+	/** @var Submission **/
+	public $submission;
+
+	/** @var Publication **/
+	public $publication;
+
+
 	/**
 	 * Constructor
 	 */
@@ -33,6 +41,20 @@ class TextureHandler extends Handler {
 		);
 	}
 
+	//
+	// Overridden methods from Handler
+	//
+	/**
+	 * @copydoc PKPHandler::initialize()
+	 */
+	function initialize($request) {
+		parent::initialize($request);
+		$this->submission = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION);
+		$this->publication = $this->submission->getLatestPublication();
+		$this->setupTemplate($request);
+	}
+
+
 	/**
 	 * @copydoc PKPHandler::authorize()
 	 */
@@ -42,7 +64,6 @@ class TextureHandler extends Handler {
 		return parent::authorize($request, $args, $roleAssignments);
 	}
 
-
 	/**
 	 * Create galley form
 	 * @param $args array
@@ -51,11 +72,10 @@ class TextureHandler extends Handler {
 	 */
 	public function createGalleyForm($args, $request) {
 
+
 		import('plugins.generic.texture.controllers.grid.form.TextureArticleGalleyForm');
 		$galleyForm = new TextureArticleGalleyForm(
-			$request,
-			$this->getPlugin(),
-			$this->getSubmission()
+			$request, $this->getPlugin(), $this->publication,  $this->submission
 		);
 
 		$galleyForm->initData();
@@ -71,7 +91,7 @@ class TextureHandler extends Handler {
 
 		import('plugins.generic.texture.controllers.grid.form.TextureArticleGalleyForm');
 
-		$galleyForm = new TextureArticleGalleyForm($request, $this->getPlugin(), $this->getSubmission());
+		$galleyForm = new TextureArticleGalleyForm($request, $this->getPlugin(), $this->publication, $this->submission);
 		$galleyForm->readInputData();
 
 		if ($galleyForm->validate()) {
@@ -530,13 +550,6 @@ class TextureHandler extends Handler {
 		return $manuscriptXmlDom;
 	}
 
-	/**
-	 * Get the submission associated with this grid.
-	 * @return Submission
-	 */
-	function getSubmission() {
-		return $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION);
-	}
 
 	/**
 	 * Get the plugin.
@@ -544,14 +557,6 @@ class TextureHandler extends Handler {
 	 */
 	function getPlugin() {
 		return $this->_plugin;
-	}
-
-	/**
-	 * Get the authorized galley.
-	 * @return ArticleGalley
-	 */
-	function getGalley() {
-		return $this->getAuthorizedContextObject(ASSOC_TYPE_REPRESENTATION);
 	}
 
 
