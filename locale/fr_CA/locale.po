@@ -1,2 +1,25 @@
 msgid ""
-msgstr "X-Generator: Weblate\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit"
+msgstr ""
+"PO-Revision-Date: 2020-02-01 19:35+0000\n"
+"Last-Translator: Marie-Hélène Vézina [UdeMontréal] <marie-"
+"helene.vezina@umontreal.ca>\n"
+"Language-Team: French (Canada) <http://translate.pkp.sfu.ca/projects/plugins/"
+"texture-plugin/fr_CA/>\n"
+"Language: fr_CA\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 3.9.1\n"
+
+msgid "plugins.generic.texture.links.editWithTexture"
+msgstr "Éditer dans Texture"
+
+msgid "plugins.generic.texture.links.createGalley"
+msgstr "Créer des épreuves"
+
+msgid "plugins.generic.texture.description"
+msgstr "Plugiciel intégrant l'outil d'édition JATS XML Texture dans OJS."
+
+msgid "plugins.generic.texture.displayName"
+msgstr "Plugiciel de l'outil d'édition Texture"
