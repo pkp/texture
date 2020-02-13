@@ -15,10 +15,10 @@ msgstr ""
 "X-Generator: Weblate 3.9.1\n"
 
 msgid "plugins.generic.texture.displayName"
-msgstr "Complemento Texture Editor"
+msgstr "Módulo Texture Editor"
 
 msgid "plugins.generic.texture.description"
-msgstr "Complemento para integrar el Texture Editor JATS XML con OJS."
+msgstr "Módulo para integrar el Texture Editor JATS XML con OJS."
 
 msgid "plugins.generic.texture.links.editWithTexture"
 msgstr "Modificar con Texture"
