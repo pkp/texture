@@ -238,8 +238,9 @@ class TextureHandler extends Handler {
 				$submissionId = (int)$request->getUserVar('submissionId');
 				$submission = $submissionDao->getById($submissionId);
 
-				$resources = (array)json_decode($postData)->archive->resources;
-				$media = (array)json_decode($postData)->media;
+				$postDataJson = json_decode($postData);
+				$resources = (isset($postDataJson->archive) && isset($postDataJson->archive->resources)) ? (array)$postDataJson->archive->resources : [];
+				$media = isset($postDataJson->media) ? (array)$postDataJson->media : [];
 
 				if (!empty($media)) {
 					import('classes.file.PublicFileManager');
