@@ -14,16 +14,17 @@
  */
 
 import('classes.handler.Handler');
+import('lib.pkp.classes.file.SubmissionFileManager');
 
 class TextureHandler extends Handler {
 	/** @var MarkupPlugin The Texture plugin */
 	protected $_plugin;
 
 
-	/** @var Submission **/
+	/** @var Submission * */
 	public $submission;
 
-	/** @var Publication **/
+	/** @var Publication * */
 	public $publication;
 
 
@@ -37,7 +38,7 @@ class TextureHandler extends Handler {
 		$this->_plugin = PluginRegistry::getPlugin('generic', TEXTURE_PLUGIN_NAME);
 		$this->addRoleAssignment(
 			array(ROLE_ID_MANAGER, ROLE_ID_SUB_EDITOR, ROLE_ID_ASSISTANT, ROLE_ID_REVIEWER, ROLE_ID_AUTHOR),
-			array('editor', 'json', 'media', 'createGalleyForm', 'createGalley')
+			array('editor', 'export', 'json', 'media', 'createGalleyForm', 'createGalley')
 		);
 	}
 
@@ -71,11 +72,9 @@ class TextureHandler extends Handler {
 	 * @return JSONMessage JSON object
 	 */
 	public function createGalleyForm($args, $request) {
-
-
 		import('plugins.generic.texture.controllers.grid.form.TextureArticleGalleyForm');
 		$galleyForm = new TextureArticleGalleyForm(
-			$request, $this->getPlugin(), $this->publication,  $this->submission
+			$request, $this->getPlugin(), $this->publication, $this->submission
 		);
 
 		$galleyForm->initData();
@@ -85,19 +84,64 @@ class TextureHandler extends Handler {
 	/**
 	 * @param $args
 	 * @param $request PKPRequest
+	 * @return
+	 */
+	public function export($args, $request) {
+		import('plugins.generic.texture.classes.DAR');
+		$dar = new DAR();
+
+		$context = $request->getContext();
+		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
+
+		$fileManager = $this->_getFileManager($context->getId(), $submissionFile->getId());
+		$filesDir = $fileManager->getBasePath();
+
+		$filePath = $submissionFile->getFilePath();
+		$archivePath = tempnam('/tmp', 'texture-');
+		if (self::zipFunctional()) {
+			$zipTest = true;
+			$zip = new ZipArchive();
+			if ($zip->open($archivePath, ZIPARCHIVE::CREATE) == true) {
+				$zip->addFile($filePath,basename($filePath));
+				$zip->close();
+			}
+		}
+
+
+		if (file_exists($archivePath)) {
+
+			$fileManager->downloadByPath($archivePath, 'application/x-zip', false, 'files.dar');
+			$fileManager->deleteByPath($archivePath);
+		} else {
+			fatalError('Creating archive with submission files failed!');
+		}
+
+	}
+
+	/**
+	 * return the application specific file manager.
+	 * @param $contextId int the context for this manager.
+	 * @param $submissionId int the submission id.
+	 * @return SubmissionFileManager
+	 */
+	function _getFileManager($contextId, $submissionId) {
+		return new SubmissionFileManager($contextId, $submissionId);
+	}
+
+
+	/**
+	 * @param $args
+	 * @param $request PKPRequest
 	 * @return JSONMessage
 	 */
 	public function createGalley($args, $request) {
-
 		import('plugins.generic.texture.controllers.grid.form.TextureArticleGalleyForm');
-
 		$galleyForm = new TextureArticleGalleyForm($request, $this->getPlugin(), $this->publication, $this->submission);
 		$galleyForm->readInputData();
 
 		if ($galleyForm->validate()) {
 
 			$galleyForm->execute();
-
 			return $request->redirectUrlJson($request->getDispatcher()->url($request, ROUTE_PAGE, null, 'workflow', 'access', null,
 				array(
 					'submissionId' => $request->getUserVar('submissionId'),
@@ -145,17 +189,17 @@ class TextureHandler extends Handler {
 		return $templateMgr->fetch($editorTemplateFile);
 	}
 
-
 	/**
 	 * fetch json archive
 	 *
 	 * @param $args array
 	 * @param $request PKPRequest
-	 *
-	 * @return string
+	 * @return JSONMessage
 	 */
 	public function json($args, $request) {
 
+		import('plugins.generic.texture.classes.DAR');
+		$dar = new DAR();
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
 
 		if (!$submissionFile) {
@@ -202,11 +246,14 @@ class TextureHandler extends Handler {
 
 		if ($_SERVER["REQUEST_METHOD"] === "GET") {
 			$assets = array();
+			$removeElements = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
 			$filePath = $submissionFile->getFilePath();
 			$manuscriptXml = file_get_contents($filePath);
-			$manifestXml = $this->_buildManifestXMLFromDocument($manuscriptXml, $assets);
-			$manuscriptXmlDom = $this->_removeElements($manuscriptXml);
-			$mediaInfos = $this->_buildMediaInfo($request, $assets);
+			$manifestXml = $dar->createManifest($manuscriptXml, $assets);
+			$manuscriptXml = $dar->removeElements($manuscriptXml, $removeElements);
+			$mediaInfos = $dar->createMediaInfo($request, $assets);
+
+			$filesize = filesize($filePath);
 			$resources = array(
 				'manifest.xml' => array(
 					'encoding' => 'utf8',
@@ -217,8 +264,8 @@ class TextureHandler extends Handler {
 				),
 				'manuscript.xml' => array(
 					'encoding' => 'utf8',
-					'data' => $manuscriptXmlDom->saveXML(),
-					'size' => filesize($filePath),
+					'data' => $manuscriptXml->saveXML(),
+					'size' => $filesize,
 					'createdAt' => 0,
 					'updatedAt' => 0,
 				),
@@ -299,114 +346,6 @@ class TextureHandler extends Handler {
 		}
 	}
 
-
-	/**
-	 * Build media info
-	 *
-	 * @param $request PKPRquest
-	 * @param $assets array
-	 * @return array
-	 */
-	protected function _buildMediaInfo($request, $assets) {
-		$infos = array();
-		$mediaDir = 'texture/media';
-		$context = $request->getContext();
-		$router = $request->getRouter();
-		$dispatcher = $router->getDispatcher();
-		$fileId = $request->getUserVar('fileId');
-		$stageId = $request->getUserVar('stageId');
-		$submissionId = $request->getUserVar('submissionId');
-		// build mapping to assets file paths
-		$assetsFilePaths = array();
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
-		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
-			ASSOC_TYPE_SUBMISSION_FILE,
-			$fileId,
-			$submissionId,
-			SUBMISSION_FILE_DEPENDENT
-		);
-		foreach ($dependentFiles as $dFile) {
-			$assetsFilePaths[$dFile->getOriginalFileName()] = $dFile->getFilePath();
-		}
-		foreach ($assets as $asset) {
-			$path = str_replace('media/', '', $asset['path']);
-			$filePath = $assetsFilePaths[$path];
-			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
-				'submissionId' => $submissionId,
-				'fileId' => $fileId,
-				'stageId' => $stageId,
-				'fileName' => $path,
-			));
-			$infos[$asset['path']] = array(
-				'encoding' => 'url',
-				'data' => $url,
-				'size' => filesize($filePath),
-				'createdAt' => filemtime($filePath),
-				'updatedAt' => filectime($filePath),
-			);
-		}
-		return $infos;
-	}
-
-	/**
-	 * build manifest.xml from xml document
-	 *
-	 * @param $document string raw XML
-	 * @param $assets array list of figure metadata
-	 */
-	protected function _buildManifestXMLFromDocument($manuscriptXml, &$assets) {
-		$dom = new DOMDocument();
-		if (!$dom->loadXML($manuscriptXml)) {
-			fatalError("Unable to load XML document content in DOM in order to generate manifest XML.");
-		}
-
-		$k = 0;
-		$assets = array();
-		$figElements = $dom->getElementsByTagName('fig');
-		foreach ($figElements as $figure) {
-			$pos = $k + 1;
-			$figItem = $figElements->item($k);
-			$graphic = $figItem->getElementsByTagName('graphic');
-			if (sizeof($graphic) > 0) {
-
-				// figure without graphic?
-				if (!$figItem || !$graphic) {
-					continue;
-				}
-
-				// get fig id
-				$figId = null;
-				if ($figItem->hasAttribute('id')) {
-					$figId = $figItem->getAttribute('id');
-				} else {
-					$figId = "ojs-fig-{$pos}";
-				}
-
-				// get path
-				$figGraphPath = $graphic->item(0)->getAttribute('xlink:href');
-
-				// save assets
-				$assets[] = array(
-					'id' => $figId,
-					'type' => 'image/jpg',
-					'path' => $figGraphPath,
-				);
-			}
-			$k++;
-		}
-
-		$sxml = simplexml_load_string('<dar><documents><document id="manuscript" type="article" path="manuscript.xml" /></documents><assets></assets></dar>');
-		foreach ($assets as $asset) {
-			$assetNode = $sxml->assets->addChild('asset');
-			$assetNode->addAttribute('id', $asset['id']);
-			$assetNode->addAttribute('type', $asset['type']);
-			$assetNode->addAttribute('path', $asset['path']);
-		}
-
-		return $sxml->asXML();
-	}
-
 	/**
 	 * display images attached to XML document
 	 *
@@ -456,40 +395,6 @@ class TextureHandler extends Handler {
 	}
 
 	/**
-	 * creates dependent file
-	 * @param $genreId intr
-	 * @param $mediaData string
-	 * @param $submission Article
-	 * @param $submissionFile SubmissionFie
-	 * @param $user User
-	 * @return SubmissionArtworkFile
-	 */
-	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user) {
-		$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $mediaData["data"]));
-		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
-		file_put_contents($tmpfname, $mediaBlob);
-
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-		$newMediaFile = $submissionFileDao->newDataObjectByGenreId($genreId);
-		$newMediaFile->setSubmissionId($submission->getId());
-		$newMediaFile->setSubmissionLocale($submission->getLocale());
-		$newMediaFile->setGenreId($genreId);
-		$newMediaFile->setFileStage(SUBMISSION_FILE_DEPENDENT);
-		$newMediaFile->setDateUploaded(Core::getCurrentDate());
-		$newMediaFile->setDateModified(Core::getCurrentDate());
-		$newMediaFile->setUploaderUserId($user->getId());
-		$newMediaFile->setFileSize(filesize($tmpfname));
-		$newMediaFile->setFileType($mediaData["fileType"]);
-		$newMediaFile->setAssocId($submissionFile->getFileId());
-		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
-		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
-		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $tmpfname);
-		unlink($tmpfname);
-
-		return $insertedMediaFile;
-	}
-
-	/**
 	 * Update manuscript XML file
 	 * @param $fileStage int
 	 * @param $genreId int
@@ -532,23 +437,37 @@ class TextureHandler extends Handler {
 	}
 
 	/**
-	 * @param $manuscriptXml
-	 * @return DOMDocument
+	 * creates dependent file
+	 * @param $genreId intr
+	 * @param $mediaData string
+	 * @param $submission Article
+	 * @param $submissionFile SubmissionFie
+	 * @param $user User
+	 * @return SubmissionArtworkFile
 	 */
-	private function _removeElements($manuscriptXml) {
-		$elementsPath = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
+	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user) {
+		$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $mediaData["data"]));
+		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
+		file_put_contents($tmpfname, $mediaBlob);
 
-		$manuscriptXmlDom = new DOMDocument;
-		$manuscriptXmlDom->loadXML($manuscriptXml);
-		$xpath = new DOMXpath($manuscriptXmlDom);
+		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+		$newMediaFile = $submissionFileDao->newDataObjectByGenreId($genreId);
+		$newMediaFile->setSubmissionId($submission->getId());
+		$newMediaFile->setSubmissionLocale($submission->getLocale());
+		$newMediaFile->setGenreId($genreId);
+		$newMediaFile->setFileStage(SUBMISSION_FILE_DEPENDENT);
+		$newMediaFile->setDateUploaded(Core::getCurrentDate());
+		$newMediaFile->setDateModified(Core::getCurrentDate());
+		$newMediaFile->setUploaderUserId($user->getId());
+		$newMediaFile->setFileSize(filesize($tmpfname));
+		$newMediaFile->setFileType($mediaData["fileType"]);
+		$newMediaFile->setAssocId($submissionFile->getFileId());
+		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
+		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
+		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $tmpfname);
+		unlink($tmpfname);
 
-		foreach ($elementsPath as $elementPath) {
-			$elements = $xpath->query($elementPath);
-			foreach ($elements as $element) {
-				$element->parentNode->removeChild($element);
-			}
-		}
-		return $manuscriptXmlDom;
+		return $insertedMediaFile;
 	}
 
 
@@ -558,6 +477,14 @@ class TextureHandler extends Handler {
 	 */
 	function getPlugin() {
 		return $this->_plugin;
+	}
+
+	/**
+	 * Return true if the zip extension is loaded.
+	 * @return boolean
+	 */
+	static function zipFunctional() {
+		return (extension_loaded('zip'));
 	}
 
 

@@ -22,3 +22,6 @@ msgstr "Create Galley"
 
 msgid "plugins.generic.texture.links.editWithTexture"
 msgstr "Edit with Texture"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "Export DAR"
