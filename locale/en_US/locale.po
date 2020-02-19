@@ -25,3 +25,6 @@ msgstr "Edit with Texture"
 
 msgid "plugins.generic.texture.links.exportDarArchive"
 msgstr "Export DAR"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "Extract DAR"

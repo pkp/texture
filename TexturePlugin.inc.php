@@ -24,6 +24,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @copydoc Plugin::getDisplayName()
 	 */
 	function getDisplayName() {
+
 		return __('plugins.generic.texture.displayName');
 	}
 
@@ -31,6 +32,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @copydoc Plugin::getDescription()
 	 */
 	function getDescription() {
+
 		return __('plugins.generic.texture.description');
 	}
 
@@ -38,6 +40,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @copydoc Plugin::register()
 	 */
 	function register($category, $path, $mainContextId = null) {
+
 		if (parent::register($category, $path, $mainContextId)) {
 			if ($this->getEnabled()) {
 				// Register callbacks.
@@ -57,6 +60,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @return string
 	 */
 	function getTextureUrl($request) {
+
 		return $this->getPluginUrl($request) . '/texture';
 	}
 
@@ -66,6 +70,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @return string
 	 */
 	function getPluginUrl($request) {
+
 		return $request->getBaseUrl() . '/' . $this->getPluginPath();
 	}
 
@@ -76,6 +81,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @see PKPPageRouter::route()
 	 */
 	public function callbackLoadHandler($hookName, $args) {
+
 		$page = $args[0];
 		$op = $args[1];
 
@@ -83,6 +89,7 @@ class TexturePlugin extends GenericPlugin {
 			case 'texture/createGalley':
 			case 'texture/editor':
 			case 'texture/export':
+			case 'texture/extract':
 			case 'texture/json':
 			case 'texture/save':
 			case 'texture/createGalleyForm':
@@ -102,6 +109,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @param $params array Hook parameters
 	 */
 	public function templateFetchCallback($hookName, $params) {
+
 		$request = $this->getRequest();
 		$router = $request->getRouter();
 		$dispatcher = $router->getDispatcher();
@@ -123,7 +131,9 @@ class TexturePlugin extends GenericPlugin {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
 					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
-					$this->_export($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+				} elseif (strtolower($fileExtension) == 'dar') {
+					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				}
 			}
 		}
@@ -138,7 +148,8 @@ class TexturePlugin extends GenericPlugin {
 	 * @param int $stageId
 	 * @param int $fileStage
 	 */
-	private function _export($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage): void {
+	private function _exportAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage): void {
+
 		$row->addAction(new LinkAction(
 			'texture_export',
 			new OpenWindowAction(
@@ -156,6 +167,36 @@ class TexturePlugin extends GenericPlugin {
 	}
 
 	/**
+	 * extracts a dar archive
+	 * @param $row SubmissionFilesGridRow
+	 * @param Dispatcher $dispatcher
+	 * @param PKPRequest $request
+	 * @param $submissionFile SubmissionFile
+	 * @param int $stageId
+	 * @param int $fileStage
+	 */
+	private function _extractAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage): void {
+
+		$stageId = (int)$request->getUserVar('stageId');
+
+		$actionArgs = array(
+			'submissionId' => $submissionFile->getSubmissionId(),
+			'fileId' => $submissionFile->getFileId(),
+			'stageId' => $stageId
+		);
+
+		$path = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'extract', null, $actionArgs);
+		$pathRedirect = $dispatcher->url($request, ROUTE_PAGE, null, 'workflow', 'access', $actionArgs);
+		import('lib.pkp.classes.linkAction.request.PostAndRedirectAction');
+		$row->addAction(new LinkAction(
+			'texture_import',
+			new PostAndRedirectAction($path, $pathRedirect),
+			__('plugins.generic.texture.links.extractDarArchive'),
+			null
+		));
+	}
+
+	/**
 	 * Adds edit with Texture action to files grid
 	 * @param $row SubmissionFilesGridRow
 	 * @param Dispatcher $dispatcher
@@ -164,6 +205,7 @@ class TexturePlugin extends GenericPlugin {
 	 * @param int $stageId
 	 */
 	private function _editWithTextureAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId): void {
+
 		$row->addAction(new LinkAction(
 			'texture_editor',
 			new OpenWindowAction(
@@ -210,7 +252,6 @@ class TexturePlugin extends GenericPlugin {
 			__('plugins.generic.texture.links.createGalley'),
 			null
 		));
-
 
 	}
 }
