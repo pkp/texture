@@ -103,38 +103,67 @@ class TextureHandler extends Handler {
 
 			$manifestFileDom = new DOMDocument();
 			$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . DAR_MANIFEST_FILE;
-			if (file_exists($darManifestFilePath)){
+			if (file_exists($darManifestFilePath)) {
 
 				$manifestFileDom->load($darManifestFilePath);
-				$doucmentElement = $manifestFileDom->getElementsByTagName( "document" );
-				$darManifestFilePath = $doucmentElement->getAttribute('path');
-				if (file_exists($darManifestFilePath)){
-					
-				}
-				else {
-					//TODO no manuscript
+				$documentNodeList = $manifestFileDom->getElementsByTagName("document");
+				if ($documentNodeList->length == 1) {
+
+					$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . $documentNodeList[0]->getAttribute('path');
+
+					if (file_exists($darManifestFilePath)) {
+
+						$submissionDao = Application::getSubmissionDAO();
+						$submissionId = (int)$request->getUserVar('submissionId');
+						$submission = $submissionDao->getById($submissionId);
+
+						$clientFileName = basename($submissionFile->getClientFileName(), 'dar') . 'xml';
+						$user = $request->getUser();
+						$fileSize = filesize($darManifestFilePath);
+
+						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId(1);
+						$newSubmissionFile->setSubmissionId($submission->getId());
+						$newSubmissionFile->setSubmissionLocale($submission->getLocale());
+						$newSubmissionFile->setFileStage($submissionFile->getFileStage());
+						$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
+						$newSubmissionFile->setDateModified(Core::getCurrentDate());
+
+						$newSubmissionFile->setOriginalFileName($clientFileName);
+						$newSubmissionFile->setUploaderUserId($user->getId());
+						$newSubmissionFile->setFileSize($fileSize);
+						$newSubmissionFile->setFileType("text/xml");
+						$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
+						$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
+						$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $darManifestFilePath);
+
+						$assets = $manifestFileDom->getElementsByTagName("asset");
+						foreach ($assets as $asset) {
+							$fileType = $asset->getAttribute('type');
+							$fileName = $asset->getAttribute('path');
+							$dependentFilePath = $archivePath . DIRECTORY_SEPARATOR . $fileName;
+							$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+							$genreId = $this->_getGenreId($request, $extension);
+							$this->_createDependentFile($genreId, $dependentFilePath, $submission, $insertedSubmissionFile, $user, $fileType, $fileName);
+
+						}
+
+					} else {
+						//TODO no manuscript
+					}
 				}
 
-			}
-			else {
+			} else {
 				//TODO handle no mainfest
 			}
 
-			//read manifest.xml
-
 			$zip->close();
-			//TODO delete dir
+			rmdir($archivePath);
 
 		} else {
 			//TODO handle zip error
 		}
 
-
-		$fileId = $submissionFile->getFileId();
-		$revision = $submissionFile->getRevision();
-
-		//$submissionFileManager = new SubmissionFileManager($context->getId(), $submissionFile);
-		//list($newFileId, $newRevision) = $submissionFileManager->copyFileToFileStage($fileId, $revision, $fileStage, null, true);
 		return new JSONMessage(true, array());
 	}
 
@@ -320,6 +349,7 @@ class TextureHandler extends Handler {
 			if (!empty($postData)) {
 				$submissionDao = Application::getSubmissionDAO();
 				$submissionId = (int)$request->getUserVar('submissionId');
+				$user = $request->getUser();
 				$submission = $submissionDao->getById($submissionId);
 
 				$postDataJson = json_decode($postData);
@@ -330,35 +360,25 @@ class TextureHandler extends Handler {
 					import('classes.file.PublicFileManager');
 					$publicFileManager = new PublicFileManager();
 
-					$journal = $request->getJournal();
-					$genreDao = DAORegistry::getDAO('GenreDAO');
-					$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
 					$genreId = null;
 					$extension = $publicFileManager->getImageExtension($media["fileType"]);
-					while ($candidateGenre = $genres->next()) {
-						if ($extension) {
-							if ($candidateGenre->getKey() == 'IMAGE') {
-								$genreId = $candidateGenre->getId();
-								break;
-							}
-						} else {
-							if ($candidateGenre->getKey() == 'MULTIMEDIA') {
-								$genreId = $candidateGenre->getId();
-								break;
-							}
-						}
-					}
+					$genreId = $this->_getGenreId($request, $extension);
 					if (!$genreId) {
 						// Could not identify the genre -- it's an error condition
 						return new JSONMessage(false);
 					}
 
-					$user = $request->getUser();
-					$insertedSubmissionFile = $this->_createDependentFile($genreId, $media, $submission, $submissionFile, $user);
+					$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $media["data"]));
+					$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
+					file_put_contents($tmpfname, $mediaBlob);
+					$fileType = $media["fileType"];
+					$fileName = $media["fileName"];
+
+					$insertedSubmissionFile = $this->_createDependentFile($genreId, $tmpfname, $submission, $submissionFile, $user, $fileType, $fileName);
+
 				} elseif (!empty($resources) && isset($resources[DAR_MANUSCRIPT_FILE]) && is_object($resources[DAR_MANUSCRIPT_FILE])) {
 					$genreId = $submissionFile->getGenreId();
 					$fileStage = $submissionFile->getFileStage();
-					$user = $request->getUser();
 
 					$insertedSubmissionFile = $this->_updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user);
 				} else {
@@ -468,20 +488,20 @@ class TextureHandler extends Handler {
 	}
 
 	/**
-	 * creates dependent file
-	 * @param $genreId intr
-	 * @param $mediaData string
-	 * @param $submission Article
-	 * @param $submissionFile SubmissionFie
+	 * Creates a dependent file
+	 *
+	 * @param $genreId  int
+	 * @param $filePath string
+	 * @param $submission Submission
+	 * @param $submissionFile SubmissionFile
 	 * @param $user User
+	 * @param $fileType string
+	 * @param $fileName string
 	 * @return SubmissionArtworkFile
 	 */
-	protected function _createDependentFile($genreId, $mediaData, $submission, $submissionFile, $user) {
+	protected function _createDependentFile($genreId, $filePath, $submission, $submissionFile, $user, $fileType, $fileName) {
 
-		$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $mediaData["data"]));
-		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
-		file_put_contents($tmpfname, $mediaBlob);
-
+		$filesize = filesize($filePath);
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		$newMediaFile = $submissionFileDao->newDataObjectByGenreId($genreId);
 		$newMediaFile->setSubmissionId($submission->getId());
@@ -491,15 +511,14 @@ class TextureHandler extends Handler {
 		$newMediaFile->setDateUploaded(Core::getCurrentDate());
 		$newMediaFile->setDateModified(Core::getCurrentDate());
 		$newMediaFile->setUploaderUserId($user->getId());
-		$newMediaFile->setFileSize(filesize($tmpfname));
-		$newMediaFile->setFileType($mediaData["fileType"]);
+		$newMediaFile->setFileSize($filesize);
+		$newMediaFile->setFileType($fileType);
 		$newMediaFile->setAssocId($submissionFile->getFileId());
 		$newMediaFile->setAssocType(ASSOC_TYPE_SUBMISSION_FILE);
-		$newMediaFile->setOriginalFileName($mediaData["fileName"]);
-		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $tmpfname);
-		unlink($tmpfname);
+		$newMediaFile->setOriginalFileName($fileName);
+		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $filePath);
+		unlink($filePath);
 
-		return $insertedMediaFile;
 	}
 
 	/**
@@ -518,6 +537,32 @@ class TextureHandler extends Handler {
 	static function zipFunctional() {
 
 		return (extension_loaded('zip'));
+	}
+	/**
+	 * @param $genres
+	 * @param $extension
+	 * @return mixed
+	 */
+	private function _getGenreId($request, $extension) {
+
+		$journal = $request->getJournal();
+		$genreDao = DAORegistry::getDAO('GenreDAO');
+		$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
+
+		while ($candidateGenre = $genres->next()) {
+			if ($extension) {
+				if ($candidateGenre->getKey() == 'IMAGE') {
+					$genreId = $candidateGenre->getId();
+					break;
+				}
+			} else {
+				if ($candidateGenre->getKey() == 'MULTIMEDIA') {
+					$genreId = $candidateGenre->getId();
+					break;
+				}
+			}
+		}
+		return $genreId;
 	}
 
 }
