@@ -93,11 +93,13 @@ class TextureHandler extends Handler {
 
 		import('lib.pkp.classes.file.SubmissionFileManager');
 		$context = $request->getContext();
+		$user = $request->getUser();
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
+		$archivePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'texture-dar-archive' . mt_rand();
 
 		$zip = new ZipArchive;
 		if ($zip->open($submissionFile->getFilePath()) === TRUE) {
-			$archivePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'texture-dar-archive' . mt_rand();
+
 			mkdir($archivePath, 0777, true);
 			$zip->extractTo($archivePath);
 
@@ -109,17 +111,17 @@ class TextureHandler extends Handler {
 				$documentNodeList = $manifestFileDom->getElementsByTagName("document");
 				if ($documentNodeList->length == 1) {
 
-					$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . $documentNodeList[0]->getAttribute('path');
+					$darManuscriptFilePath = $archivePath . DIRECTORY_SEPARATOR . $documentNodeList[0]->getAttribute('path');
 
-					if (file_exists($darManifestFilePath)) {
+					if (file_exists($darManuscriptFilePath)) {
 
 						$submissionDao = Application::getSubmissionDAO();
 						$submissionId = (int)$request->getUserVar('submissionId');
 						$submission = $submissionDao->getById($submissionId);
 
 						$clientFileName = basename($submissionFile->getClientFileName(), 'dar') . 'xml';
-						$user = $request->getUser();
-						$fileSize = filesize($darManifestFilePath);
+
+						$fileSize = filesize($darManuscriptFilePath);
 
 						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId(1);
@@ -135,7 +137,7 @@ class TextureHandler extends Handler {
 						$newSubmissionFile->setFileType("text/xml");
 						$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 						$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
-						$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $darManifestFilePath);
+						$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $darManuscriptFilePath);
 
 						$assets = $manifestFileDom->getElementsByTagName("asset");
 						foreach ($assets as $asset) {
@@ -145,26 +147,20 @@ class TextureHandler extends Handler {
 							$extension = pathinfo($fileName, PATHINFO_EXTENSION);
 							$genreId = $this->_getGenreId($request, $extension);
 							$this->_createDependentFile($genreId, $dependentFilePath, $submission, $insertedSubmissionFile, $user, $fileType, $fileName);
-
 						}
-
 					} else {
-						//TODO no manuscript
+						return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noManuscript'));
 					}
 				}
 
 			} else {
-				//TODO handle no mainfest
+				return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noManifest'));
 			}
-
-			$zip->close();
-			rmdir($archivePath);
-
 		} else {
-			//TODO handle zip error
+			return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noValidDarFile'));
 		}
 
-		return new JSONMessage(true, array());
+		return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.extracted'), NOTIFICATION_TYPE_SUCCESS, true);
 	}
 
 	/**
@@ -563,6 +559,45 @@ class TextureHandler extends Handler {
 			}
 		}
 		return $genreId;
+	}
+
+	/**
+	 * Delete folder and its contents
+	 * @note Adapted from https://www.php.net/manual/de/function.rmdir.php#117354
+	 */
+	private function rrmdir($src) {
+
+		$dir = opendir($src);
+		while (false !== ($file = readdir($dir))) {
+			if (($file != '.') && ($file != '..')) {
+				$full = $src . '/' . $file;
+				if (is_dir($full)) {
+					$this->rrmdir($full);
+				} else {
+					unlink($full);
+				}
+			}
+		}
+		closedir($dir);
+		rmdir($src);
+	}
+	/**
+	 * Remove files and notify
+	 * @param ZipArchive $zip
+	 * @param string $archivePath
+	 * @param $user
+	 * @param  $message
+	 * @param $errorType
+	 * @param bool $status
+	 * @return JSONMessage
+	 */
+	private function removeFilesAndNotify(ZipArchive $zip, string $archivePath, $user, $message, $errorType=NOTIFICATION_TYPE_ERROR, $status = False): JSONMessage {
+
+		$notificationMgr = new NotificationManager();
+		$zip->close();
+		$this->rrmdir($archivePath);
+		$notificationMgr->createTrivialNotification($user->getId(), $errorType, array('contents' => $message));
+		return new JSONMessage($status);
 	}
 
 }

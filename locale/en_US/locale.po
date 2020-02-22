@@ -28,3 +28,15 @@ msgstr "Export DAR"
 
 msgid "plugins.generic.texture.links.extractDarArchive"
 msgstr "Extract DAR"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "No manuscript file available"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "No manifest file available"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "No valid DAR file"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "DAR file extraction successful"
