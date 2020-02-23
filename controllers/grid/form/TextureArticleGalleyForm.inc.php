@@ -106,7 +106,6 @@ class TextureArticleGalleyForm extends Form {
 		// Create  new galley
 		$articleGalleyDao = DAORegistry::getDAO('ArticleGalleyDAO');
 		$articleGalley = $articleGalleyDao->newDataObject();
-		$articleGalley->setId($this->_submission->getId());
 		$articleGalley->setData('publicationId', $this->_publication->getId());
 		$articleGalley->setLabel($this->getData('label'));
 		$articleGalley->setLocale($this->getData('galleyLocale'));
