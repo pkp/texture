@@ -20,10 +20,12 @@ class TextureArticleGalleyForm extends Form {
 	/** @var the $_submission */
 	var $_submission = null;
 
+
 	/**
 	 * Constructor.
 	 * @param $request Request
 	 * @param $plugin Plugin
+
 	 * @param $submission Submission
 	 */
 	function __construct($request, $plugin, $submission) {
@@ -63,7 +65,7 @@ class TextureArticleGalleyForm extends Form {
 
 		$templateMgr->assign(array(
 			'supportedLocales' => $journal->getSupportedSubmissionLocaleNames(),
-			'submissionId' => $this->getSubmission()->getId(),
+			'submissionId' => $this->_submission->getId(),
 			'stageId' => $request->getUserVar('stageId'),
 			'fileStage' => $request->getUserVar('fileStage'),
 			'fileId' => $request->getUserVar('fileId')
@@ -94,12 +96,12 @@ class TextureArticleGalleyForm extends Form {
 	function execute() {
 
 		$context = Application::getRequest()->getJournal();
-		$submissionId = $this->getSubmission()->getId();
+		$submissionId = $this->_submission->getId();
 
 		// Create  new galley
 		$articleGalleyDao = DAORegistry::getDAO('ArticleGalleyDAO');
 		$articleGalley = $articleGalleyDao->newDataObject();
-		$articleGalley->setSubmissionId($this->getSubmission()->getId());
+		$articleGalley->setSubmissionId($this->_submission->getId());
 		$articleGalley->setLabel($this->getData('label'));
 		$articleGalley->setLocale($this->getData('galleyLocale'));
 		$newGalleyId = $articleGalleyDao->insertObject($articleGalley);
@@ -150,13 +152,7 @@ class TextureArticleGalleyForm extends Form {
 		return $articleGalley;
 	}
 
-	/**
-	 * Get the submission
-	 * @return Submission
-	 */
-	private function getSubmission() {
-		return $this->_submission;
-	}
+
 }
 
 
