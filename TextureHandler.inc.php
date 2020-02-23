@@ -178,8 +178,8 @@ class TextureHandler extends Handler {
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
 
 		$submissionId = $request->getUserVar('submissionId');
-		$fileManager = $this->_getFileManager($context->getId(), $submissionFile->getId());
-		$assetsFilePaths = $dar->getDependentFilePaths($submissionId, $submissionFile->getId());
+		$fileManager = $this->_getFileManager($context->getId(), $submissionFile->getFileId());
+		$assetsFilePaths = $dar->getDependentFilePaths($submissionId, $submissionFile->getFileId());
 
 		$archivePath = tempnam('/tmp', 'texture-');
 		if (self::zipFunctional()) {
