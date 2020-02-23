@@ -16,4 +16,11 @@
 	<message key="plugins.generic.texture.description">Plugin to integrate the Texture JATS XML editor with OJS.</message>
 	<message key="plugins.generic.texture.links.createGalley">Create Galley</message>
 	<message key="plugins.generic.texture.links.editWithTexture">Edit with Texture</message>
+	<message key="plugins.generic.texture.links.exportDarArchive">Export DAR</message>
+	<message key="plugins.generic.texture.links.extractDarArchive">Extract DAR</message>
+	<message key="plugins.generic.texture.notification.noManuscript">No manuscript file available</message>
+	<message key="plugins.generic.texture.notification.noManifest">No manifest file available</message>
+	<message key="plugins.generic.texture.notification.noValidDarFile">No valid DAR file</message>
+	<message key="plugins.generic.texture.notification.extracted">DAR file extraction successful</message>
+
 </locale>
