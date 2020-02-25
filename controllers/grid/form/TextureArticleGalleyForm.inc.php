@@ -115,12 +115,15 @@ class TextureArticleGalleyForm extends Form {
 		$submissionFileManager = new SubmissionFileManager($context->getId(), $submissionFile);
 		$fileId = $submissionFile->getFileId();
 		$revision = $submissionFile->getRevision();
+		$genreId = $submissionFile->getGenreId();
 
 		list($newFileId, $newRevision) = $submissionFileManager->copyFileToFileStage($fileId, $revision, $fileStage, null, true);
 		$newSubmissionFile = $submissionFileDao->getLatestRevision($newFileId, $fileStage, $submissionId);
 		$newSubmissionFile->setAssocType(ASSOC_TYPE_REPRESENTATION);
 		$newSubmissionFile->setAssocId($newGalleyId);
 		$newSubmissionFile->setFileStage(SUBMISSION_FILE_PROOF);
+		$newSubmissionFile->setGenreId($genreId);
+
 		$submissionFileDao->updateObject($newSubmissionFile);
 
 		// Associate XML file into galley
