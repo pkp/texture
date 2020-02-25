@@ -124,18 +124,17 @@ class TextureHandler extends Handler {
 						$fileSize = filesize($darManuscriptFilePath);
 
 						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId(1);
+						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId(GENRE_CATEGORY_DOCUMENT);
 						$newSubmissionFile->setSubmissionId($submission->getId());
 						$newSubmissionFile->setSubmissionLocale($submission->getLocale());
 						$newSubmissionFile->setFileStage($submissionFile->getFileStage());
 						$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
 						$newSubmissionFile->setDateModified(Core::getCurrentDate());
-
+						$newSubmissionFile->setGenreId(GENRE_CATEGORY_DOCUMENT);
 						$newSubmissionFile->setOriginalFileName($clientFileName);
 						$newSubmissionFile->setUploaderUserId($user->getId());
 						$newSubmissionFile->setFileSize($fileSize);
 						$newSubmissionFile->setFileType("text/xml");
-						$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 						$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
 						$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $darManuscriptFilePath);
 
