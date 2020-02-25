@@ -125,6 +125,7 @@ class TextureArticleGalleyForm extends Form {
 		$newSubmissionFile = $submissionFileDao->getLatestRevision($newFileId, $fileStage, $submissionId);
 		$newSubmissionFile->setAssocType(ASSOC_TYPE_REPRESENTATION);
 		$newSubmissionFile->setAssocId($newGalleyId);
+		$newSubmissionFile->setGenreId(GENRE_CATEGORY_DOCUMENT);
 		$newSubmissionFile->setFileStage(SUBMISSION_FILE_PROOF);
 		$submissionFileDao->updateObject($newSubmissionFile);
 
