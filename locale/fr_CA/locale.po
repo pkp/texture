@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-02-01 19:35+0000\n"
+"PO-Revision-Date: 2020-02-28 13:36+0000\n"
 "Last-Translator: Marie-Hélène Vézina [UdeMontréal] <marie-"
 "helene.vezina@umontreal.ca>\n"
 "Language-Team: French (Canada) <http://translate.pkp.sfu.ca/projects/plugins/"
@@ -23,3 +23,21 @@ msgstr "Plugiciel intégrant l'outil d'édition JATS XML Texture dans OJS."
 
 msgid "plugins.generic.texture.displayName"
 msgstr "Plugiciel de l'outil d'édition Texture"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "Fichier DAR extrait avec succès"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Il n'y a pas de fichier DAR valide"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Aucun fichier Manifest disponible"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Aucun fichier Manuscript disponible"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "Extraire le fichier DAR"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "Exporter le fichier DAR"
