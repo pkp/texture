@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-02-12 09:35+0000\n"
+"PO-Revision-Date: 2020-02-28 13:36+0000\n"
 "Last-Translator: Niels Erik Frederiksen <nef@kb.dk>\n"
 "Language-Team: Danish <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/da/>\n"
@@ -22,3 +22,21 @@ msgstr "Plugin til at integrere Texture JATS XML-editoren med OJS."
 
 msgid "plugins.generic.texture.displayName"
 msgstr "Texture Editor Plugin"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "DAR-fil-udpakning gennemført"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Ingen gyldig DAR-fil"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Ingen sikker fil tilgængelig"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Ingen manuskriptfil tilgængelig"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "Extract DAR"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "Export DAR"
