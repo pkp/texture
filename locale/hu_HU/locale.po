@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-02-22 09:36+0000\n"
+"PO-Revision-Date: 2020-02-28 13:36+0000\n"
 "Last-Translator: Gabor Klinger <ojshelp@konyvtar.mta.hu>\n"
 "Language-Team: Hungarian <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/hu/>\n"
@@ -22,3 +22,21 @@ msgstr "A plugin a Texture JATS XML szerkesztőt integrálja az OJS rendszerrel.
 
 msgid "plugins.generic.texture.links.editWithTexture"
 msgstr "Szerkesztés Texture-el"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "A DAR fájl kibontása sikeres"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Nincs érvényes DAR fájl"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Nem érhető el \"manifest\" fájl"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Nincs elérhető kéziratfájl"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "DAR kiemelése"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "DAR exportálása"
