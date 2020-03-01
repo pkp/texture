@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-02-08 03:45+0000\n"
+"PO-Revision-Date: 2020-03-03 09:36+0000\n"
 "Last-Translator: Ramli Baharuddin <ramli.baharuddin@relawanjurnal.id>\n"
 "Language-Team: Indonesian <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/id/>\n"
@@ -22,3 +22,21 @@ msgstr "Plugin mengintegrasikan editor Texture JATS XML dengan OJS."
 
 msgid "plugins.generic.texture.displayName"
 msgstr "Plugin Texture Editor"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "Proses ekstrak file DAR berhasil"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Tidak ada file DAR yang valid"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Tidak tersedia file manifes"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Tidak tersedia file naskah"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "Ekstrak DAR"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "Ekspor DAR"
