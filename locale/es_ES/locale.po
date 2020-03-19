@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2019-11-28T15:25:59-08:00\n"
-"PO-Revision-Date: 2020-01-17 15:35+0000\n"
+"PO-Revision-Date: 2020-02-28 13:36+0000\n"
 "Last-Translator: Jordi LC <jordi.lacruz@uab.cat>\n"
 "Language-Team: Spanish <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/es/>\n"
@@ -25,3 +25,21 @@ msgstr "Modificar con Texture"
 
 msgid "plugins.generic.texture.links.createGalley"
 msgstr "Crear galerada"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "El archivo DAR se extrajo correctamente"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Ningún archivo DAR válido"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Ningún archivo de manifiesto disponible"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Ningún archivo de manuscrito disponible"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "Extraer DAR"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "Exportar DAR"
