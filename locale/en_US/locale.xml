@@ -18,9 +18,11 @@
 	<message key="plugins.generic.texture.links.editWithTexture">Edit with Texture</message>
 	<message key="plugins.generic.texture.links.exportDarArchive">Export DAR</message>
 	<message key="plugins.generic.texture.links.extractDarArchive">Extract DAR</message>
+	<message key="plugins.generic.texture.links.extractZipArchive">Extract ZIP</message>
 	<message key="plugins.generic.texture.notification.noManuscript">No manuscript file available</message>
 	<message key="plugins.generic.texture.notification.noManifest">No manifest file available</message>
-	<message key="plugins.generic.texture.notification.noValidDarFile">No valid DAR file</message>
-	<message key="plugins.generic.texture.notification.extracted">DAR file extraction successful</message>
+	<message key="plugins.generic.texture.notification.noValidDarFile">No accepted zip file</message>
+	<message key="plugins.generic.texture.notification.noValidHTMLFile">Zero or more than one HTML files </message>
+	<message key="plugins.generic.texture.notification.extracttionSuccess">File extraction successful</message>
 
 </locale>
