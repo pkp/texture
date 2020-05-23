@@ -16,7 +16,7 @@
 		{* Texture dependencies (see index.html in Texture distribution) *}
 		<link href="{$textureUrl|escape}/texture.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/texture-reset.css" rel="stylesheet" type="text/css"/>
-		<link href="{$textureUrl|escape}/substance/dist/substance.css" rel="stylesheet" type="text/css"/>
+		<link href="{$textureUrl|escape}/substance/substance.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/texture-reset.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/katex/katex.min.css" rel="stylesheet" type="text/css"/>
 		<link href="{$textureUrl|escape}/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
@@ -26,7 +26,7 @@
 
 
 		{* Texture dependencies (see index.html in Texture distribution) *}
-		<script type="text/javascript" src="{$textureUrl|escape}/substance/dist/substance.js"></script>
+		<script type="text/javascript" src="{$textureUrl|escape}/substance/substance.min.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/katex/katex.min.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/texture.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script>
