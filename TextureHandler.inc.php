@@ -446,11 +446,7 @@ class TextureHandler extends Handler {
 					return new JSONMessage(false);
 				}
 
-				return new JSONMessage(true, array(
-					'submissionId' => $insertedSubmissionFile->getSubmissionId(),
-					'fileId' => $insertedSubmissionFile->getFileIdAndRevision(),
-					'fileStage' => $insertedSubmissionFile->getFileStage(),
-				));
+				return new JSONMessage(true);
 
 			}
 

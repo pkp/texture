@@ -1,0 +1,126 @@
+/*
+  Global variables
+
+  TODO: we should move all app-specific styling into app-land, and only keep
+        styles that are necessary for the editing to work.
+-------------------------------------------------- */
+
+:root {
+  /* Layout */
+
+  /* Normalized heights (used by buttons and inputs) */
+
+  /* Colors */
+
+  /* Used by Button component */ /* #f8f8f8; */
+
+  /* Depending on a base-color */ /* light grey */
+
+  /* We disable this for now, as accessibility needs more discussion */ /* #1795CD;/* #5BE3FF;
+
+  /* Font colors */
+
+  /* Default padding */
+
+  /* Prose font sizes */
+  /* Title font sizes */
+  /* Heading font sizes */
+
+  /* code-font */
+
+  /* RGB #A3CDFD = HSB 209,29,80 */
+}
+
+.sc-inline-node {
+  cursor: default;
+  /* webkit disables selection for draggable elements */
+  -webkit-user-select: text;
+  position: relative;
+}
+
+.sc-isolated-node {
+  position: relative;
+}
+
+.sc-isolated-node.sm-default-style.sm-selected {
+  /*background: rgba(163,205,253, 0.6);*/
+  outline: 2px solid;
+  outline-color: #2A8CFF;
+}
+
+.sc-isolated-node.sm-default-style.sm-co-selected {
+  /*background: rgba(163,205,253, 0.6);*/
+  outline: 2px solid;
+  outline-color: #2A8CFF;
+}
+
+.sc-isolated-node.sm-default-style.sm-focused {
+  outline: 2px solid;
+  outline-color: #2A8CFF;
+}
+
+.sc-isolated-node.sm-default-style.sm-co-focused {
+  outline: 2px solid;
+  outline-color: #2A8CFF;
+}
+
+/* Hide selection fragments when in selected-state */
+
+.sc-isolated-node.sm-selected ::selection {
+  background: transparent;
+}
+
+.sc-isolated-node.sm-selected {
+  outline: 2px solid;
+  outline-color: #2A8CFF;
+}
+
+.sc-isolated-node-blocker {
+  position: absolute;
+  top: 0px; bottom: 0px; left: 0px; right: 0px;
+  cursor: default;
+}
+
+.sc-isolated-node.sm-no-blocker .sc-isolated-node-blocker {
+  display: none;
+}
+
+.sc-isolated-node > .se-bracket {
+  height: 1px;
+  width: 1px;
+  opacity: 0;
+}
+
+.sc-isolated-node.sm-no-blocker > .se-bracket {
+  visibility: hidden;
+}
+
+.sc-isolated-node.sm-no-blocker.sm-selected > .se-bracket,
+.sc-isolated-node.sm-no-blocker.sm-co-selected > .se-bracket {
+  /*
+    ATTENTION: we must not have brackets hidden
+     when rendering a node selection, otherwise Chrome's DOM selection
+     'leaks' into the previous/next line
+  */
+  visibility: visible;
+}
+
+.sc-text-block.sm-align-center {
+  text-align: center;
+}
+
+.sc-text-block.sm-align-right {
+  text-align: right;
+}
+
+.sc-tooltip {
+  background: #fff;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5)
+}
+
+/*# sourceMappingURL=substance.css.map */
