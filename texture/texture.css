@@ -6,6 +6,8 @@
    --t-interface-font: 'Inter UI', system-ui, sans-serif;
    /* Used for flowing text, such as paragraphs */
    --t-text-font: 'Inter UI', system-ui, sans-serif;
+   /* used for code, URLS, etc */
+   --t-code-font: Monaco, 'Courier New';
 
    /* Font sizes */
    /* ----------------------------------------------------------------------*/
@@ -202,30 +204,21 @@
   color: var(--t-action-color);
 }
 
-.sc-input-with-button {
-  display: flex;
-}
-
-.sc-input-with-button > .se-input {
-  border: var(--t-default-border);
+.sc-context-menu {
+  position: absolute;
+  background: var(--t-background-color);
   border-radius: var(--t-border-radius);
-  padding: var(--t-half-spacing);
-  margin-right: var(--t-half-spacing);
   font-size: var(--t-small-font-size);
-  flex-grow: 1;
+  z-index: 1000;
+  box-shadow: var(--t-default-box-shadow);
+  padding: 4px;
 }
 
-.sc-input-with-button > .se-input::placeholder,
-.sc-input-with-button > .se-input::-webkit-input-placeholder {
-	color: var(--t-placeholder-text-color);
-  font-weight: var(--t-normal-font-weight);
-}
-
-.sc-input-with-button > .se-button   {
-  background: var(--t-action-background-color);
-  color: var(--t-inverted-text-color);
-  border-radius: var(--t-border-radius);
-  padding: var(--t-input-padding) var(--t-half-spacing);
+.sc-context-menu.sm-hidden {
+  /* we don't use display none because we want to determine the content's width */
+  visibility: hidden;
+  left: 0px;
+  top: 0px;
 }
 
 .sc-find-and-replace-dialog {
@@ -337,303 +330,30 @@
   background-color: darkgoldenrod;
 }
 
-.sc-pinned-message {
-  position: absolute;
-  bottom: 0px;
-  width: 100%;
-  height: 40px;
-  background: #fff;
-  box-shadow: 3px 3px 5px 6px #ccc;
-}
-
-.sc-pinned-message > .se-msg-wrap {
-  display: flex;
-  max-width: 600px;
-  margin: 7px auto;
-  color: #000;
-  text-align: center;
-}
-
-.sc-pinned-message > .se-msg-wrap > .se-icon {
-  color: #ff0000;
-  font-size: 26px;
-  margin-right: 20px;
-}
-
-.sc-pinned-message > .se-msg-wrap > .se-msg {
-  text-decoration: underline;
-}
-
-/* TODO: use variables! */
-
-.sc-container-editor > .sc-text-node:only-child > .sc-text-property.sm-empty:before,
-.sc-text-input .sc-text-property.sm-empty:before {
-  content: attr(data-placeholder);
-  position: absolute;
-  color: var(--t-placeholder-text-color);
-  font-weight: var(--t-normal-font-weight);
-}
-
-.sc-toggle-tool {
-  position: relative;
-}
-
-/* Position tooltip */
-
-.sc-toggle-tool > .sc-tooltip {
-  display: none;
-  position: absolute;
-  top: 35px;
-  left: 50%;
-  transform: translate(-50%);
-}
-
-.sc-toggle-tool:hover > .sc-tooltip {
-  display: block;
-}
-
-.sc-tool {
-  display: flex;
-  justify-content: space-between;
-  white-space: nowrap;
-  line-height: 2.1;
-  font-size: var(--t-dropdown-font-size);
-  font-weight: var(--t-bold-font-weight);
-  width: 100%;
-  border-radius: var(--t-tool-border-radius);
-  padding: 0px 5px;
-}
-
-.sc-tool:hover {
-  background: var(--t-default-button-background);
-}
-
-.sc-tool > .se-icon {
-  flex: 0 0 0;
-  padding-right: 7px;
-}
-
-.sc-tool > .se-keyboard-shortcut {
-  color: rgba(0,0,0,0.4);
-  font-weight: var(--t-normal-font-weight);
-  font-size: 10px;
-  padding-left: var(--t-default-spacing);
-}
-
-/* Disabled tools */
-
-.sc-tool[disabled=true] {
-  opacity: 0.3;
-}
-
-.sc-tool[disabled=true] > .se-keyboard-shortcut {
-  color: rgba(255,255,255,0.4);
-}
-
-.sc-tool-dropdown {
-  position: relative;
-}
-
-.sc-tool-dropdown > .se-choices {
-  position: absolute;
-  top: 30px;
-  left: -3px;
-  padding: 4px;
-  background: #fff;
-  box-shadow: var(--t-default-box-shadow);
-  border-radius: var(--t-tool-border-radius);
-}
-
-.sc-tool-dropdown > .se-choices .sc-tool-group {
-  display: block!important;
-}
-
-.sc-tool-dropdown.sm-disabled > .se-toggle {
-  opacity: 0.3;
-}
-
-/* Position tooltip */
-
-.sc-tool-dropdown > .sc-tooltip {
-  display: none;
-  position: absolute;
-  top: 35px;
-  left: 50%;
-  transform: translate(-50%);
-}
-
-.sc-tool-dropdown:hover > .sc-tooltip {
-  display: block;
-}
-
-.sc-tool-group {
-  /* Styled by embedding context: See: _overlay.css, _toolbar.css */
-}
-
-.sc-tool-switcher {
+.sc-input-with-button {
   display: flex;
 }
 
-.sc-tool-switcher > .sc-tool {
-  width: initial;
-  color: var(--t-light-text-color);
-  font-size: var(--t-tiny-font-size);
-  margin-right: 4px;
-  cursor: pointer;
-}
-
-.sc-tool-switcher > .sc-tool > .se-label {
-  margin: 0 var(--t-button-padding);
-}
-
-.sc-tool-switcher > .sc-tool.sm-active {
-  color: var(--t-text-color);
-  background: var(--t-default-button-background);
-  cursor: default;
-}
-
-.sc-tool-separator {
-  position: relative;
+.sc-input-with-button > .se-input {
   border: var(--t-default-border);
-  margin: var(--t-half-spacing) 0;
-  cursor: default;
-}
-
-.sc-tool-separator > .se-label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 0 var(--t-half-spacing);
-  background: var(--t-background-color);
-  color: var(--t-light-text-color);
-  font-size: var(--t-tiny-font-size);
-  flex: 0 0 0;
-}
-
-.sc-tool-spacer {
+  border-radius: var(--t-border-radius);
+  padding: var(--t-half-spacing);
+  margin-right: var(--t-half-spacing);
+  font-size: var(--t-small-font-size);
   flex-grow: 1;
 }
 
-.sc-tooltip {
-  background: #fff;
-  padding: 2px 7px;
-  border-radius: 3px;
-  font-size: 12px;
-  font-size: 12px;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.5)
+.sc-input-with-button > .se-input::placeholder,
+.sc-input-with-button > .se-input::-webkit-input-placeholder {
+	color: var(--t-placeholder-text-color);
+  font-weight: var(--t-normal-font-weight);
 }
 
-.sc-toolbar > .se-active-tools {
-  display: flex;
-  /*flex-wrap: nowrap;*/
-  padding: 2px;
-}
-
-.sc-toolbar > .se-active-tools .sc-tool-group {
-  flex: 0 0 0;
-  display: flex;
-}
-
-.sc-toolbar > .se-active-tools .sc-tool-group .sc-button {
-  flex: 0 0 0;
-  margin: 2px;
-}
-
-.sc-toolbar > .se-active-tools .sc-tool-dropdown .sc-button {
-  margin: 2px;
-}
-
-.sc-toolbar .sc-tool-group {
-  display: inline-block;
-}
-
-.sc-toolbar .sc-tool-group .sc-button {
-  margin: 0px 1px;
-}
-
-.sc-edit-external-link-tool {
-  display: flex;
-  align-items: center;
-}
-
-.sc-edit-external-link-tool > * {
-  flex: 0 0 0;
-}
-
-.sc-edit-external-link-tool .sc-input {
-  height: 24px;
-  font-size: 11px;
-  min-width: 200px;
-  font-family: Monaco, 'Courier New';
-  padding: 5px;
-  background: transparent;
-  border: none;
-  margin: 2px;
-}
-
-/* Surface
-----------------------------------------------------*/
-
-/* Non-Editables should have a regular cursor */
-
-.sc-surface *[contenteditable="false"] { cursor: default; }
-
-.sc-surface *[contenteditable="true"] { cursor: text; }
-
-/* We want Firefox to have a transparent native selection */
-
-::-moz-selection { background: rgba(77, 149, 233, 0.46); }
-
-.sm-selected-node { outline: 2px solid; outline-color: var(--t-focus-color); }
-
-.sc-overlay { z-index: 200; position: absolute; }
-
-.sc-overlay .sc-tool-group { display: inline-block; }
-
-.sc-overlay .sc-tool-group .sc-button { margin: 0px 1px; }
-
-.sc-overlay.sm-hidden { visibility: hidden; left: 0px; top: 0px; }
-
-.sc-overlay > .se-active-tools {
-  margin: 5px;
-  border-radius: 3px;
-  background: #fff;
-  display: flex;
-  flex-wrap: nowrap;
-  box-shadow: var(--t-default-box-shadow);
-}
-
-.sc-overlay > .se-active-tools .sc-tool-group {
-  flex: 0 0 0;
-  display: flex;
-}
-
-.sc-overlay > .se-active-tools .sc-tool-group .sc-button {
-  flex: 0 0 0;
-  margin: 2px;
-}
-
-.sc-overlay > .se-active-tools .sc-tool-dropdown .sc-button {
-  margin: 2px;
-}
-
-.sc-context-menu {
-  position: absolute;
-  background: var(--t-background-color);
+.sc-input-with-button > .se-button   {
+  background: var(--t-action-background-color);
+  color: var(--t-inverted-text-color);
   border-radius: var(--t-border-radius);
-  font-size: var(--t-small-font-size);
-  z-index: 1000;
-  box-shadow: var(--t-default-box-shadow);
-  padding: 4px;
-}
-
-.sc-context-menu.sm-hidden {
-  /* we don't use display none because we want to determine the content's width */
-  visibility: hidden;
-  left: 0px;
-  top: 0px;
+  padding: var(--t-input-padding) var(--t-half-spacing);
 }
 
 .sc-isolated-node {
@@ -692,6 +412,101 @@
      'leaks' into the previous/next line
   */
   visibility: visible;
+}
+
+/*
+TODO: moving away from the old Overlay implementation
+replacing it with OverlayCanvas, which is more generic, but also more low-level
+*/
+
+.sc-overlay-canvas { z-index: 200; position: absolute; }
+
+.sc-overlay-canvas.sm-hidden { visibility: hidden; left: 0px; top: 0px; }
+
+.sc-overlay-canvas > .se-canvas {
+  margin: 5px;
+  border-radius: 3px;
+  background: #fff;
+  display: flex;
+  flex-wrap: nowrap;
+  box-shadow: var(--t-default-box-shadow);
+}
+
+/*
+  TODO: develop a CSS framework for overlays
+  This is WIP
+*/
+
+.sc-overlay-canvas .sm-horizontal-layout {
+  display: flex;
+  align-items: center;
+  font-size: var(--t-dropdown-font-size);
+  font-weight: var(--t-bold-font-weight);
+  padding: 0px var(--t-button-padding);
+}
+
+.sc-overlay-canvas .sm-horizontal-layout > * {
+  flex: 0 0 0;
+  margin: 2px;
+}
+
+.sc-overlay-canvas .sm-horizontal-layout .sc-text-property-editor {
+  min-width: 200px;
+  padding: var(--t-input-padding);
+}
+
+.sc-overlay-canvas .sm-monospace {
+  font-family: var(--t-code-font);
+  background: transparent;
+  border: none;
+}
+
+.sc-overlay-canvas .sc-container-editor,
+.sc-overlay-canvas .sc-text-property-editor {
+  border: var(--t-input-default-border);
+  border-radius: var(--t-border-radius);
+  padding: var(--t-input-padding);
+}
+
+.sc-overlay-canvas .sc-container-editor:focus,
+.sc-overlay-canvas .sc-text-property-editor:focus {
+  border: var(--t-input-focus-border);
+}
+
+.sc-pinned-message {
+  position: absolute;
+  bottom: 0px;
+  width: 100%;
+  height: 40px;
+  background: #fff;
+  box-shadow: 3px 3px 5px 6px #ccc;
+}
+
+.sc-pinned-message > .se-msg-wrap {
+  display: flex;
+  max-width: 600px;
+  margin: 7px auto;
+  color: #000;
+  text-align: center;
+}
+
+.sc-pinned-message > .se-msg-wrap > .se-icon {
+  color: #ff0000;
+  font-size: 26px;
+  margin-right: 20px;
+}
+
+.sc-pinned-message > .se-msg-wrap > .se-msg {
+  text-decoration: underline;
+}
+
+.sc-container-editor > .sc-text-node:only-child > .sc-text-property.sm-empty:before,
+.sc-text-input .sc-text-property.sm-empty:before,
+.sc-text-property-editor .sc-text-property.sm-empty:before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--t-placeholder-text-color);
+  font-weight: var(--t-normal-font-weight);
 }
 
 /* ScrollPane
@@ -771,21 +586,218 @@
   background: #ccc;
 } */
 
-.sc-manuscript-editor .sc-container-editor .sc-isolated-node {
-  margin: 30px 0;
+/* Surface
+----------------------------------------------------*/
+
+/* Non-Editables should have a regular cursor */
+
+.sc-surface *[contenteditable="false"] { cursor: default; }
+
+.sc-surface *[contenteditable="true"] { cursor: text; }
+
+/* We want Firefox to have a transparent native selection */
+
+::-moz-selection { background: rgba(77, 149, 233, 0.46); }
+
+.sm-selected-node { outline: 2px solid; outline-color: var(--t-focus-color); }
+
+.sc-text-input {
+  line-height: var(--t-input-line-height);
 }
 
-.sc-manuscript-editor .sc-isolated-node.sm-default-style.sm-selected {
-  outline: var(--t-input-focus-border);
+.sc-text-input .se-input {
+  width: 100%;
+  height: var(--t-input-height);
+  border-radius: 5px;
+  padding: var(--t-input-padding);
+  border: var(--t-input-default-border);
+  margin: var(--t-negative-input-padding);
 }
 
-.sc-manuscript-editor .sc-container-editor .sc-isolated-node.sm-focused,
-.sc-manuscript-editor .sc-container-editor .sc-isolated-node.sm-co-focused {
-  outline: none;
+/*.sc-text-input.sm-editable .se-input:hover*/
+
+.sc-text-input:focus .se-input {
+  border: var(--t-input-focus-border);
 }
 
-.sc-manuscript-editor > .se-main-section > .sc-workflow-pane {
+.sc-text-input .se-input.sm-empty {
+  color: var(--t-placeholder-text-color);
+  font-weight: var(--t-normal-font-weight);
+}
+
+.sc-text-input.sm-warning {
+  color: var(--warning-color);
+}
+
+.sc-text-input.sm-warning .se-input {
+  border: 1px solid var(--warning-color);
+  background-color: var(--warning-bg-color);
+}
+
+.sc-text-input.sm-size-small {
+  width: var(--width-small);
+}
+
+.sc-text-input.sm-size-medium {
+  width: var(--width-medium);
+}
+
+.sc-text-input.sm-size-large {
+  width: var(--width-large);
+}
+
+.sc-toggle-tool {
+  position: relative;
+}
+
+/* Position tooltip */
+
+.sc-toggle-tool > .sc-tooltip {
+  display: none;
+  position: absolute;
+  top: 35px;
+  left: 50%;
+  transform: translate(-50%);
+}
+
+.sc-toggle-tool:hover > .sc-tooltip {
+  display: block;
+}
+
+.sc-tool {
+  display: flex;
+  justify-content: space-between;
+  white-space: nowrap;
+  line-height: 2.1;
+  font-size: var(--t-dropdown-font-size);
+  font-weight: var(--t-bold-font-weight);
+  width: 100%;
+  border-radius: var(--t-tool-border-radius);
+  padding: 0px 5px;
+}
+
+.sc-tool:hover {
+  background: var(--t-default-button-background);
+}
+
+.sc-tool > .se-icon {
   flex: 0 0 0;
+  padding-right: 7px;
+}
+
+.sc-tool > .se-keyboard-shortcut {
+  color: rgba(0,0,0,0.4);
+  font-weight: var(--t-normal-font-weight);
+  font-size: 10px;
+  padding-left: var(--t-default-spacing);
+}
+
+/* Disabled tools */
+
+.sc-tool[disabled=true] {
+  opacity: 0.3;
+}
+
+.sc-tool[disabled=true] > .se-keyboard-shortcut {
+  color: rgba(255,255,255,0.4);
+}
+
+.sc-toolbar > .se-active-tools {
+  display: flex;
+  /*flex-wrap: nowrap;*/
+  padding: 2px;
+  justify-content: center;
+}
+
+.sc-toolbar > .se-active-tools .sc-tool-group {
+  flex: 0 0 0;
+  display: flex;
+}
+
+.sc-toolbar > .se-active-tools .sc-tool-group .sc-button {
+  flex: 0 0 0;
+  margin: 2px;
+}
+
+.sc-toolbar > .se-active-tools .sc-tool-dropdown .sc-button {
+  margin: 2px;
+}
+
+.sc-toolbar .sc-tool-group {
+  display: inline-block;
+}
+
+.sc-toolbar .sc-tool-group .sc-button {
+  margin: 0px 1px;
+}
+
+.sc-tooltip {
+  background: #fff;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5)
+}
+
+.sc-tool-dropdown {
+  position: relative;
+}
+
+.sc-tool-dropdown > .se-choices {
+  position: absolute;
+  top: 30px;
+  left: -3px;
+  padding: 4px;
+  background: #fff;
+  box-shadow: var(--t-default-box-shadow);
+  border-radius: var(--t-tool-border-radius);
+}
+
+.sc-tool-dropdown > .se-choices .sc-tool-group {
+  display: block!important;
+}
+
+.sc-tool-dropdown.sm-disabled > .se-toggle {
+  opacity: 0.3;
+}
+
+/* Position tooltip */
+
+.sc-tool-dropdown > .sc-tooltip {
+  display: none;
+  position: absolute;
+  top: 35px;
+  left: 50%;
+  transform: translate(-50%);
+}
+
+.sc-tool-dropdown:hover > .sc-tooltip {
+  display: block;
+}
+
+.sc-tool-separator {
+  position: relative;
+  border: var(--t-default-border);
+  margin: var(--t-half-spacing) 0;
+  cursor: default;
+}
+
+.sc-tool-separator > .se-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 var(--t-half-spacing);
+  background: var(--t-background-color);
+  color: var(--t-light-text-color);
+  font-size: var(--t-tiny-font-size);
+  flex: 0 0 0;
+}
+
+.sc-tool-spacer {
+  flex-grow: 1;
 }
 
 .sc-abstract.sm-hidden {
@@ -801,22 +813,97 @@
   border-radius: var(--t-border-radius);
 }
 
-.sc-unsupported {
-  background: #ccc;
-  margin: 5px 0px;
+.sc-add-reference .se-manual-add > .se-reftypes-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  list-style: none;
+  margin: 0 -5px;
+  padding: 0;
 }
 
-.sc-unsupported-inline-node {
-  display: inline-block;
-  background: #ccc;
-  margin: 5px 0px;
+.sc-add-reference .se-manual-add > .se-reftypes-list > .se-type {
+  flex-grow: 1;
+  width: 30%;
+  height: var(--t-double-spacing);
+  margin: 5px;
+  padding: var(--t-half-spacing) 0;
+  border: var(--t-default-border);
+	border-radius: var(--t-border-radius);
+  text-align: center;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
-.sc-unsupported-inline-node > pre {
-  display: inline-block;
+.sc-add-reference .se-manual-add > .se-reftypes-list > .se-type:hover {
+  background: var(---t-default-button-background);
 }
 
 .sc-affiliations-list {  
+}
+
+.sc-article-panel {
+  display: flex;
+  flex-flow: row nowrap;
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  bottom: 0px;
+}
+
+.sc-article-panel .se-nav-bar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 100%;
+  border-right: 1px solid #b5b5b5;
+  z-index: 99;
+}
+
+.sc-article-panel .se-nav-bar > .sc-toolbar > .se-active-tools .sc-tool-group {
+  display: block;
+}
+
+.sc-article-panel .sc-manuscript-view {
+  flex-grow: 1;
+}
+
+.sc-article-panel .sc-toolbar .se-active-tools {
+  position: relative;
+}
+
+/* View switcher hacks */
+
+.sc-article-panel .sc-toolbar .se-active-tools .sm-mode {
+  flex: 0 0 260px;
+  height: 24px;
+  margin: 2px;
+}
+
+.sc-article-panel .sc-toolbar .se-active-tools .sm-mode .se-keyboard-shortcut {
+  padding: 0;
+}
+
+.sc-toolbar .se-active-tools .sm-mobile-mode,
+.sm-compact .sc-toolbar .se-active-tools .sm-mode {
+  display: none;
+}
+
+.sm-compact .sc-toolbar .se-active-tools .sm-mobile-mode {
+  display: block;
+}
+
+/* Context menu dropdown */
+
+.sc-article-panel .sc-toolbar .sc-tool-dropdown.sm-context-tools > .se-choices {
+  position: absolute;
+  top: 30px;
+  left: initial;
+  right: 0;
+}
+
+.sc-article-panel > .sm-compact .sc-find-and-replace-dialog {
+  margin: 0 auto;
 }
 
 .sc-authors-list.sm-hidden {
@@ -849,53 +936,27 @@
   color: var(--t-light-text-color);
 }
 
-/* TOC
------------------------------------------------------*/
-
-.sc-toc .se-toc-entries { padding: var(--t-default-spacing); }
-
-.sc-toc .se-toc-entries .sc-toc-entry {
-  text-decoration: none;
-  color: var(--t-light-text-color);
-  display: block;
-  padding: 6px 0px;
-  position: relative;
-  cursor: pointer;
-}
-
-.sc-toc .se-toc-entries .sc-toc-entry.sm-hidden {
-  display: none;
-}
-
-.sc-toc .se-toc-entries .sc-toc-entry.sm-active i.fa { visibility: visible; }
-
-.sc-toc .se-toc-entries .sc-toc-entry:hover,
-.sc-toc .se-toc-entries .sc-toc-entry.sm-active {
-  color: var(--t-small-font-size);
-}
-
-.sc-toc .se-toc-entries .sc-toc-entry.sm-level-1 { font-size: var(--t-small-font-size); margin-left: 0px; }
-
-.sc-toc .se-toc-entries .sc-toc-entry.sm-level-2 { font-size: var(--t-small-font-size); margin-left: var(--t-default-spacing); }
-
-.sc-toc .se-toc-entries .sc-toc-entry.sm-level-3 { font-size: var(--t-small-font-size); margin-left: var(--t-double-spacing); }
-
-.sc-block-formula {
+.sc-block-formula > .se-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.sc-block-formula .se-formula {
+.sc-block-formula > .se-content > .se-formula {
   margin: 0px auto;
 }
 
-.sc-block-formula .se-label {
+.sc-block-formula > .se-content > .se-label {
   padding-left: 10px;
 }
 
 .sc-block-formula.sm-error {
   background: var(--t-error-color);
+}
+
+.sc-block-formula-editor {
+  min-width: 500px;
+  padding: var(--t-half-spacing);
 }
 
 .sc-block-quote {
@@ -909,50 +970,97 @@
   font-size: var(--t-small-font-size);
 }
 
-.sc-text-node.sm-preformat {
-  /* TODO: come up with a better design and use variables */
-  border-left: 2px solid #777;
-  padding-left: var(--t-default-spacing);
-  background: #f8f8f8;
+.sc-card {
+  position: relative;
+  max-width: 800px;
+  box-shadow: var(--t-default-box-shadow);
+  margin: var(--t-double-spacing) 0;
+  font-size: var(--t-small-font-size);
 }
 
-.sc-preview {
+.sc-card.sm-selected {
+  outline: var(--t-input-focus-border)
+}
+
+.sc-card > .se-label {
+  position: absolute;
+  top: -10px;
+  left: var(--t-double-spacing);
+  padding: 0px var(--t-default-spacing);
+  background: var(--t-background-color);
+  color: var(--t-light-text-color);
+  cursor: default;
+}
+
+.sc-card.sm-selected > .se-label {
+  background: var(--t-focus-color);
+  color: var(--t-inverted-text-color);
+}
+
+.sc-card .sc-form-row {
+  margin: var(--t-default-spacing) 0;
+}
+
+.sc-card > * {
+  padding: var(--t-default-spacing);
+}
+
+.sc-card > * > .se-header {
+  font-size: var(--t-text-font-size);
+  margin-bottom: var(--t-default-spacing);
+  margin-top: 0px;
+  cursor: default;
+}
+
+.sc-card > * > .se-footer {
   display: flex;
-  font-size: var(--t-tiny-font-size);
+  justify-content: space-between;
+  margin: 0;
 }
 
-.sc-preview .se-thumbnail {
-  max-width: 60px;
+.sc-card > * > .se-footer > .se-control {
+  font-size: 12px;
+  color: var(--t-action-color);
+  cursor: pointer;
+  margin-bottom: 0px;
 }
 
-.sc-preview .se-label {
-  white-space: nowrap;
-  flex: 0 0 var(--t-double-spacing);
-  padding-left: var(--t-half-spacing);
+.sc-card > * > .se-footer > .se-control > .se-icon {
+  margin-right: 10px;
 }
 
-.sc-preview a {
-  text-decoration: none;
-  color: var(--t-text-color);
+.sc-checkbox {
+  width: 100%;
+  cursor: pointer;
+  padding: 4px;
+  margin: -4px -2px;
 }
 
-.sc-edit-xref-tool {
-  max-width: 440px;
-  max-height: 500px;
+.sc-context-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-context-section > .se-context-content {
+  flex: 1 1 0;
   overflow: auto;
 }
 
-.sc-edit-xref-tool .se-option {
-  padding: 5px;
-  cursor: pointer;
-  border-left: 3px solid transparent;
-  border-bottom: 1px solid var(--t-separator-color);
+.sc-manuscript-editor .sc-container-editor .sc-isolated-node {
+  margin: 30px 0;
 }
 
-.sc-edit-xref-tool .se-option.sm-selected {
-  border-left: 3px solid var(--t-action-color);
-  color: var(--t-text-color);
-  background: var(--t-light-background-color);
+.sc-manuscript-editor .sc-isolated-node.sm-default-style.sm-selected {
+  outline: var(--t-input-focus-border);
+}
+
+.sc-manuscript-editor .sc-container-editor .sc-isolated-node.sm-focused,
+.sc-manuscript-editor .sc-container-editor .sc-isolated-node.sm-co-focused {
+  outline: none;
+}
+
+.sc-manuscript-editor > .se-main-section > .sc-workflow-pane {
+  flex: 0 0 0;
 }
 
 .sc-edit-math-tool {
@@ -979,126 +1087,44 @@
   min-width: 500px;
 }
 
-.sc-math {
-  position: relative;
-  display: inline-block;
+/* TODO: this is a hack. Instead we should use defined configurations for modals */
+
+.sc-modal-dialog.sm-workflow-edit-reference .se-body {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  max-width: 100%;
+  max-height: 100%;
 }
 
-.sc-math > .se-blocker {
-  position: absolute;
-  left: 0px;
-  right: 0px;
-  top: 0px;
-  bottom: 0px;
+.sc-modal-dialog.sm-workflow-edit-reference .se-body .sc-card {
+  margin: 2px;
 }
 
-.sc-math ::-moz-selection { background: none; }
-
-.sc-math ::selection { background: none; }
-
-.sc-math .katex {
-  display: inline-block;
+.sc-edit-xref-tool {
+  max-width: 440px;
+  max-height: 500px;
+  overflow: auto;
 }
 
-.sc-math .katex-mathml {
-  display: none;
+.sc-edit-xref-tool .se-option {
+  padding: 5px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--t-separator-color);
 }
 
-.sc-inline-formula.sm-selected .sc-math .katex,
-.sc-inline-formula.sm-co-selected .sc-math .katex  {
-  background: var(--t-focus-color);
+.sc-edit-xref-tool .se-option.sm-selected {
+  border-left: 3px solid var(--t-action-color);
+  color: var(--t-text-color);
+  background: var(--t-light-background-color);
 }
 
-.sc-math .sm-error {
-  background: var(--t-error-color);
-}
-
-.sc-footnote-group.sm-hidden {
-  display: none;
-}
-
-.sc-footnote-group .sc-footnote  {
-  margin: var(--t-text-spacing) 0;
-}
-
-.sc-footnote-group .sc-footnote:first-child {
-  margin-top: 0 !important;
-}
-
-.sc-footnote-group .sc-footnote:last-child {
-  margin-bottom: 0 !important;
-}
-
-.sc-footnote {
-  margin: var(--t-half-spacing) 0;
-}
-
-.sc-footnote .se-container {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-}
-
-.sc-footnote .se-container .se-label {
-  position: relative;
-  min-width: var(--t-default-spacing);
-  margin: 0 var(--t-default-spacing);
-  font-weight: var(--t-bold-font-weight);
-  text-align: center;
-  cursor: default;
-}
-
-.sc-footnote > .se-container > .sc-container-editor {
-  width: 100%;
-}
-
-.sc-reference-list.sm-hidden {
-  display: none;
-}
-
-.sc-reference-list .sc-reference  {
-  margin: var(--t-text-spacing) 0;
-}
-
-.sc-reference-list .sc-reference.sm-selected {
-  outline: var(--t-input-focus-border);
-}
-
-.sc-reference-list .sc-reference:first-child {
-  margin-top: 0 !important;
-}
-
-.sc-reference-list .sc-reference:last-child {
-  margin-bottom: 0 !important;
-}
-
-.sc-reference {
-  display: flex;
-  flex: 1 1 0;
-  cursor: default;
-}
-
-/* HACK: this is a quick-fix. Without references were broken when displayed in Metadata view */
-
-.sc-reference.sm-metadata {
-  display: block;
-}
-
-.sc-reference > .se-label {
-  min-width: var(--t-default-spacing);
-  margin: 0 var(--t-default-spacing);
-  font-weight: var(--t-bold-font-weight);
-  text-align: center;
-}
-
-.sc-xref {
-  color: var(--t-action-color);
-  white-space: nowrap;
-}
-
-.sc-xref.sm-fn {
-  vertical-align: super;
-  font-size: smaller;
+.sc-external-link {
+  color: inherit;
+  text-decoration: underline;
 }
 
 .sc-figure.sm-manuscript {
@@ -1156,38 +1182,136 @@
   opacity: 0.5;
 }
 
-.sc-table-figure {
-  box-shadow: var(--t-default-box-shadow);
-  padding: var(--t-default-spacing);
+.sc-fig-preview {
+  font-size: 12px;
+  border-bottom: 1px solid var(--t-separator-color);
+  padding: 5px 10px;
+  cursor: pointer;
+  position: relative;
+  line-height: 1.5em;
+  border-left: 3px solid transparent;
 }
 
-.sc-table-figure > .sc-section-label:first-child {
-  margin-top: 0;
+.sc-fig-preview .se-thumbnail {
+  display: table-cell;
+  width: 70px;
 }
 
-.sc-table-figure > .se-label {
-  padding-bottom: var(--t-half-spacing);
+.sc-fig-preview .se-label {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  padding-left: 10px;
+}
+
+.sc-fig-preview.sm-selected {
+  border-left: 3px solid var(--t-focus-color);
+  color: var(--t-text-color);
+  background: var(--t-light-background-color);
+}
+
+.sc-fig-preview a {
+  text-decoration: none;
+}
+
+.sc-file-upload {
+  position: relative;
+}
+
+.sc-file-upload > .se-drop-import {
+  border: 1px dotted var(--t-light-text-color);
+  border-radius: var(--t-border-radius);
+  padding: var(--t-half-spacing);
+  text-align: center;
+  color: var(--t-light-text-color);
+}
+
+.sc-file-upload > .se-drop-import > input {
+  display: none;
+}
+
+.sc-file-upload > .se-drop-import > .se-select-trigger {
+  color: var(--t-action-color);
+  cursor: pointer;
+}
+
+.sc-footnote {
+  margin: var(--t-half-spacing) 0;
+}
+
+.sc-footnote .se-container {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+}
+
+.sc-footnote .se-container .se-label {
+  position: relative;
+  min-width: var(--t-default-spacing);
+  margin: 0 var(--t-default-spacing);
   font-weight: var(--t-bold-font-weight);
+  text-align: center;
+  cursor: default;
 }
 
-.sc-table-figure > .se-title {
-  font-weight: var(--t-bold-font-weight);
+.sc-footnote > .se-container > .sc-container-editor {
+  width: 100%;
 }
 
-.sc-table-figure > .sc-caption {
-  font-size: var(--t-small-font-size);
+.sc-footnote-group.sm-hidden {
+  display: none;
 }
 
-.sc-table-figure > .se-table-figure-footnotes {
-  font-size: var(--t-small-font-size);
+.sc-footnote-group .sc-footnote  {
+  margin: var(--t-text-spacing) 0;
 }
 
-.sc-table-figure > .se-table-figure-footnotes > .sc-footnote {
-  padding-bottom: var(--t-half-spacing);
+.sc-footnote-group .sc-footnote:first-child {
+  margin-top: 0 !important;
 }
 
-.sc-table-figure > .se-table-figure-footnotes > .sc-footnote .se-label {
-  margin: 0 var(--t-half-spacing) 0 0;
+.sc-footnote-group .sc-footnote:last-child {
+  margin-bottom: 0 !important;
+}
+
+.sc-form-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+}
+
+.sc-form-row > .se-label {
+  cursor: default;
+  display: block;
+  flex: 1 0 200px;
+  font-size: var(--t-tiny-font-size);
+  color: var(--t-light-text-color);
+}
+
+.sc-form-row > .se-label::after {
+  content: ':'
+}
+
+.sc-form-row > .se-editor {
+  width: 100%;
+}
+
+.sc-form-row.sm-warning > .se-label > .se-warning {
+  position: absolute;
+  top: 2px;
+  left: 175px;
+}
+
+.sc-form-row.sm-warning > .se-label > .se-warning > .se-icon {
+  color: var(--t-warning-color);
+}
+
+.sc-form-row.sm-warning > .se-label > .se-warning > .sc-tooltip {
+  display: none;
+}
+
+.sc-form-row.sm-warning > .se-label > .se-warning:hover > .sc-tooltip {
+  display: block;
 }
 
 .sc-graphic img {
@@ -1208,6 +1332,65 @@
   margin-right: 10px;
 }
 
+.sc-heading {
+  /* padding-top: var(--t-half-spacing); */
+  font-weight: var(--t-bold-font-weight);
+}
+
+h1.sc-heading {
+  font-size: var(--t-h1-font-size);
+}
+
+h2.sc-heading {
+  font-size: var(--t-h2-font-size);
+}
+
+h3.sc-heading {
+  font-size: var(--t-h3-font-size);
+}
+
+.sc-jats-import-dialog {
+  position: fixed;
+  left: 50px;
+  right: 50px;
+  top: 50px;
+  bottom: 50px;
+  padding: 20px;
+  background: #f1f1f1;
+  box-shadow: 0 2px 4px 0 rgba(0,0,0,0.50);
+  overflow: auto;
+}
+
+.sc-import-stage.sm-initial {
+  color: #eee;
+}
+
+.sc-import-stage.sm-errored {
+  color: red;
+}
+
+.sc-import-stage.sm-finished {
+  color: green;
+}
+
+.sc-import-stage > .se-errors > .se-error {
+  margin-top: 5px;
+  padding: 5px 10px;
+  border: solid 1px red;
+  background: rgba(200, 0, 0 , 0.25)
+}
+
+.sc-import-stage > .se-errors > .se-error > .se-element {
+  color: #666;
+}
+
+/* TODO: this is not solved yet. Would be nice to have something that popsup when hovering over
+   an errored inline-formula */
+
+.sc-inline-formula.sm-error .se-message {
+  display: none;
+}
+
 .sc-inline-graphic {
   display: inline-block;
 }
@@ -1222,8 +1405,481 @@
   color: #d95859;
 }
 
-.sc-upload-tool > input {
+.sc-math {
+  position: relative;
+  display: inline-block;
+}
+
+.sc-math > .se-blocker {
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  bottom: 0px;
+}
+
+.sc-math ::-moz-selection { background: none; }
+
+.sc-math ::selection { background: none; }
+
+.sc-math .katex {
+  display: inline-block;
+}
+
+.sc-math .katex-mathml {
   display: none;
+}
+
+.sc-inline-formula.sm-selected .sc-math .katex,
+.sc-inline-formula.sm-co-selected .sc-math .katex  {
+  background: var(--t-focus-color);
+}
+
+.sc-math .sm-error {
+  background: var(--t-error-color);
+}
+
+.sc-manuscript {
+  max-width: 760px;
+  padding: 30px;
+}
+
+.sc-manuscript-view.sm-compact .sc-manuscript {
+  margin: 0 auto;
+}
+
+.sc-manuscript .sc-string.sm-title {
+  font-size: var(--t-title-font-size);
+  font-weight: var(--t-bold-font-weight);
+}
+
+.sc-manuscript-view {
+  flex-grow: 1;
+}
+
+.sc-manuscript-view {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+}
+
+.sc-manuscript-view .se-toolbar-wrapper {
+  z-index: 1000;
+  padding: 4px;
+  padding-bottom: 4px;
+  box-shadow: var(--t-default-box-shadow);
+}
+
+.sc-manuscript-view.sm-compact .se-toolbar-wrapper {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.sc-manuscript-view .se-toolbar-wrapper .sc-toolbar {
+  max-width: 980px; /* 760 - 50 for padding */
+}
+
+.sc-manuscript-view.sm-compact .se-toolbar-wrapper .sc-toolbar {
+  margin: 0 auto;
+  max-width: 710px;
+}
+
+.sc-manuscript-view > .se-context-pane {
+  flex: 0 2 300px;
+  border-left: var(--t-default-border);
+  position: relative;
+}
+
+/* This seems to be obsolete
+TODO: remove this if so
+.sc-manuscript-view .sc-container-editor.sm-body {
+  padding: 0;
+  margin: 0 auto;
+}
+*/
+
+.sc-manuscript-view .se-context-pane > .se-context-pane-content {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  overflow: auto;
+}
+
+.sc-manuscript-view > .se-main-section {
+  flex: 1 1 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sc-manuscript-view > .se-main-section > .se-toolbar-wrapper {
+  flex: 0 0 40px;
+}
+
+.sc-manuscript-view > .se-main-section > .se-content-section {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.sc-manuscript-view > .se-main-section > .se-content-section > .se-toc-pane {
+  flex: 0 0 250px;
+  overflow: auto;
+}
+
+/* Do not display in compact mode to make more space for the rest */
+
+.sc-manuscript-view.sm-compact > .se-main-section > .se-content-section > .se-toc-pane {
+  display: none;
+}
+
+.sc-manuscript-view > .se-main-section > .se-content-section > .se-toc-pane.sm-hidden {
+  display: none;
+}
+
+.sc-manuscript-view > .se-main-section > .se-content-section > .sc-scroll-pane {
+  flex: 1 1 600px;
+}
+
+.sc-manuscript-view .se-main-section .sc-scroll-pane {
+  position: relative;
+}
+
+.sc-manuscript-view .sc-container-editor:not(.sm-body):not(.sm-readonly) {
+  border: var(--t-input-default-border);
+  border-radius: var(--t-border-radius);
+  padding: var(--t-input-padding);
+  margin: var(--t-negative-input-padding);
+}
+
+.sc-manuscript-view .sc-container-editor:not(.sm-body):not(.sm-readonly):focus {
+  border: var(--t-input-focus-border);
+}
+
+/* Add padding to each child except last one */
+
+.sc-manuscript-view .sc-container-editor > * {
+  margin: var(--t-text-spacing) 0;
+}
+
+.sc-manuscript-view .sc-container-editor > *:first-child {
+  margin-top: 0 !important;
+}
+
+.sc-manuscript-view .sc-container-editor > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.sc-manuscript-view .se-footer-pane {
+  background: white;
+  border-top: var(--t-default-border);
+}
+
+.sc-metadata-field {
+  display: flex;
+  margin: var(--t-half-spacing) 0;
+  font-size: var(--t-small-font-size);
+}
+
+.sc-metadata-field > .sc-string {
+  flex: 1;
+}
+
+.sc-metadata-field > .se-field-name {
+  font-weight: var(--t-bold-font-weight);
+}
+
+/* Placeholder for empty custom fields set in metadata mode */
+
+.sc-figure-metadata.sm-empty {
+  color: var(--t-placeholder-text-color);
+}
+
+.sc-modal-dialog {
+  z-index: 500000;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  margin: 0;
+  overflow: auto;
+  background: rgba(0,0,0,0.7);
+}
+
+.sc-modal-dialog.sm-transparent-bg {
+  background: transparent;
+}
+
+.sc-modal-dialog > .se-vertical-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sc-modal-dialog > .se-vertical-container > .se-vertical-spacer {
+  height: calc(2*var(--t-default-spacing));
+}
+
+.sc-modal-dialog > .se-vertical-container > .se-horizontal-container {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+}
+
+.sc-modal-dialog > .se-vertical-container > .se-horizontal-container > .se-horizontal-spacer {
+  flex-grow: 0;
+  width: var(--t-default-spacing);
+  height: 100%;
+}
+
+.sc-modal-dialog > .se-vertical-container > .se-horizontal-container > .se-body {
+  flex-grow: 1;
+}
+
+.sc-modal-dialog > .se-vertical-container > .se-horizontal-container > .se-body > .se-content {
+  height: 100%;
+}
+
+.sc-modal-dialog .se-body {
+  position: relative;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 0 25px 0 rgba(0,0,0,0.8);
+}
+
+.sc-modal-dialog .se-body .se-close-button {
+  position: absolute;
+  /* HACK: let's introduce some z-index guidelines */
+  z-index: 10000;
+  right: var(--t-button-padding);
+  top: var(--t-button-padding);
+  font-size: var(--t-large-font-size);
+}
+
+/* .sc-modal-dialog.sm-width-small .se-body { max-width: var(--t-small-layout-width); }
+.sc-modal-dialog.sm-width-medium .se-body { max-width: var(--t-medium-layout-width); }
+.sc-modal-dialog.sm-width-large .se-body { max-width: var(--t-large-layout-width); } */
+
+.sc-multi-select-input {
+  width: 100%;
+  line-height: var(--t-input-line-height);
+  cursor: pointer;
+  padding: var(--t-input-padding);
+  margin: var(--t-negative-input-padding);
+  border-radius: var(--t-border-radius);
+  border: var(--t-input-default-border);
+}
+
+.sc-multi-select-input.sm-active {
+  border: var(--t-input-focus-border);
+  background: #218df312;
+}
+
+.sc-multi-select-input.sm-empty .se-label {
+  color: var(--t-placeholder-text-color);
+  font-weight: var(--t-normal-font-weight);
+}
+
+.sc-multi-select-input .se-select-editor {
+  position: absolute;
+  top: 55px;
+  left: 200px;
+  background: #fff;
+  border: 1px solid #8a8a8a;
+  padding: 10px 20px;
+  max-width: 100%;
+  box-shadow: 0px 3px 7px 1px #777;
+  z-index: 99;
+}
+
+.sc-multi-select-input .se-select-editor .se-select-label {
+  text-align: center;
+  font-size: 12px;
+  color: #8a8a8a;
+  margin-bottom: 10px;
+}
+
+.sc-multi-select-input .se-select-editor .se-select-item {
+  display: flex;
+  cursor: pointer;
+}
+
+.sc-multi-select-input .se-select-editor .se-select-item .se-icon {
+  margin: 5px 0px;
+  width: 20px;
+}
+
+.sc-multi-select-input .se-select-editor .se-select-item .se-item-label {
+  margin-left: 10px;
+}
+
+.sc-multi-select-input .se-select-editor .se-arrow {
+  width: 60px;
+  height: 16px;
+  overflow: hidden;
+  position: absolute;
+  left: 50%;
+  margin-left: -30px;
+  top: -16px;
+}
+
+.sc-multi-select-input .se-select-editor .se-arrow:after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  transform: rotate(45deg);
+  border: 1px solid #8a8a8a;
+  background: #fff;
+}
+
+.sc-text-node.sm-preformat {
+  /* TODO: come up with a better design and use variables */
+  border-left: 2px solid #777;
+  padding-left: var(--t-default-spacing);
+  background: #f8f8f8;
+}
+
+.sc-preview {
+  display: flex;
+  font-size: var(--t-tiny-font-size);
+}
+
+.sc-preview .se-thumbnail {
+  max-width: 60px;
+}
+
+.sc-preview .se-label {
+  white-space: nowrap;
+  flex: 0 0 var(--t-double-spacing);
+  padding-left: var(--t-half-spacing);
+}
+
+.sc-preview a {
+  text-decoration: none;
+  color: var(--t-text-color);
+}
+
+.sc-query {
+	position: relative;
+}
+
+.sc-query.sm-error .se-button {
+	background-color: var(--t-error-color);
+  color: var(--t-error-text-color);
+}
+
+.sc-reference {
+  display: flex;
+  flex: 1 1 0;
+  cursor: default;
+}
+
+/* HACK: this is a quick-fix. Without references were broken when displayed in Metadata view */
+
+.sc-reference.sm-metadata {
+  display: block;
+}
+
+.sc-reference > .se-label {
+  min-width: var(--t-default-spacing);
+  margin: 0 var(--t-default-spacing);
+  font-weight: var(--t-bold-font-weight);
+  text-align: center;
+}
+
+.sc-reference-list.sm-hidden {
+  display: none;
+}
+
+.sc-reference-list .sc-reference  {
+  margin: var(--t-text-spacing) 0;
+}
+
+.sc-reference-list .sc-reference.sm-selected {
+  outline: var(--t-input-focus-border);
+}
+
+.sc-reference-list .sc-reference:first-child {
+  margin-top: 0 !important;
+}
+
+.sc-reference-list .sc-reference:last-child {
+  margin-bottom: 0 !important;
+}
+
+.sc-inplace-ref-contrib-editor {
+  font-size: var(--input-font-size);
+  line-height: var(--input-line-height);
+}
+
+.sc-inplace-ref-contrib-editor > .sc-form-row {
+  width: 100%;
+}
+
+.sc-inplace-ref-contrib-editor > .sc-form-row > .se-editor {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sc-inplace-ref-contrib-editor > .sc-form-row > .se-editor > * {
+  width: 100%;
+  margin-right: 10px;
+}
+
+.sc-inplace-ref-contrib-editor > .sc-form-row > .se-editor > .se-remove-value {
+  width: 10px;
+}
+
+.sc-section-label {
+  font-weight: var(--t-bold-font-weight);
+  font-size: var(--t-tiny-font-size);
+  color: var(--t-light-text-color);
+  margin-top: var(--t-default-spacing);
+  margin-bottom: var(--t-half-spacing);
+  cursor: default;
+}
+
+.sc-supplementary-file.sm-manuscript {
+  box-shadow: var(--t-default-box-shadow);
+  padding: var(--t-default-spacing);
+}
+
+.sc-supplementary-file > .se-header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sc-supplementary-file > .se-header > .se-label {
+  flex-shrink: 0;
+  margin-right: var(--t-default-spacing);
+  font-weight: var(--t-bold-font-weight);
+}
+
+.sc-supplementary-file > .se-href {
+  font-weight: var(--t-bold-font-weight);
+  font-family: monospace, monospace;
+}
+
+.sc-supplementary-file > .sc-caption {
+  font-size: var(--t-small-font-size);
+}
+
+.sc-supplementary-file.sm-preview > .sc-preview {
+  display: block;
+  padding-left: var(--t-half-spacing);
+}
+
+.sc-supplementary-file.sm-preview > .sc-preview > * {
+  padding-left: 0;
 }
 
 .sc-table {
@@ -1275,60 +1931,178 @@
   background: rgba(38, 132, 252, 0.1)
 }
 
-.sc-fig-preview {
-  font-size: 12px;
-  border-bottom: 1px solid var(--t-separator-color);
-  padding: 5px 10px;
-  cursor: pointer;
-  position: relative;
-  line-height: 1.5em;
-  border-left: 3px solid transparent;
+.sc-table-figure {
+  box-shadow: var(--t-default-box-shadow);
+  padding: var(--t-default-spacing);
 }
 
-.sc-fig-preview .se-thumbnail {
-  display: table-cell;
-  width: 70px;
+.sc-table-figure > .sc-section-label:first-child {
+  margin-top: 0;
 }
 
-.sc-fig-preview .se-label {
-  display: table-cell;
-  text-align: center;
-  vertical-align: middle;
-  padding-left: 10px;
+.sc-table-figure > .se-label {
+  padding-bottom: var(--t-half-spacing);
+  font-weight: var(--t-bold-font-weight);
 }
 
-.sc-fig-preview.sm-selected {
-  border-left: 3px solid var(--t-focus-color);
-  color: var(--t-text-color);
-  background: var(--t-light-background-color);
+.sc-table-figure > .se-title {
+  font-weight: var(--t-bold-font-weight);
 }
 
-.sc-fig-preview a {
+.sc-table-figure > .sc-caption {
+  font-size: var(--t-small-font-size);
+}
+
+.sc-table-figure > .se-table-figure-footnotes {
+  font-size: var(--t-small-font-size);
+}
+
+.sc-table-figure > .se-table-figure-footnotes > .sc-footnote {
+  padding-bottom: var(--t-half-spacing);
+}
+
+.sc-table-figure > .se-table-figure-footnotes > .sc-footnote .se-label {
+  margin: 0 var(--t-half-spacing) 0 0;
+}
+
+.sc-table-footnotes-editor {
+  font-size: var(--input-font-size);
+  line-height: var(--input-line-height);
+}
+
+.sc-table-footnotes-editor > .sc-footnote {
+  padding-bottom: var(--t-half-spacing);
+}
+
+.sc-table-footnotes-editor > .sc-footnote .se-label {
+  margin: 0 var(--t-half-spacing) 0 0;
+}
+
+/* TOC
+-----------------------------------------------------*/
+
+.sc-toc .se-toc-entries { padding: var(--t-default-spacing); }
+
+.sc-toc .se-toc-entries .sc-toc-entry {
   text-decoration: none;
+  color: var(--t-light-text-color);
+  display: block;
+  padding: 6px 0px;
+  position: relative;
+  cursor: pointer;
 }
 
-.sc-context-section {
+.sc-toc .se-toc-entries .sc-toc-entry.sm-hidden {
+  display: none;
+}
+
+.sc-toc .se-toc-entries .sc-toc-entry.sm-active i.fa { visibility: visible; }
+
+.sc-toc .se-toc-entries .sc-toc-entry:hover,
+.sc-toc .se-toc-entries .sc-toc-entry.sm-active {
+  color: var(--t-small-font-size);
+}
+
+.sc-toc .se-toc-entries .sc-toc-entry.sm-level-1 { font-size: var(--t-small-font-size); margin-left: 0px; }
+
+.sc-toc .se-toc-entries .sc-toc-entry.sm-level-2 { font-size: var(--t-small-font-size); margin-left: var(--t-default-spacing); }
+
+.sc-toc .se-toc-entries .sc-toc-entry.sm-level-3 { font-size: var(--t-small-font-size); margin-left: var(--t-double-spacing); }
+
+.sc-unsupported {
+  background: #ccc;
+  margin: 5px 0px;
+}
+
+.sc-unsupported-inline-node {
+  display: inline-block;
+  background: #ccc;
+  margin: 5px 0px;
+}
+
+.sc-unsupported-inline-node > pre {
+  display: inline-block;
+}
+
+.sc-upload-tool > input {
+  display: none;
+}
+
+.se-workflow-modal .sm-workflow {
+  padding: var(--t-default-spacing);
+}
+
+.se-workflow-modal .sm-workflow > .se-title {
+  font-size: var(--t-large-font-size);
+  margin: 0 0 var(--t-default-spacing);
+}
+
+.se-workflow-modal .sm-workflow .sc-dialog-section {
+  margin: var(--t-half-spacing) 0;
+}
+
+.se-workflow-modal .sm-workflow .se-dialog-section-title {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
 }
 
-.sc-context-section > .se-context-content {
-  flex: 1 1 0;
-  overflow: auto;
+.se-workflow-modal .sm-workflow .se-dialog-section-title > .se-label {
+  font-size: var(--t-text-font-size);
+  color: var(--t-light-text-color);
+  padding: var(--t-half-spacing) 0;
 }
 
-.sc-modal-dialog.sm-workflow-edit-reference .se-body {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 800px;
-  max-width: 100%;
-  max-height: 100%;
+.se-workflow-modal .sm-workflow .se-dialog-section-title > .se-description {
+  align-self: center;
+  color: var(--t-light-text-color);
+  font-size: var(--t-small-font-size);
 }
 
-.sc-modal-dialog.sm-workflow-edit-reference .se-body .sc-card {
-  margin: 2px;
+/*
+  TODO: When we will have a better understanding of 
+  validation UI we should tidyup error popups or 
+  replace them with something more general
+*/
+
+.se-workflow-modal .se-error-popup {
+  position: absolute;
+  top: var(--t-double-spacing);
+  right: var(--t-default-spacing);
+  width: var(--t-small-layout-width);
+  background: var(--t-background-color);
+  border-radius: var(--t-border-radius);
+  box-shadow: var(--t-popup-box-shadow);
+  font-size: var(--t-tiny-font-size);
+  text-align: center;
+  color: var(--t-error-text-color);
+  z-index: 10;
+}
+
+.se-workflow-modal .se-error-popup > ul {
+  list-style: none;
+  padding: var(--t-half-spacing);
+  text-align: left;
+}
+
+.sc-xref {
+  color: var(--t-action-color);
+  white-space: nowrap;
+}
+
+.sc-xref.sm-fn {
+  vertical-align: super;
+  font-size: smaller;
+}
+
+/* HACKZ:
+  1. do not position the Edit dropdown on the right because ATM there is the
+  modal close button.
+  2. hide the save button
+*/
+
+.sc-modal-dialog .sc-metadata-editor .se-toolbar-wrapper .sc-tool-spacer,
+.sc-modal-dialog .sc-metadata-editor .se-toolbar-wrapper button.sm-save {
+  display: none;
 }
 
 .sc-metadata-editor {
@@ -1475,764 +2249,5 @@
   background: white;
   border-top: var(--t-default-border);
 }
-
-.sc-translatable-editor .se-editor {
-  display: flex;
-}
-
-.sc-translatable-editor .se-editor > *:first-child {
-  flex: 1;
-}
-
-.sc-translatable-editor .se-editor > .se-remove {
-  width: 10px;
-  margin-left: 10px;
-  cursor: pointer;
-}
-
-/* TODO: this is not solved yet. Would be nice to have something that popsup when hovering over
-   an errored inline-formula */
-
-.sc-inline-formula.sm-error .se-message {
-  display: none;
-}
-
-.sc-manuscript-view {
-  flex-grow: 1;
-}
-
-.sc-manuscript-view {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-}
-
-.sc-manuscript-view .se-toolbar-wrapper {
-  z-index: 1000;
-  padding: 4px;
-  padding-bottom: 4px;
-  box-shadow: var(--t-default-box-shadow);
-}
-
-.sc-manuscript-view.sm-compact .se-toolbar-wrapper {
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
-.sc-manuscript-view .se-toolbar-wrapper .sc-toolbar {
-  max-width: 980px; /* 760 - 50 for padding */
-}
-
-.sc-manuscript-view.sm-compact .se-toolbar-wrapper .sc-toolbar {
-  margin: 0 auto;
-  max-width: 710px;
-}
-
-.sc-manuscript-view > .se-context-pane {
-  flex: 0 2 300px;
-  border-left: var(--t-default-border);
-  position: relative;
-}
-
-/* This seems to be obsolete
-TODO: remove this if so
-.sc-manuscript-view .sc-container-editor.sm-body {
-  padding: 0;
-  margin: 0 auto;
-}
-*/
-
-.sc-manuscript-view .se-context-pane > .se-context-pane-content {
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  right: 0px;
-  bottom: 0px;
-  overflow: auto;
-}
-
-.sc-manuscript-view > .se-main-section {
-  flex: 1 1 600px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sc-manuscript-view > .se-main-section > .se-toolbar-wrapper {
-  flex: 0 0 40px;
-}
-
-.sc-manuscript-view > .se-main-section > .se-content-section {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: row;
-}
-
-.sc-manuscript-view > .se-main-section > .se-content-section > .se-toc-pane {
-  flex: 0 0 250px;
-  overflow: auto;
-}
-
-/* Do not display in compact mode to make more space for the rest */
-
-.sc-manuscript-view.sm-compact > .se-main-section > .se-content-section > .se-toc-pane {
-  display: none;
-}
-
-.sc-manuscript-view > .se-main-section > .se-content-section > .se-toc-pane.sm-hidden {
-  display: none;
-}
-
-.sc-manuscript-view > .se-main-section > .se-content-section > .sc-scroll-pane {
-  flex: 1 1 600px;
-}
-
-.sc-manuscript-view .se-main-section .sc-scroll-pane {
-  position: relative;
-}
-
-.sc-manuscript-view .sc-container-editor:not(.sm-body):not(.sm-readonly) {
-  border: var(--t-input-default-border);
-  border-radius: var(--t-border-radius);
-  padding: var(--t-input-padding);
-  margin: var(--t-negative-input-padding);
-}
-
-.sc-manuscript-view .sc-container-editor:not(.sm-body):not(.sm-readonly):focus {
-  border: var(--t-input-focus-border);
-}
-
-/* Add padding to each child except last one */
-
-.sc-manuscript-view .sc-container-editor > * {
-  margin: var(--t-text-spacing) 0;
-}
-
-.sc-manuscript-view .sc-container-editor > *:first-child {
-  margin-top: 0 !important;
-}
-
-.sc-manuscript-view .sc-container-editor > *:last-child {
-  margin-bottom: 0 !important;
-}
-
-.sc-manuscript-view .se-footer-pane {
-  background: white;
-  border-top: var(--t-default-border);
-}
-
-.sc-manuscript {
-  max-width: 760px;
-  padding: 30px;
-}
-
-.sc-manuscript-view.sm-compact .sc-manuscript {
-  margin: 0 auto;
-}
-
-.sc-manuscript .sc-string.sm-title {
-  font-size: var(--t-title-font-size);
-  font-weight: var(--t-bold-font-weight);
-}
-
-.sc-text-input {
-  line-height: var(--t-input-line-height);
-}
-
-.sc-text-input .se-input {
-  width: 100%;
-  height: var(--t-input-height);
-  border-radius: 5px;
-  padding: var(--t-input-padding);
-  border: var(--t-input-default-border);
-  margin: var(--t-negative-input-padding);
-}
-
-/*.sc-text-input.sm-editable .se-input:hover*/
-
-.sc-text-input:focus .se-input {
-  border: var(--t-input-focus-border);
-}
-
-/* TODO: use variables! */
-
-.sc-text-input .se-input.sm-empty {
-  color: var(--t-placeholder-text-color);
-  font-weight: var(--t-normal-font-weight);
-}
-
-.sc-text-input.sm-warning {
-  color: var(--warning-color);
-}
-
-.sc-text-input.sm-warning .se-input {
-  border: 1px solid var(--warning-color);
-  background-color: var(--warning-bg-color);
-}
-
-.sc-text-input.sm-size-small {
-  width: var(--width-small);
-}
-
-.sc-text-input.sm-size-medium {
-  width: var(--width-medium);
-}
-
-.sc-text-input.sm-size-large {
-  width: var(--width-large);
-}
-
-/* HACK: unfortunately Substance default-style is using a hard-coded value  */
-
-.sc-text-input .sc-text-property.sm-empty .se-placeholder {
-  /* TODO: use variables! */
-  color: inherit !important;
-}
-
-.sc-multi-select-input {
-  width: 100%;
-  line-height: var(--t-input-line-height);
-  cursor: pointer;
-  padding: var(--t-input-padding);
-  margin: var(--t-negative-input-padding);
-  border-radius: var(--t-border-radius);
-  border: var(--t-input-default-border);
-}
-
-.sc-multi-select-input.sm-active {
-  border: var(--t-input-focus-border);
-  background: #218df312;
-}
-
-.sc-multi-select-input.sm-empty .se-label {
-  color: var(--t-placeholder-text-color);
-  font-weight: var(--t-normal-font-weight);
-}
-
-.sc-multi-select-input .se-select-editor {
-  position: absolute;
-  top: 55px;
-  left: 200px;
-  background: #fff;
-  border: 1px solid #8a8a8a;
-  padding: 10px 20px;
-  max-width: 100%;
-  box-shadow: 0px 3px 7px 1px #777;
-  z-index: 99;
-}
-
-.sc-multi-select-input .se-select-editor .se-select-label {
-  text-align: center;
-  font-size: 12px;
-  color: #8a8a8a;
-  margin-bottom: 10px;
-}
-
-.sc-multi-select-input .se-select-editor .se-select-item {
-  display: flex;
-  cursor: pointer;
-}
-
-.sc-multi-select-input .se-select-editor .se-select-item .se-icon {
-  margin: 5px 0px;
-  width: 20px;
-}
-
-.sc-multi-select-input .se-select-editor .se-select-item .se-item-label {
-  margin-left: 10px;
-}
-
-.sc-multi-select-input .se-select-editor .se-arrow {
-  width: 60px;
-  height: 16px;
-  overflow: hidden;
-  position: absolute;
-  left: 50%;
-  margin-left: -30px;
-  top: -16px;
-}
-
-.sc-multi-select-input .se-select-editor .se-arrow:after {
-  content: "";
-  position: absolute;
-  left: 20px;
-  top: 10px;
-  width: 20px;
-  height: 20px;
-  transform: rotate(45deg);
-  border: 1px solid #8a8a8a;
-  background: #fff;
-}
-
-.sc-checkbox {
-  width: 100%;
-  cursor: pointer;
-  padding: 4px;
-  margin: -4px -2px;
-}
-
-.sc-inplace-ref-contrib-editor {
-  font-size: var(--input-font-size);
-  line-height: var(--input-line-height);
-}
-
-.sc-inplace-ref-contrib-editor > .sc-form-row {
-  width: 100%;
-}
-
-.sc-inplace-ref-contrib-editor > .sc-form-row > .se-editor {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.sc-inplace-ref-contrib-editor > .sc-form-row > .se-editor > * {
-  width: 100%;
-  margin-right: 10px;
-}
-
-.sc-inplace-ref-contrib-editor > .sc-form-row > .se-editor > .se-remove-value {
-  width: 10px;
-}
-
-.sc-table-footnotes-editor {
-  font-size: var(--input-font-size);
-  line-height: var(--input-line-height);
-}
-
-.sc-table-footnotes-editor > .sc-footnote {
-  padding-bottom: var(--t-half-spacing);
-}
-
-.sc-table-footnotes-editor > .sc-footnote .se-label {
-  margin: 0 var(--t-half-spacing) 0 0;
-}
-
-.sc-section-label {
-  font-weight: var(--t-bold-font-weight);
-  font-size: var(--t-tiny-font-size);
-  color: var(--t-light-text-color);
-  margin-top: var(--t-default-spacing);
-  margin-bottom: var(--t-half-spacing);
-  cursor: default;
-}
-
-.sc-add-reference .se-manual-add > .se-reftypes-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  list-style: none;
-  margin: 0 -5px;
-  padding: 0;
-}
-
-.sc-add-reference .se-manual-add > .se-reftypes-list > .se-type {
-  flex-grow: 1;
-  width: 30%;
-  height: var(--t-double-spacing);
-  margin: 5px;
-  padding: var(--t-half-spacing) 0;
-  border: var(--t-default-border);
-	border-radius: var(--t-border-radius);
-  text-align: center;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.sc-add-reference .se-manual-add > .se-reftypes-list > .se-type:hover {
-  background: var(---t-default-button-background);
-}
-
-.sc-form-row {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-}
-
-.sc-form-row > .se-label {
-  cursor: default;
-  display: block;
-  flex: 1 0 200px;
-  font-size: var(--t-tiny-font-size);
-  color: var(--t-light-text-color);
-}
-
-.sc-form-row > .se-label::after {
-  content: ':'
-}
-
-.sc-form-row > .se-editor {
-  width: 100%;
-}
-
-.sc-form-row.sm-warning > .se-label > .se-warning {
-  position: absolute;
-  top: 2px;
-  left: 175px;
-}
-
-.sc-form-row.sm-warning > .se-label > .se-warning > .se-icon {
-  color: var(--t-warning-color);
-}
-
-.sc-form-row.sm-warning > .se-label > .se-warning > .sc-tooltip {
-  display: none;
-}
-
-.sc-form-row.sm-warning > .se-label > .se-warning:hover > .sc-tooltip {
-  display: block;
-}
-
-.sc-card {
-  position: relative;
-  max-width: 800px;
-  box-shadow: var(--t-default-box-shadow);
-  margin: var(--t-double-spacing) 0;
-  font-size: var(--t-small-font-size);
-}
-
-.sc-card.sm-selected {
-  outline: var(--t-input-focus-border)
-}
-
-.sc-card > .se-label {
-  position: absolute;
-  top: -10px;
-  left: var(--t-double-spacing);
-  padding: 0px var(--t-default-spacing);
-  background: var(--t-background-color);
-  color: var(--t-light-text-color);
-  cursor: default;
-}
-
-.sc-card.sm-selected > .se-label {
-  background: var(--t-focus-color);
-  color: var(--t-inverted-text-color);
-}
-
-.sc-card .sc-form-row {
-  margin: var(--t-default-spacing) 0;
-}
-
-.sc-card > * {
-  padding: var(--t-default-spacing);
-}
-
-.sc-card > * > .se-header {
-  font-size: var(--t-text-font-size);
-  margin-bottom: var(--t-default-spacing);
-  margin-top: 0px;
-  cursor: default;
-}
-
-.sc-card > * > .se-footer {
-  display: flex;
-  justify-content: space-between;
-  margin: 0;
-}
-
-.sc-card > * > .se-footer > .se-control {
-  font-size: 12px;
-  color: var(--t-action-color);
-  cursor: pointer;
-  margin-bottom: 0px;
-}
-
-.sc-card > * > .se-footer > .se-control > .se-icon {
-  margin-right: 10px;
-}
-
-.sc-heading {
-  /* padding-top: var(--t-half-spacing); */
-  font-weight: var(--t-bold-font-weight);
-}
-
-h1.sc-heading {
-  font-size: var(--t-h1-font-size);
-}
-
-h2.sc-heading {
-  font-size: var(--t-h2-font-size);
-}
-
-h3.sc-heading {
-  font-size: var(--t-h3-font-size);
-}
-
-.sc-supplementary-file.sm-manuscript {
-  box-shadow: var(--t-default-box-shadow);
-  padding: var(--t-default-spacing);
-}
-
-.sc-supplementary-file > .se-header {
-  display: flex;
-  justify-content: space-between;
-}
-
-.sc-supplementary-file > .se-header > .se-label {
-  flex-shrink: 0;
-  margin-right: var(--t-default-spacing);
-  font-weight: var(--t-bold-font-weight);
-}
-
-.sc-supplementary-file > .se-href {
-  font-weight: var(--t-bold-font-weight);
-  font-family: monospace, monospace;
-}
-
-.sc-supplementary-file > .sc-caption {
-  font-size: var(--t-small-font-size);
-}
-
-.sc-supplementary-file.sm-preview > .sc-preview {
-  display: block;
-  padding-left: var(--t-half-spacing);
-}
-
-.sc-supplementary-file.sm-preview > .sc-preview > * {
-  padding-left: 0;
-}
-
-.sc-custom-metadata-field {
-  display: flex;
-  margin: var(--t-half-spacing) 0;
-  font-size: var(--t-small-font-size);
-}
-
-.sc-custom-metadata-field > .sc-string {
-  flex: 1;
-}
-
-.sc-custom-metadata-field > .se-field-name {
-  font-weight: var(--t-bold-font-weight);
-}
-
-/* Placeholder for empty custom fields set in metadata mode */
-
-.sc-figure-metadata.sm-empty {
-  color: var(--t-placeholder-text-color);
-}
-
-.sc-file-upload {
-  position: relative;
-}
-
-.sc-file-upload > .se-drop-import {
-  border: 1px dotted var(--t-light-text-color);
-  border-radius: var(--t-border-radius);
-  padding: var(--t-half-spacing);
-  text-align: center;
-  color: var(--t-light-text-color);
-}
-
-.sc-file-upload > .se-drop-import > input {
-  display: none;
-}
-
-.sc-file-upload > .se-drop-import > .se-select-trigger {
-  color: var(--t-action-color);
-  cursor: pointer;
-}
-
-.se-workflow-modal .sm-workflow {
-  padding: var(--t-default-spacing);
-}
-
-.se-workflow-modal .sm-workflow > .se-title {
-  font-size: var(--t-large-font-size);
-  margin: 0 0 var(--t-default-spacing);
-}
-
-.se-workflow-modal .sm-workflow .sc-dialog-section {
-  margin: var(--t-half-spacing) 0;
-}
-
-.se-workflow-modal .sm-workflow .se-dialog-section-title {
-  display: flex;
-  justify-content: space-between;
-}
-
-.se-workflow-modal .sm-workflow .se-dialog-section-title > .se-label {
-  font-size: var(--t-text-font-size);
-  color: var(--t-light-text-color);
-  padding: var(--t-half-spacing) 0;
-}
-
-.se-workflow-modal .sm-workflow .se-dialog-section-title > .se-description {
-  align-self: center;
-  color: var(--t-light-text-color);
-  font-size: var(--t-small-font-size);
-}
-
-/*
-  TODO: When we will have a better understanding of 
-  validation UI we should tidyup error popups or 
-  replace them with something more general
-*/
-
-.se-workflow-modal .se-error-popup {
-  position: absolute;
-  top: var(--t-double-spacing);
-  right: var(--t-default-spacing);
-  width: var(--t-small-layout-width);
-  background: var(--t-background-color);
-  border-radius: var(--t-border-radius);
-  box-shadow: var(--t-popup-box-shadow);
-  font-size: var(--t-tiny-font-size);
-  text-align: center;
-  color: var(--t-error-text-color);
-  z-index: 10;
-}
-
-.se-workflow-modal .se-error-popup > ul {
-  list-style: none;
-  padding: var(--t-half-spacing);
-  text-align: left;
-}
-
-.sc-query {
-	position: relative;
-}
-
-.sc-query.sm-error .se-button {
-	background-color: var(--t-error-color);
-  color: var(--t-error-text-color);
-}
-
-.sc-article-panel {
-  display: flex;
-  flex-flow: row nowrap;
-  position: absolute;
-  left: 0px;
-  right: 0px;
-  top: 0px;
-  bottom: 0px;
-}
-
-.sc-article-panel .se-nav-bar {
-  flex: 0 0 auto;
-  width: 40px;
-  height: 100%;
-  border-right: 1px solid #b5b5b5;
-  z-index: 99;
-}
-
-.sc-article-panel .se-nav-bar > .sc-toolbar > .se-active-tools .sc-tool-group {
-  display: block;
-}
-
-.sc-article-panel .sc-manuscript-view {
-  flex-grow: 1;
-}
-
-.sc-article-panel .sc-toolbar .se-active-tools {
-  position: relative;
-}
-
-/* View switcher hacks */
-
-.sc-article-panel .sc-toolbar .se-active-tools .sm-mode {
-  flex: 0 0 260px;
-  height: 24px;
-  margin: 2px;
-}
-
-.sc-article-panel .sc-toolbar .se-active-tools .sm-mode .se-keyboard-shortcut {
-  padding: 0;
-}
-
-.sc-toolbar .se-active-tools .sm-mobile-mode,
-.sm-compact .sc-toolbar .se-active-tools .sm-mode {
-  display: none;
-}
-
-.sm-compact .sc-toolbar .se-active-tools .sm-mobile-mode {
-  display: block;
-}
-
-/* Context menu dropdown */
-
-.sc-article-panel .sc-toolbar .sc-tool-dropdown.sm-context-tools > .se-choices {
-  position: absolute;
-  top: 30px;
-  left: initial;
-  right: 0;
-}
-
-.sc-article-panel > .sm-compact .sc-find-and-replace-dialog {
-  margin: 0 auto;
-}
-
-.sc-external-link {
-  color: inherit;
-  text-decoration: underline;
-}
-
-.sc-jats-import-dialog {
-  position: fixed;
-  left: 50px;
-  right: 50px;
-  top: 50px;
-  bottom: 50px;
-  padding: 20px;
-  background: #f1f1f1;
-  box-shadow: 0 2px 4px 0 rgba(0,0,0,0.50);
-  overflow: auto;
-}
-
-.sc-import-stage.sm-initial {
-  color: #eee;
-}
-
-.sc-import-stage.sm-errored {
-  color: red;
-}
-
-.sc-import-stage.sm-finished {
-  color: green;
-}
-
-.sc-import-stage > .se-errors > .se-error {
-  margin-top: 5px;
-  padding: 5px 10px;
-  border: solid 1px red;
-  background: rgba(200, 0, 0 , 0.25)
-}
-
-.sc-import-stage > .se-errors > .se-error > .se-element {
-  color: #666;
-}
-
-.sc-modal-dialog {
-  z-index: 500000;
-  position: fixed;
-  top: 0px;
-  left: 0px;
-  right: 0px;
-  bottom: 0px;
-  overflow: auto;
-  background: rgba(0,0,0,0.7);
-}
-
-.sc-modal-dialog.sm-transparent-bg {
-  background: transparent;
-}
-
-.sc-modal-dialog .se-body {
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: 30px;
-  margin-bottom: 30px;
-
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 0 25px 0 rgba(0,0,0,0.8);
-}
-
-.sc-modal-dialog.sm-width-small .se-body { max-width: var(--t-small-layout-width); }
-
-.sc-modal-dialog.sm-width-medium .se-body { max-width: var(--t-medium-layout-width); }
-
-.sc-modal-dialog.sm-width-large .se-body { max-width: var(--t-large-layout-width); }
 
 /*# sourceMappingURL=texture.css.map */
