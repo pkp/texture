@@ -1,26 +1,9 @@
- 
-![gallery_edit](docs/galley_edit.png)
-![production_ready_edit](docs/production_ready_edit.png)
-![texture_plugin](docs/plugin_gallery.png)
-### About
-### Installation
-### Issues
-### Supported  Body Tags
-### Usage
-* After plugin installation,  go to a `Production Stage` of the submission
-* All the uploaded images in texture are integrated as dependent files in production ready stage.
-* In the editing modal, upload the same images as dependent files you uploaded for texture.  
-* Settings -> Web site -> Plugins -> Plugin gallery 
-* Upload JATS XML to the  `Production Ready` state. You can find sample files [blank manuscript](https://github.com/substance/texture/tree/master/data/blank) or a [list of samples](https://github.com/substance/texture/tree/master/data/) here.
-* When you later publish the texture-edited JATS XML file as galley, you have to upload the images **again** in the dependancy grid.
-* https://github.com/pkp/texture/issues
-=======================
-Please find any issues here 
-Tag| Support| Example| | 
-Texture is available under Plugin gallery
 Texture plugin for OJS3
-Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/1.1/) XML standard.
+=======================
+### About
 This plugin integrates the Texture editor with OJS workflow for direct editing of JATS XML documents.
+### Supported  Body Tags
+Tag| Support| Example| | 
 [`code`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)| :heavy_check_mark:| `<code     code-type="user interface control"   language="C++"  language-version="11"  xml:space="preserve"   orientation="portrait"  position="anchor">#include &lt;conio.h>#include&lt;win_mous.cpp>// Needed for mouse &amp; win functions#defineOK (x>=170 &amp;&amp; x&lt;=210 &amp;&amp; y>=290 &amp;&amp; y&lt;=310)#defineCANCEL (x>=280 &amp;&amp; x&lt;=330 &amp;&amp; y>=290 &amp;&amp; y&lt;=310)#define PUSHME (x>=170 &amp;&amp; x&lt;=330 &amp;&amp; y>=150 &amp;&amp; y&lt;=250)</code>`
 [`disp-formula`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-formula.html)| :heavy_check_mark:| `<disp-formula><tex-math id="M1"><![CDATA[\documentclass[12pt]{minimal}\usepackage{wasysym}\usepackage[substack]{amsmath}\usepackage{amsfonts}\usepackage{amssymb}\usepackage{amsbsy}\usepackage[mathscr]{eucal}\usepackage{mathrsfs}\DeclareFontFamily{T1}{linotext}{}\DeclareFontShape{T1}{linotext}{m}{n} { &#x003C;-&#x003E; linotext }{}\DeclareSymbolFont{linotext}{T1}{linotext}{m}{n}\DeclareSymbolFontAlphabet{\mathLINOTEXT}{linotext}\begin{document}$${\mathrm{Acc/Acc:\hspace{.5em}}}\frac{{\mathit{ade2-202}}}{{\mathit{ADE2}}}\hspace{.5em}\frac{{\mathit{ura3-59}}}{{\mathit{ura3-59}}}\hspace{.5em}\frac{{\mathit{ADE1}}}{{\mathit{adel-201}}}\hspace{.5em}\frac{{\mathit{ter1-Acc}}}{{\mathit{ter1-Acc}}}\hspace{.5em}\frac{{\mathit{MATa}}}{{\mathit{MAT{\alpha}}}}$$\end{document}]]></tex-math></disp-formula>`
 [`disp-quote`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-quote.html)| :heavy_check_mark:| `<disp-quote><p>Dead flies cause the ointment of the apothecary to send forth astinking savor; so doth a little folly him that is in reputationfor wisdom and honour.</p><attrib>Ecclesiastes 10:1</attrib></disp-quote>`
@@ -35,3 +18,20 @@ This plugin integrates the Texture editor with OJS workflow for direct editing o
 [`table-wrap`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)| :heavy_check_mark:| `<table-wrap id="t2" orientation="portrait" position="float"><label>Table II.</label><caption><p>Models to approximate the bound frequencies as waves in X→M (<inline-graphic id="g1" xlink:href="d1"/>: Rotational, <inline-graphic id="g2" xlink:href="d2"/>: Vibrate in <italic>y</italic> direction, <inline-graphic id="g3" xlink:href="d3"/>: Vibrate in<italic>x</italic> direction, <inline-graphic id="g4" xlink:href="d4"/>: Vibrate mainly in <italic>y</italic> direction including a small portion of vibration in <italic>x</italic> direction, <inline-graphic id="g5" xlink:href="d5"/>: Vibrate mainly in <italic>x</italic> direction including a small portion of vibration in <italic>y</italic> direction).</p></caption><table border="1">...</table></table-wrap>`
 [`tex-math`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/tex-math.html)| :heavy_check_mark:| `<tex-math id="M1"><![CDATA[\documentclass[12pt]{minimal}\usepackage{wasysym}\usepackage[substack]{amsmath}\usepackage{amsfonts}\usepackage{amssymb}\usepackage{amsbsy}\usepackage[mathscr]{eucal}\usepackage{mathrsfs}\DeclareFontFamily{T1}{linotext}{}\DeclareFontShape{T1}{linotext}{m}{n} { &#x003C;-&#x003E; linotext }{}\DeclareSymbolFont{linotext}{T1}{linotext}{m}{n}\DeclareSymbolFontAlphabet{\mathLINOTEXT}{linotext}\begin{document}$${\mathrm{Acc/Acc:\hspace{.5em}}}\frac{{\mathit{ade2-202}}}{{\mathit{ADE2}}}\hspace{.5em}\frac{{\mathit{ura3-59}}}{{\mathit{ura3-59}}}\hspace{.5em}\frac{{\mathit{ADE1}}}{{\mathit{adel-201}}}\hspace{.5em}\frac{{\mathit{ter1-Acc}}}{{\mathit{ter1-Acc}}}\hspace{.5em}\frac{{\mathit{MATa}}}{{\mathit{MAT{\alpha}}}}$$\end{document}]]></tex-math>`
 | --- | --- | --- | --- 
+### Installation
+Texture is available under Plugin gallery
+ 
+* Settings -> Web site -> Plugins -> Plugin gallery 
+![texture_plugin](docs/plugin_gallery.png)
+### Usage
+Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/1.1/) XML standard.
+* After plugin installation,  go to a `Production Stage` of the submission
+* Upload JATS XML to the  `Production Ready` state. You can find sample files [blank manuscript](https://github.com/substance/texture/tree/master/data/blank) or a [list of samples](https://github.com/substance/texture/tree/master/data/) here.
+![production_ready_edit](docs/production_ready_edit.png)
+* All the uploaded images in texture are integrated as dependent files in production ready stage.
+* When you later publish the texture-edited JATS XML file as galley, you have to upload the images **again** in the dependancy grid.
+![gallery_edit](docs/galley_edit.png)
+* In the editing modal, upload the same images as dependent files you uploaded for texture.  
+### Issues
+Please find any issues here 
+* https://github.com/pkp/texture/issues
