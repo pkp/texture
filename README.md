@@ -5,37 +5,37 @@ This plugin integrates the Texture editor with OJS workflow for direct editing o
 ### Supported  Body Tags
 Tag| Description| Link| | 
 | --- | --- | --- | --- 
-[`address`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| :ok:
-[`array`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)| :ok:
-[`boxed-text`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/boxed-text.html)| :ok:
-[`chem-struct-wrap`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/chem-struct-wrap.html)| :ok:
-[`code`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)| :ok:
-[`fig`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig.html)| :ok:
-[`fig-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig-group.html)| :ok:
-[`graphic`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/graphic.html)| :ok:
-[`media`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/media.html)| :ok:
-[`preformat`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/preformat.html)| :ok:
-[`supplementary-material`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/supplementary-material.html)| :ok:
-[`table-wrap`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)| :ok:
-[`table-wrap-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap-group.html)| :ok:
-[`alternatives`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/alternatives.html)| :ok:
-[`disp-formula`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-formula.html)| :ok:
-[`disp-formula-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-formula-group.html)| :ok:
-[`def-list`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/def-list.html)| :ok:
-[`list`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/list.html)| :ok:
-[`tex-math`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/tex-math.html)| :ok:
-[`mml:math`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/mml:math.html)| :ok:
-[`p`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/p.html)| :ok:
-[`related-article`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/related-article.html)| :ok:
-[`related-object`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/related-object.html)| :ok:
-[`ack`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/ack.html)| :ok:
-[`disp-quote`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-quote.html)| :ok:
-[`speech`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/speech.html)| :ok:
-[`statement`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/statement.html)| :ok:
-[`verse-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/verse-group.html)| :ok:
-[`x`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/x.html)| :ok:
-[`sec`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/sec.html)| :ok:
-[`sig-block`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/sig-block.html)| :ok:
+[`address`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| 
+[`array`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)| 
+[`boxed-text`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/boxed-text.html)| 
+[`chem-struct-wrap`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/chem-struct-wrap.html)| 
+[`code`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)| :heavy_check_mark:
+[`fig`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig.html)| :heavy_check_mark:
+[`fig-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig-group.html)| :heavy_check_mark:
+[`graphic`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/graphic.html)| :heavy_check_mark:
+[`media`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/media.html)| 
+[`preformat`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/preformat.html)| :heavy_check_mark:
+[`supplementary-material`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/supplementary-material.html)| :heavy_check_mark:
+[`table-wrap`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)| :heavy_check_mark:
+[`table-wrap-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap-group.html)| 
+[`alternatives`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/alternatives.html)| 
+[`disp-formula`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-formula.html)| 
+[`disp-formula-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-formula-group.html)| 
+[`def-list`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/def-list.html)| 
+[`list`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/list.html)| :heavy_check_mark:
+[`tex-math`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/tex-math.html)| :heavy_check_mark:
+[`mml:math`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/mml:math.html)| 
+[`p`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/p.html)| :heavy_check_mark:
+[`related-article`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/related-article.html)| 
+[`related-object`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/related-object.html)| 
+[`ack`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/ack.html)| 
+[`disp-quote`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-quote.html)| :heavy_check_mark:
+[`speech`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/speech.html)| 
+[`statement`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/statement.html)| 
+[`verse-group`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/verse-group.html)| 
+[`x`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/x.html)| 
+[`sec`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/sec.html)| :heavy_check_mark:
+[`sig-block`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/sig-block.html)| 
 ### Installation
 Texture is available under Plugin gallery
  
