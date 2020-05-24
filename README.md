@@ -17,7 +17,7 @@ Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/
 ![gallery_edit](docs/galley_edit.png)
 * In the editing modal, upload the same images as dependent files you uploaded for texture.  
 
-Tag| Description| | | 
+Tag| Description| Link| | 
 | --- | --- | --- | --- 
 [<address>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| [Address/Contact Information](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)
 [<array>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)| [Array (Simple Tabulation)](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)
