@@ -2,9 +2,10 @@ Texture plugin for OJS3
 =======================
 ### About
 This plugin integrates the Texture editor with OJS workflow for direct editing of JATS XML documents.
-### Supported JATS Body Tags
+### Supported  Body Tags
 Tag| Description| Link| | 
 | --- | --- | --- | --- 
+[`<address>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| [Address/Contact Information](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)
 [`<address>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| [Address/Contact Information](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)
 ### Installation
 Texture is available under Plugin gallery
