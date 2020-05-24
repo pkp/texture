@@ -20,6 +20,7 @@ Tag| Support| Example| |
 [`tex-math`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/tex-math.html)| :heavy_check_mark:| `<tex-math id="M1"><![CDATA[\documentclass[12pt]{minimal}\usepackage{wasysym}\usepackage[substack]{amsmath}\usepackage{amsfonts}\usepackage{amssymb}\usepackage{amsbsy}\usepackage[mathscr]{eucal}\usepackage{mathrsfs}\DeclareFontFamily{T1}{linotext}{}\DeclareFontShape{T1}{linotext}{m}{n} { &#x003C;-&#x003E; linotext }{}\DeclareSymbolFont{linotext}{T1}{linotext}{m}{n}\DeclareSymbolFontAlphabet{\mathLINOTEXT}{linotext}\begin{document}$${\mathrm{Acc/Acc:\hspace{.5em}}}\frac{{\mathit{ade2-202}}}{{\mathit{ADE2}}}\hspace{.5em}\frac{{\mathit{ura3-59}}}{{\mathit{ura3-59}}}\hspace{.5em}\frac{{\mathit{ADE1}}}{{\mathit{adel-201}}}\hspace{.5em}\frac{{\mathit{ter1-Acc}}}{{\mathit{ter1-Acc}}}\hspace{.5em}\frac{{\mathit{MATa}}}{{\mathit{MAT{\alpha}}}}$$\end{document}]]></tex-math>`
 ### Not yet supported  Body Tags
 Tag| Support| Example| | 
+| --- | --- | --- | --- 
 [`ack`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/ack.html)| --
 [`address`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| --
 [`alternatives`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/alternatives.html)| --
