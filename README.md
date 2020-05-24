@@ -19,19 +19,19 @@ Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/
 
 Tag| Description| Link| | 
 | --- | --- | --- | --- 
-[<address>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| [Address/Contact Information](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)
-[<array>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)| [Array (Simple Tabulation)](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)
-[<boxed-text>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/boxed-text.html)| [Boxed Text](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/boxed-text.html)
-[<chem-struct-wrap>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/chem-struct-wrap.html)| [Chemical Structure Wrapper](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/chem-struct-wrap.html)
-[<code>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)| [Code](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)
-[<fig>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig.html)| [Figure](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig.html)
-[<fig-group>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig-group.html)| [Figure Group](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig-group.html)
-[<graphic>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/graphic.html)| [Graphic](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/graphic.html)
-[<media>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/media.html)| [Media Object](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/media.html)
-[<preformat>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/preformat.html)| [Preformatted Text](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/preformat.html)
-[<supplementary-material>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/supplementary-material.html)| [Supplementary Material Metadata](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/supplementary-material.html)
-[<table-wrap>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)| [Table Wrapper](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)
-[<table-wrap-group>](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap-group.html)| [Table Wrapper Group](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap-group.html)
+[`<address>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)| [Address/Contact Information](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/address.html)
+[`<array>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)| [Array (Simple Tabulation)](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/array.html)
+[`<boxed-text>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/boxed-text.html)| [Boxed Text](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/boxed-text.html)
+[`<chem-struct-wrap>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/chem-struct-wrap.html)| [Chemical Structure Wrapper](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/chem-struct-wrap.html)
+[`<code>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)| [Code](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)
+[`<fig>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig.html)| [Figure](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig.html)
+[`<fig-group>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig-group.html)| [Figure Group](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/fig-group.html)
+[`<graphic>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/graphic.html)| [Graphic](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/graphic.html)
+[`<media>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/media.html)| [Media Object](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/media.html)
+[`<preformat>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/preformat.html)| [Preformatted Text](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/preformat.html)
+[`<supplementary-material>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/supplementary-material.html)| [Supplementary Material Metadata](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/supplementary-material.html)
+[`<table-wrap>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)| [Table Wrapper](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap.html)
+[`<table-wrap-group>`](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap-group.html)| [Table Wrapper Group](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/table-wrap-group.html)
 ### Issues
 Please find any issues here 
 * https://github.com/pkp/texture/issues
