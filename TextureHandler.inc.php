@@ -16,8 +16,6 @@
 import('classes.handler.Handler');
 import('lib.pkp.classes.file.SubmissionFileManager');
 
-define('DAR_MANIFEST_FILE', 'manifest.xml');
-define('DAR_MANUSCRIPT_FILE', 'manuscript.xml');
 
 class TextureHandler extends Handler {
 	/** @var MarkupPlugin The Texture plugin */
@@ -94,15 +92,20 @@ class TextureHandler extends Handler {
 		import('lib.pkp.classes.file.SubmissionFileManager');
 		$context = $request->getContext();
 		$user = $request->getUser();
+		$zipType = $request->getUserVar("zipType");
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$archivePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'texture-dar-archive' . mt_rand();
+		$archivePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'texture-' . $zipType . '-archive' . mt_rand();
+		$image_types = array('gif', 'jpg', 'jpeg', 'png', 'jpe');
+		$html_types =array('html');
 
 		$zip = new ZipArchive;
 		if ($zip->open($submissionFile->getFilePath()) === TRUE) {
-
+			$submissionDao = Application::getSubmissionDAO();
+			$submissionId = (int)$request->getUserVar('submissionId');
+			$submission = $submissionDao->getById($submissionId);
 			mkdir($archivePath, 0777, true);
 			$zip->extractTo($archivePath);
-
+			if ($zipType == TEXTURE_DAR_FILE_TYPE) {
 			$manifestFileDom = new DOMDocument();
 			$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . DAR_MANIFEST_FILE;
 			if (file_exists($darManifestFilePath)) {
@@ -115,11 +118,7 @@ class TextureHandler extends Handler {
 
 					if (file_exists($darManuscriptFilePath)) {
 
-						$submissionDao = Application::getSubmissionDAO();
-						$submissionId = (int)$request->getUserVar('submissionId');
-						$submission = $submissionDao->getById($submissionId);
-
-						$clientFileName = basename($submissionFile->getClientFileName(), 'dar') . 'xml';
+							$clientFileName = basename($submissionFile->getClientFileName(), TEXTURE_DAR_FILE_TYPE) . 'xml';
 
 						$fileSize = filesize($darManuscriptFilePath);
 
@@ -135,16 +134,17 @@ class TextureHandler extends Handler {
 						$newSubmissionFile->setUploaderUserId($user->getId());
 						$newSubmissionFile->setFileSize($fileSize);
 						$newSubmissionFile->setFileType("text/xml");
+							$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 						$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
 						$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $darManuscriptFilePath);
 
 						$assets = $manifestFileDom->getElementsByTagName("asset");
 						foreach ($assets as $asset) {
-							$fileType = $asset->getAttribute('type');
+
 							$fileName = $asset->getAttribute('path');
 							$dependentFilePath = $archivePath . DIRECTORY_SEPARATOR . $fileName;
-							$extension = pathinfo($fileName, PATHINFO_EXTENSION);
-							$genreId = $this->_getGenreId($request, $extension);
+								$fileType = pathinfo($fileName, PATHINFO_EXTENSION);
+								$genreId = $this->_getGenreId($request, $fileType);
 							$this->_createDependentFile($genreId, $dependentFilePath, $submission, $insertedSubmissionFile, $user, $fileType, $fileName);
 						}
 					} else {
@@ -154,6 +154,66 @@ class TextureHandler extends Handler {
 
 			} else {
 				return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noManifest'));
+				}
+			}
+			elseif ($zipType==TEXTURE_ZIP_FILE_TYPE) {
+
+				$archiveContent = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($archivePath), RecursiveIteratorIterator::SELF_FIRST);
+
+				$productionFiles=[];
+				$dependentFiles=[];
+
+				{
+					foreach ($archiveContent as $fileName => $fileObject) {
+
+						if (in_array(pathinfo($fileName, PATHINFO_EXTENSION), $image_types)) {
+							array_push($dependentFiles,$fileObject);
+						}
+						if (in_array(pathinfo($fileName, PATHINFO_EXTENSION), $html_types)) {
+							array_push($productionFiles,$fileObject);
+						}
+
+					}
+					if (count($productionFiles) == 1) {
+
+						$clientFileName = basename($submissionFile->getClientFileName(), TEXTURE_ZIP_FILE_TYPE) . 'html';
+						$htmlFile = $productionFiles[0];
+
+						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId(GENRE_CATEGORY_DOCUMENT);
+						$newSubmissionFile->setSubmissionId($submission->getId());
+						$newSubmissionFile->setSubmissionLocale($submission->getLocale());
+						$newSubmissionFile->setFileStage($submissionFile->getFileStage());
+						$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
+						$newSubmissionFile->setDateModified(Core::getCurrentDate());
+						$newSubmissionFile->setGenreId(GENRE_CATEGORY_DOCUMENT);
+
+						$newSubmissionFile->setOriginalFileName($clientFileName);
+						$newSubmissionFile->setUploaderUserId($user->getId());
+						$newSubmissionFile->setFileSize($htmlFile->getSize());
+						$newSubmissionFile->setFileType("text/html");
+						$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
+						$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
+						$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile,$htmlFile->getPathname());
+
+						foreach ($dependentFiles as $asset) {
+
+							$genreId = $this->_getGenreId($request, $asset->getType());
+							$this->_createDependentFile($genreId, $asset->getPathname(), $submission, $insertedSubmissionFile, $user, $asset->getType(), $asset->getFileName());
+						}
+
+					}
+					else {
+
+						return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noValidHTMLFile'));
+					}
+
+
+				}
+
+
+
+
 			}
 		} else {
 			return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noValidDarFile'));
@@ -380,11 +440,7 @@ class TextureHandler extends Handler {
 					return new JSONMessage(false);
 				}
 
-				return new JSONMessage(true, array(
-					'submissionId' => $insertedSubmissionFile->getSubmissionId(),
-					'fileId' => $insertedSubmissionFile->getFileIdAndRevision(),
-					'fileStage' => $insertedSubmissionFile->getFileStage(),
-				));
+				return new JSONMessage(true);
 			}
 		} else {
 			return new JSONMessage(false);

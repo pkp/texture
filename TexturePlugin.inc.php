@@ -16,6 +16,12 @@
 
 import('lib.pkp.classes.plugins.GenericPlugin');
 
+define('DAR_MANIFEST_FILE', 'manifest.xml');
+define('DAR_MANUSCRIPT_FILE', 'manuscript.xml');
+define('TEXTURE_DAR_FILE_TYPE', 'dar');
+define('TEXTURE_ZIP_FILE_TYPE', 'zip');
+define('TEXTURE_HTML_FILE_TYPE', 'html');
+
 /**
  * Class TexturePlugin
  */
@@ -132,8 +138,13 @@ class TexturePlugin extends GenericPlugin {
 					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
 					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 					$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
-				} elseif (strtolower($fileExtension) == 'dar') {
-					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+				} elseif (strtolower($fileExtension) == TEXTURE_DAR_FILE_TYPE) {
+					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_DAR_FILE_TYPE);
+				} elseif (strtolower($fileExtension) == TEXTURE_ZIP_FILE_TYPE) {
+					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_ZIP_FILE_TYPE);
+				} elseif (strtolower($fileExtension) == TEXTURE_HTML_FILE_TYPE) {
+					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
+					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				}
 			}
 		}
@@ -174,15 +185,18 @@ class TexturePlugin extends GenericPlugin {
 	 * @param $submissionFile SubmissionFile
 	 * @param int $stageId
 	 * @param int $fileStage
+	 * @param $zipType
 	 */
-	private function _extractAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage): void {
+	private function _extractAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage, $zipType): void {
 
 		$stageId = (int)$request->getUserVar('stageId');
+		$zipLabel = ($zipType == TEXTURE_DAR_FILE_TYPE) ? 'plugins.generic.texture.links.extractDarArchive' : 'plugins.generic.texture.links.extractZipArchive';
 
 		$actionArgs = array(
 			'submissionId' => $submissionFile->getSubmissionId(),
 			'fileId' => $submissionFile->getFileId(),
-			'stageId' => $stageId
+			'stageId' => $stageId,
+			'zipType' => $zipType
 		);
 
 		$path = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'extract', null, $actionArgs);
@@ -191,7 +205,7 @@ class TexturePlugin extends GenericPlugin {
 		$row->addAction(new LinkAction(
 			'texture_import',
 			new PostAndRedirectAction($path, $pathRedirect),
-			__('plugins.generic.texture.links.extractDarArchive'),
+			__($zipLabel),
 			null
 		));
 	}
