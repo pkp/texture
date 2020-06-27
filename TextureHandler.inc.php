@@ -509,6 +509,8 @@ class TextureHandler extends Handler {
 	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user) {
 
 		$manuscriptXml = $resources[DAR_MANUSCRIPT_FILE]->data;
+		// do not overwrite metadata
+
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $manuscriptXml);
 

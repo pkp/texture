@@ -8,7 +8,7 @@
  */
 class DAR {
 
-	protected $UNSUPPORTED = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
+
 
 	/**
 	 * creates a DAR JSON file
@@ -23,8 +23,9 @@ class DAR {
 		$assets = array();
 		$filePath = $submissionFile->getFilePath();
 		$manuscriptXml = file_get_contents($filePath);
+		$manuscriptXml = $dar->createManuscript($manuscriptXml);
+
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
-		$manuscriptXml = $dar->removeElements($manuscriptXml, $this->UNSUPPORTED);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
 
 		$filesize = filesize($filePath);
@@ -38,7 +39,7 @@ class DAR {
 			),
 			DAR_MANUSCRIPT_FILE => array(
 				'encoding' => 'utf8',
-				'data' => $manuscriptXml->saveXML(),
+				'data' => $manuscriptXml,
 				'size' => $filesize,
 				'createdAt' => 0,
 				'updatedAt' => 0,
@@ -51,26 +52,46 @@ class DAR {
 		return $mediaBlob;
 	}
 
-	/**
-	 * Removes unnecessary elements
-	 *
-	 * @param $manuscriptXml $manuscript
-	 * @param $elementsArray array to remove
-	 * @return DOMDocument
-	 */
-	public function removeElements($manuscriptXml, $elementsArray) {
+
+
+
+
+	public function createManuscript($manuscriptXml) {
+
+		$domImpl = new DOMImplementation();
+		$dtd = $domImpl->createDocumentType("article", "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.2 20190208//EN", "JATS-archivearticle1.dtd");
+		$dom = $domImpl->createDocument("", "", $dtd);
+		$dom->encoding = 'UTF-8';
+
+		$dom->article = $dom->createElement('article');
+		$dom->article->setAttributeNS(
+			"http://www.w3.org/2000/xmlns/",
+			"xmlns:xlink",
+			"http://www.w3.org/1999/xlink"
+		);
+
+		$dom->appendChild($dom->article);
+
+		$this->createEmptyMetadata($dom);
+
 
 		$manuscriptXmlDom = new DOMDocument;
 		$manuscriptXmlDom->loadXML($manuscriptXml);
 		$xpath = new DOMXpath($manuscriptXmlDom);
 
-		foreach ($elementsArray as $elementPath) {
-			$elements = $xpath->query($elementPath);
-			foreach ($elements as $element) {
-				$element->parentNode->removeChild($element);
-			}
+		$manuscriptBody = $xpath->query("/article/body");
+		if (isset($manuscriptBody)) {
+			$node = $dom->importNode($manuscriptBody[0], true);
+			$dom->documentElement->appendChild($node);
 		}
-		return $manuscriptXmlDom;
+
+		$manuscriptBack = $xpath->query("/article/back");
+		if (isset($manuscriptBack)) {
+			$node = $dom->importNode($manuscriptBack[0], true);
+			$dom->documentElement->appendChild($node);
+		}
+
+		return $manuscriptXmlDom->saveXML();
 	}
 
 	/**
@@ -192,6 +213,24 @@ class DAR {
 			$assetsFilePaths[$dFile->getOriginalFileName()] = $dFile->getFilePath();
 		}
 		return $assetsFilePaths;
+	}
+
+	/**
+	 * @param DOMDocument $dom
+	 */
+	protected function createEmptyMetadata(DOMDocument $dom): void {
+		$dom->front = $dom->createElement('front');
+		$dom->article->appendChild($dom->front);
+
+		$dom->metadata = $dom->createElement('metadata');
+		$dom->front->appendChild($dom->metadata);
+
+		$dom->permission = $dom->createElement('permission');
+		$dom->metadata->appendChild($dom->permission);
+
+
+		$dom->abstract = $dom->createElement('abstract');
+		$dom->front->appendChild($dom->abstract);
 	}
 
 }
