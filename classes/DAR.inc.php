@@ -9,7 +9,6 @@
 class DAR {
 
 
-
 	/**
 	 * creates a DAR JSON file
 	 *
@@ -28,7 +27,7 @@ class DAR {
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
 
-		$filesize = filesize($filePath);
+
 		$resources = array(
 			DAR_MANIFEST_FILE => array(
 				'encoding' => 'utf8',
@@ -40,7 +39,7 @@ class DAR {
 			DAR_MANUSCRIPT_FILE => array(
 				'encoding' => 'utf8',
 				'data' => $manuscriptXml,
-				'size' => $filesize,
+				'size' => strlen($manuscriptXml),
 				'createdAt' => 0,
 				'updatedAt' => 0,
 			),
@@ -53,31 +52,37 @@ class DAR {
 	}
 
 
-
-
-
 	public function createManuscript($manuscriptXml) {
-
 		$domImpl = new DOMImplementation();
 		$dtd = $domImpl->createDocumentType("article", "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.2 20190208//EN", "JATS-archivearticle1.dtd");
 		$dom = $domImpl->createDocument("", "", $dtd);
 		$dom->encoding = 'UTF-8';
 
+
+		$manuscriptXmlDom = new DOMDocument;
+		$manuscriptXmlDom->loadXML($manuscriptXml);
+		$xpath = new DOMXpath($manuscriptXmlDom);
+
+
 		$dom->article = $dom->createElement('article');
+		foreach ($xpath->query('namespace::*', $manuscriptXmlDom->documentElement) as $node) {
+			$nodeName = $node->nodeName;
+			$nodeValue = $node->nodeValue;
+			if ($nodeName !== "xmlns:xlink") {
+				$dom->article->setAttribute($nodeName, $nodeValue);
+			}
+
+		}
 		$dom->article->setAttributeNS(
 			"http://www.w3.org/2000/xmlns/",
 			"xmlns:xlink",
 			"http://www.w3.org/1999/xlink"
 		);
+		$dom->article->setAttribute("article-type", "research-article");
 
 		$dom->appendChild($dom->article);
 
 		$this->createEmptyMetadata($dom);
-
-
-		$manuscriptXmlDom = new DOMDocument;
-		$manuscriptXmlDom->loadXML($manuscriptXml);
-		$xpath = new DOMXpath($manuscriptXmlDom);
 
 		$manuscriptBody = $xpath->query("/article/body");
 		if (isset($manuscriptBody)) {
@@ -91,46 +96,28 @@ class DAR {
 			$dom->documentElement->appendChild($node);
 		}
 
-		return $manuscriptXmlDom->saveXML();
+		return $dom->saveXML();
 	}
 
 	/**
-	 * Build media info
-	 *
-	 * @param $request PKPRquest
-	 * @param $assets array
-	 * @return array
+	 * @param DOMDocument $dom
 	 */
-	public function createMediaInfo($request, $assets) {
+	protected function createEmptyMetadata(DOMDocument $dom): void {
+		$dom->front = $dom->createElement('front');
+		$dom->article->appendChild($dom->front);
 
-		$infos = array();
-		$router = $request->getRouter();
-		$dispatcher = $router->getDispatcher();
+		$dom->articleMeta = $dom->createElement('article-meta');
+		$dom->front->appendChild($dom->articleMeta);
 
-		$fileId = $request->getUserVar('fileId');
-		$stageId = $request->getUserVar('stageId');
-		$submissionId = $request->getUserVar('submissionId');
-		// build mapping to assets file paths
+		$dom->titleGroup = $dom->createElement('title-group');
+		$dom->articleTitle = $dom->createElement('article-title');
 
-		$assetsFilePaths = $this->getDependentFilePaths($submissionId, $fileId);
-		foreach ($assets as $asset) {
-			$path = str_replace('media/', '', $asset['path']);
-			$filePath = $assetsFilePaths[$path];
-			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
-				'submissionId' => $submissionId,
-				'fileId' => $fileId,
-				'stageId' => $stageId,
-				'fileName' => $path,
-			));
-			$infos[$asset['path']] = array(
-				'encoding' => 'url',
-				'data' => $url,
-				'size' => filesize($filePath),
-				'createdAt' => filemtime($filePath),
-				'updatedAt' => filectime($filePath),
-			);
-		}
-		return $infos;
+		$dom->titleGroup->appendChild($dom->articleTitle);
+		$dom->articleMeta->appendChild($dom->titleGroup);
+
+
+		$dom->abstract = $dom->createElement('abstract');
+		$dom->articleMeta->appendChild($dom->abstract);
 	}
 
 	/**
@@ -194,6 +181,45 @@ class DAR {
 	}
 
 	/**
+	 * Build media info
+	 *
+	 * @param $request PKPRquest
+	 * @param $assets array
+	 * @return array
+	 */
+	public function createMediaInfo($request, $assets) {
+
+		$infos = array();
+		$router = $request->getRouter();
+		$dispatcher = $router->getDispatcher();
+
+		$fileId = $request->getUserVar('fileId');
+		$stageId = $request->getUserVar('stageId');
+		$submissionId = $request->getUserVar('submissionId');
+		// build mapping to assets file paths
+
+		$assetsFilePaths = $this->getDependentFilePaths($submissionId, $fileId);
+		foreach ($assets as $asset) {
+			$path = str_replace('media/', '', $asset['path']);
+			$filePath = $assetsFilePaths[$path];
+			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
+				'submissionId' => $submissionId,
+				'fileId' => $fileId,
+				'stageId' => $stageId,
+				'fileName' => $path,
+			));
+			$infos[$asset['path']] = array(
+				'encoding' => 'url',
+				'data' => $url,
+				'size' => filesize($filePath),
+				'createdAt' => filemtime($filePath),
+				'updatedAt' => filectime($filePath),
+			);
+		}
+		return $infos;
+	}
+
+	/**
 	 * @param $submissionId
 	 * @param $fileId
 	 * @return array
@@ -213,24 +239,6 @@ class DAR {
 			$assetsFilePaths[$dFile->getOriginalFileName()] = $dFile->getFilePath();
 		}
 		return $assetsFilePaths;
-	}
-
-	/**
-	 * @param DOMDocument $dom
-	 */
-	protected function createEmptyMetadata(DOMDocument $dom): void {
-		$dom->front = $dom->createElement('front');
-		$dom->article->appendChild($dom->front);
-
-		$dom->metadata = $dom->createElement('metadata');
-		$dom->front->appendChild($dom->metadata);
-
-		$dom->permission = $dom->createElement('permission');
-		$dom->metadata->appendChild($dom->permission);
-
-
-		$dom->abstract = $dom->createElement('abstract');
-		$dom->front->appendChild($dom->abstract);
 	}
 
 }
