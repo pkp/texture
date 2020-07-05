@@ -8,7 +8,6 @@
  */
 class DAR {
 
-	protected $UNSUPPORTED = array("/article/front/journal-meta", "/article/front/article-meta/self-uri");
 
 	/**
 	 * creates a DAR JSON file
@@ -23,11 +22,12 @@ class DAR {
 		$assets = array();
 		$filePath = $submissionFile->getFilePath();
 		$manuscriptXml = file_get_contents($filePath);
+		$manuscriptXml = $dar->createManuscript($manuscriptXml);
+
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
-		$manuscriptXml = $dar->removeElements($manuscriptXml, $this->UNSUPPORTED);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
 
-		$filesize = filesize($filePath);
+
 		$resources = array(
 			DAR_MANIFEST_FILE => array(
 				'encoding' => 'utf8',
@@ -38,8 +38,8 @@ class DAR {
 			),
 			DAR_MANUSCRIPT_FILE => array(
 				'encoding' => 'utf8',
-				'data' => $manuscriptXml->saveXML(),
-				'size' => $filesize,
+				'data' => $manuscriptXml,
+				'size' => strlen($manuscriptXml),
 				'createdAt' => 0,
 				'updatedAt' => 0,
 			),
@@ -51,65 +51,74 @@ class DAR {
 		return $mediaBlob;
 	}
 
-	/**
-	 * Removes unnecessary elements
-	 *
-	 * @param $manuscriptXml $manuscript
-	 * @param $elementsArray array to remove
-	 * @return DOMDocument
-	 */
-	public function removeElements($manuscriptXml, $elementsArray) {
+
+	public function createManuscript($manuscriptXml) {
+		$domImpl = new DOMImplementation();
+		$dtd = $domImpl->createDocumentType("article", "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.2 20190208//EN", "JATS-archivearticle1.dtd");
+		$editableManuscriptDom = $domImpl->createDocument("", "", $dtd);
+		$editableManuscriptDom->encoding = 'UTF-8';
+
 
 		$manuscriptXmlDom = new DOMDocument;
 		$manuscriptXmlDom->loadXML($manuscriptXml);
+
 		$xpath = new DOMXpath($manuscriptXmlDom);
 
-		foreach ($elementsArray as $elementPath) {
-			$elements = $xpath->query($elementPath);
-			foreach ($elements as $element) {
-				$element->parentNode->removeChild($element);
+
+		$editableManuscriptDom->article = $editableManuscriptDom->createElement('article');
+		foreach ($xpath->query('namespace::*', $manuscriptXmlDom->documentElement) as $node) {
+			$nodeName = $node->nodeName;
+			$nodeValue = $node->nodeValue;
+			if ($nodeName !== "xmlns:xlink") {
+				$editableManuscriptDom->article->setAttribute($nodeName, $nodeValue);
 			}
+
 		}
-		return $manuscriptXmlDom;
+		$editableManuscriptDom->article->setAttributeNS(
+			"http://www.w3.org/2000/xmlns/",
+			"xmlns:xlink",
+			"http://www.w3.org/1999/xlink"
+		);
+		$editableManuscriptDom->article->setAttribute("article-type", "research-article");
+
+		$editableManuscriptDom->appendChild($editableManuscriptDom->article);
+
+		$this->createEmptyMetadata($editableManuscriptDom);
+
+		$manuscriptBody = $xpath->query("/article/body");
+		foreach ($manuscriptBody as $content){
+			$node = $editableManuscriptDom->importNode($content, true);
+			$editableManuscriptDom->documentElement->appendChild($node);
+		}
+
+		$manuscriptBack = $xpath->query("/article/back");
+		foreach ($manuscriptBack as $content){
+			$node = $editableManuscriptDom->importNode($content, true);
+			$editableManuscriptDom->documentElement->appendChild($node);
+		}
+
+		return $editableManuscriptDom->saveXML();
 	}
 
 	/**
-	 * Build media info
-	 *
-	 * @param $request PKPRquest
-	 * @param $assets array
-	 * @return array
+	 * @param DOMDocument $dom
 	 */
-	public function createMediaInfo($request, $assets) {
+	protected function createEmptyMetadata(DOMDocument $dom): void {
+		$dom->front = $dom->createElement('front');
+		$dom->article->appendChild($dom->front);
 
-		$infos = array();
-		$router = $request->getRouter();
-		$dispatcher = $router->getDispatcher();
+		$dom->articleMeta = $dom->createElement('article-meta');
+		$dom->front->appendChild($dom->articleMeta);
 
-		$fileId = $request->getUserVar('fileId');
-		$stageId = $request->getUserVar('stageId');
-		$submissionId = $request->getUserVar('submissionId');
-		// build mapping to assets file paths
+		$dom->titleGroup = $dom->createElement('title-group');
+		$dom->articleTitle = $dom->createElement('article-title');
 
-		$assetsFilePaths = $this->getDependentFilePaths($submissionId, $fileId);
-		foreach ($assets as $asset) {
-			$path = str_replace('media/', '', $asset['path']);
-			$filePath = $assetsFilePaths[$path];
-			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
-				'submissionId' => $submissionId,
-				'fileId' => $fileId,
-				'stageId' => $stageId,
-				'fileName' => $path,
-			));
-			$infos[$asset['path']] = array(
-				'encoding' => 'url',
-				'data' => $url,
-				'size' => filesize($filePath),
-				'createdAt' => filemtime($filePath),
-				'updatedAt' => filectime($filePath),
-			);
-		}
-		return $infos;
+		$dom->titleGroup->appendChild($dom->articleTitle);
+		$dom->articleMeta->appendChild($dom->titleGroup);
+
+
+		$dom->abstract = $dom->createElement('abstract');
+		$dom->articleMeta->appendChild($dom->abstract);
 	}
 
 	/**
@@ -170,6 +179,47 @@ class DAR {
 		}
 
 		return $sxml->asXML();
+	}
+
+	/**
+	 * Build media info
+	 *
+	 * @param $request PKPRquest
+	 * @param $assets array
+	 * @return array
+	 */
+	public function createMediaInfo($request, $assets) {
+
+		$infos = array();
+		$router = $request->getRouter();
+		$dispatcher = $router->getDispatcher();
+
+		$fileId = $request->getUserVar('fileId');
+		$stageId = $request->getUserVar('stageId');
+		$submissionId = $request->getUserVar('submissionId');
+		// build mapping to assets file paths
+
+		$assetsFilePaths = $this->getDependentFilePaths($submissionId, $fileId);
+		foreach ($assets as $asset) {
+			$path = str_replace('media/', '', $asset['path']);
+			if (array_key_exists($path, $assetsFilePaths)) {
+				$filePath = $assetsFilePaths[$path];
+				$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
+					'submissionId' => $submissionId,
+					'fileId' => $fileId,
+					'stageId' => $stageId,
+					'fileName' => $path,
+				));
+				$infos[$asset['path']] = array(
+					'encoding' => 'url',
+					'data' => $url,
+					'size' => filesize($filePath),
+					'createdAt' => filemtime($filePath),
+					'updatedAt' => filectime($filePath),
+				);
+			}
+		}
+		return $infos;
 	}
 
 	/**
