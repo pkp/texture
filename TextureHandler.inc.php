@@ -543,7 +543,9 @@ class TextureHandler extends Handler {
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $editedManuscriptXML);
 
+		$fileType = $submissionFile->getFileType();
 		$fileSize = filesize($tmpfname);
+
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
 		$newSubmissionFile->setSubmissionId($submission->getId());
@@ -554,7 +556,7 @@ class TextureHandler extends Handler {
 		$newSubmissionFile->setDateModified(Core::getCurrentDate());
 		$newSubmissionFile->setUploaderUserId($user->getId());
 		$newSubmissionFile->setFileSize($fileSize);
-		$newSubmissionFile->setFileType($submissionFile->getFileType());
+		$newSubmissionFile->setFileType($fileType);
 		$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
 		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 		$newSubmissionFile->setFileId($submissionFile->getFileId());
