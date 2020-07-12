@@ -123,13 +123,13 @@ class TextureHandler extends Handler {
 							$fileSize = filesize($darManuscriptFilePath);
 
 							$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-							$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($$genreId);
+							$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
 							$newSubmissionFile->setSubmissionId($submission->getId());
 							$newSubmissionFile->setSubmissionLocale($submission->getLocale());
 							$newSubmissionFile->setFileStage($fileStage);
 							$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
 							$newSubmissionFile->setDateModified(Core::getCurrentDate());
-							$newSubmissionFile->setGenreId($$genreId);
+							$newSubmissionFile->setGenreId($genreId);
 							$newSubmissionFile->setOriginalFileName($clientFileName);
 							$newSubmissionFile->setUploaderUserId($user->getId());
 							$newSubmissionFile->setFileSize($fileSize);
@@ -146,7 +146,7 @@ class TextureHandler extends Handler {
 								$fileType = pathinfo($fileName, PATHINFO_EXTENSION);
 
 								$genreId = $this->_getGenreId($request, $fileType);
-								$this->_createDependentFile($genreId, $dependentFilePath, $submission, $insertedSubmissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE);
+								$this->_createDependentFile($genreId, $dependentFilePath, $submission, $insertedSubmissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getFileId());
 							}
 						} else {
 							return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noManuscript'));
@@ -183,7 +183,7 @@ class TextureHandler extends Handler {
 						$fileSize = $htmlFile->getSize();
 
 						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($$genreId);
+						$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
 						$newSubmissionFile->setSubmissionId($submission->getId());
 						$newSubmissionFile->setSubmissionLocale($submission->getLocale());
 						$newSubmissionFile->setGenreId($genreId);
@@ -201,7 +201,7 @@ class TextureHandler extends Handler {
 						foreach ($dependentFiles as $asset) {
 
 							$genreId = $this->_getGenreId($request, $asset->getType());
-							$this->_createDependentFile($genreId, $asset->getPathname(), $submission, $insertedSubmissionFile, $user, $asset->getType(), $asset->getFileName(), SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE);
+							$this->_createDependentFile($genreId, $asset->getPathname(), $submission, $insertedSubmissionFile, $user, $asset->getType(), $asset->getFileName(), SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getFileId());
 						}
 
 					} else {
@@ -433,7 +433,7 @@ class TextureHandler extends Handler {
 					$fileType = $media["fileType"];
 					$fileName = $media["fileName"];
 
-					$insertedSubmissionFile = $this->_createDependentFile($genreId, $tmpfname, $submission, $submissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE);
+					$insertedSubmissionFile = $this->_createDependentFile($genreId, $tmpfname, $submission, $submissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getFileId());
 
 				} elseif (!empty($resources) && isset($resources[DAR_MANUSCRIPT_FILE]) && is_object($resources[DAR_MANUSCRIPT_FILE])) {
 					$genreId = $submissionFile->getGenreId();
@@ -544,6 +544,8 @@ class TextureHandler extends Handler {
 		file_put_contents($tmpfname, $editedManuscriptXML);
 
 		$fileType = $submissionFile->getFileType();
+		$fileName = $submissionFile->getOriginalFileName();
+
 		$fileSize = filesize($tmpfname);
 
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
@@ -557,11 +559,13 @@ class TextureHandler extends Handler {
 		$newSubmissionFile->setUploaderUserId($user->getId());
 		$newSubmissionFile->setFileSize($fileSize);
 		$newSubmissionFile->setFileType($fileType);
-		$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
+
+		$newSubmissionFile->setOriginalFileName($fileName);
 		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
+
 		$newSubmissionFile->setFileId($submissionFile->getFileId());
+		$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
 		$newSubmissionFile->setRevision($submissionFile->getRevision() + 1);
-		$newSubmissionFile->setOriginalFileName($submissionFile->getOriginalFileName());
 		$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
 		unlink($tmpfname);
 
@@ -578,14 +582,17 @@ class TextureHandler extends Handler {
 	 * @param $user User
 	 * @param $fileType string
 	 * @param $fileName string
-	 * @param $fileStage
-	 * @param $assocType
-	 * @param $revision
+	 * @param bool $fileStage
+	 * @param bool $assocType
+	 * @param bool $sourceRevision
+	 * @param bool $deletePath
+	 * @param $assocId
 	 * @return void
 	 */
-	protected function _createDependentFile($genreId, $filePath, $submission, $submissionFile, $user, $fileType, $fileName, $fileStage = false, $assocType=false, $revision=false) {
+	protected function _createDependentFile($genreId, $filePath, $submission, $submissionFile, $user, $fileType, $fileName, $fileStage = false, $assocType = false, $sourceRevision = false, $deletePath = false, $assocId = false) {
 
 		$fileSize = filesize($filePath);
+
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		$newMediaFile = $submissionFileDao->newDataObjectByGenreId($genreId);
 		$newMediaFile->setSubmissionId($submission->getId());
@@ -597,12 +604,14 @@ class TextureHandler extends Handler {
 		$newMediaFile->setUploaderUserId($user->getId());
 		$newMediaFile->setFileSize($fileSize);
 		$newMediaFile->setFileType($fileType);
-		$newMediaFile->setAssocId($submissionFile->getFileId());
+
 		if (isset($fileName)) $newMediaFile->setOriginalFileName($fileName);
 		if (isset($assocType)) $newMediaFile->setAssocType($assocType);
-		if (isset($revision)) $newMediaFile->setSourceRevision($revision);
+		if (isset($sourceRevision)) $newMediaFile->setSourceRevision($sourceRevision);
+		if (isset($assocId)) $newMediaFile->setAssocId($assocId);
+
 		$insertedMediaFile = $submissionFileDao->insertObject($newMediaFile, $filePath);
-		unlink($filePath);
+		if ($deletePath) unlink($filePath);
 
 	}
 
