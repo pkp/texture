@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-06-12 08:39+0000\n"
+"PO-Revision-Date: 2020-07-14 09:40+0000\n"
 "Last-Translator: Hüseyin Körpeoğlu <yoruyenturk@hotmail.com>\n"
 "Language-Team: Turkish <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/tr_TR/>\n"
@@ -12,7 +12,7 @@ msgstr ""
 "X-Generator: Weblate 3.9.1\n"
 
 msgid "plugins.generic.texture.notification.extracted"
-msgstr "DAR dosya çıkarma işlemi başarılı"
+msgstr "Dosya çıkarma işlemi başarılı"
 
 msgid "plugins.generic.texture.notification.noValidDarFile"
 msgstr "Geçerli bir DAR dosyası yok"
@@ -40,3 +40,6 @@ msgstr "Bu eklenti OJS dergi sistemine Texture JATS XML editörünü entegre ede
 
 msgid "plugins.generic.texture.displayName"
 msgstr "Texture Editör Eklentisi"
+
+msgid "plugins.generic.texture.links.extractZipArchive"
+msgstr "ZIP'ı dışarı çıkart"
