@@ -117,7 +117,7 @@ Please find any issues here
 
 
 
- Texture Plugin creates a  Backend URL endpoint for the Editor client to send `GET` Requests.
+ Texture Plugin creates a  Backend URL endpoint for the Editor client to send `GET`, `PUT`, `DELETE` Requests.
 
     
 
