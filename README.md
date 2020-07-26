@@ -125,7 +125,7 @@ Please find any issues here
 
 
 
- `GET /texrue/json`
+ `GET /texture/json`
 
 
 
@@ -147,17 +147,17 @@ Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&file
 
     * Example:
 
-      ```json
+        ```json
 
-    {"version":18,"resources":{"manifest.xml":{"encoding":"utf8","data":"XML PAYLOAD","size":22087,"createdAt":0,"updatedAt":0},"placeholder_2.jpg":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg","size":39385,"createdAt":1592229618,"updatedAt":1592229618},"coverimage_2.png":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=coverimage_2.png","size":48334,"createdAt":1594576206,"updatedAt":1594576206}}}
+          {"version":18,"resources":{"manifest.xml":{"encoding":"utf8","data":"XML PAYLOAD","size":22087,"createdAt":0,"updatedAt":0},"placeholder_2.jpg":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg","size":39385,"createdAt":1592229618,"updatedAt":1592229618},"coverimage_2.png":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=coverimage_2.png","size":48334,"createdAt":1594576206,"updatedAt":1594576206}}}
 
-       ```
+        ```
 
 
 
 ###  Update DAR File 
 
- `PUT /texrue/json`
+ `PUT /texture/json`
 
 Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
 
@@ -191,7 +191,7 @@ Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&file
 
 ###  GET Media File
 
-    `GET /texrue/media`   
+    `GET /texture/media`   
 
 Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg
 
@@ -211,7 +211,7 @@ Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fil
 
 ### DELETE Media File
 
-    `DELETE /texrue/media`   
+    `DELETE /texture/media`   
 
 Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fileId=29&stageId=5
 
