@@ -8,6 +8,12 @@ Table of Contents
    * [Suppoted JATS  Tags](#suppoted-jats--tags)
    * [Usage](#usage)
    * [Issues](#issues)
+   * [Technical documentation](#technical-documentation)
+      * [Backend Integration](#backend-integration)
+         * [GET DAR File](#get-dar-file)
+         * [Update DAR File](#update-dar-file)
+         * [GET Media File](#get-media-file)
+         * [DELETE Media File](#delete-media-file)
 
 # Introduction
 
@@ -103,3 +109,136 @@ Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/
 Please find any issues here 
 
 * https://github.com/pkp/texture/issues
+# Technical documentation
+
+
+
+## Backend Integration
+
+
+
+ Texture Plugin creates a  Backend URL endpoint for the Editor client to send `GET` Requests.
+
+    
+
+###  GET DAR File 
+
+
+
+ `GET /texrue/json`
+
+
+
+Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
+
+
+
+  * Parameters: 
+
+    1. `submissionId` : integer
+
+    2. `fileId` : integer
+
+    3. `stageId` : integer 
+
+  * Return:
+
+     `DAR File` : json
+
+    * Example:
+
+      ```json
+
+    {"version":18,"resources":{"manifest.xml":{"encoding":"utf8","data":"XML PAYLOAD","size":22087,"createdAt":0,"updatedAt":0},"placeholder_2.jpg":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg","size":39385,"createdAt":1592229618,"updatedAt":1592229618},"coverimage_2.png":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=coverimage_2.png","size":48334,"createdAt":1594576206,"updatedAt":1594576206}}}
+
+       ```
+
+
+
+###  Update DAR File 
+
+ `PUT /texrue/json`
+
+Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
+
+  
+
+  *Payload : `DAR File` 
+
+  
+
+  * Parameters: 
+
+    1. `submissionId` : integer
+
+    2. `fileId` : integer
+
+    3. `stageId` : integer 
+
+  * Return:
+
+      `String` : json
+
+    * Example:
+
+      ```json
+
+        {"status":true,"content":"","elementId":"0","events":null}
+
+       ```
+
+            
+
+###  GET Media File
+
+    `GET /texrue/media`   
+
+Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg
+
+   * Parameters: 
+
+    1. `submissionId` : integer
+
+    2. `fileId` : integer
+
+    3. `stageId` : integer
+
+    4. `fileName`: string (should be unique per submission)  
+
+  * Return:
+
+     `Media file` : media file
+
+### DELETE Media File
+
+    `DELETE /texrue/media`   
+
+Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fileId=29&stageId=5
+
+   * Parameters: 
+
+    1. `submissionId` : integer
+
+    2. `fileId` : integer
+
+    3. `stageId` : integer  
+
+  
+
+  * Return:
+
+     `String` : json
+
+     
+
+     Example: 
+
+     ```json
+
+      {"status":true,"content":{"submissionId":4,"fileId":4,"fileRevision":1,"delete_stauts":true},"elementId":"0","events":null}
+
+     ```   
+
+     
+
+   
