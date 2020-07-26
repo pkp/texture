@@ -163,7 +163,7 @@ Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&file
 
   
 
-  *Payload : `DAR File` 
+  * Payload : `DAR File` 
 
   
 
