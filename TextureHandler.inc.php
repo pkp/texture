@@ -321,7 +321,8 @@ class TextureHandler extends Handler {
 		if (!$submissionId || !$stageId || !$fileId) {
 			fatalError('Invalid request');
 		}
-
+		$submissionDao = DAORegistry::getDAO('SubmissionDAO');
+		$submission = $submissionDao->getById($submissionId);
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
 		$filePath = $submissionFile->getFilePath();
 		$manuscriptXml = file_get_contents($filePath);
@@ -333,16 +334,20 @@ class TextureHandler extends Handler {
 			array(
 				'submissionId' => $submissionId,
 				'fileId' => $fileId,
-				'stageId' => $stageId,
+				'stageId' => $stageId
 			)
 		);
 
 		AppLocale::requireComponents(LOCALE_COMPONENT_APP_COMMON, LOCALE_COMPONENT_PKP_MANAGER);
 		$templateMgr = TemplateManager::getManager($request);
+		$publication = $submission->getCurrentPublication();
+		$title = $publication->getData('title', $publication->getData('locale')) ?: 'Texture';
+
 		$templateMgr->assign(array(
 			'documentUrl' => $documentUrl,
 			'textureUrl' => $this->_plugin->getTextureUrl($request),
 			'texturePluginUrl' => $this->_plugin->getPluginUrl($request),
+			'title' => $title
 		));
 		return $templateMgr->fetch($editorTemplateFile);
 	}

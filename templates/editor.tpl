@@ -12,6 +12,7 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="jobId" content="{$documentUrl|escape}">
+		<title>{$title}</title>
 
 		{* Texture dependencies (see index.html in Texture distribution) *}
 		<link href="{$textureUrl|escape}/texture.css" rel="stylesheet" type="text/css"/>
