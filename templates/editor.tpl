@@ -30,7 +30,7 @@
 		<script type="text/javascript" src="{$textureUrl|escape}/substance/substance.min.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/katex/katex.min.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/texture.js"></script>
-		<script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script>
+		<!--script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script-->
 
 		{* Texture plugin additions *}
 		<script type="text/javascript" src="{$texturePluginUrl|escape}/editor.js"></script>
