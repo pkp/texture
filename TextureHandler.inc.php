@@ -340,7 +340,7 @@ class TextureHandler extends Handler {
 		AppLocale::requireComponents(LOCALE_COMPONENT_APP_COMMON, LOCALE_COMPONENT_PKP_MANAGER);
 		$templateMgr = TemplateManager::getManager($request);
 		$publication = $submission->getCurrentPublication();
-		$title = $publication->getLocalizedData('title') ?? 'Texture';
+		$title = $publication->getLocalizedData('title') ?? __('plugins.generic.texture.name');
 
 		$templateMgr->assign(array(
 			'documentUrl' => $documentUrl,
