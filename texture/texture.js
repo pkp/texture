@@ -21309,9 +21309,9 @@
       el.append(
         $$(ResourceComponent, props).ref('resource')
       );
-      if (substance.platform.inBrowser && !substance.platform.isChromium && !substance.platform.inElectron) {
+      if (substance.platform.inBrowser && !substance.platform.isChromium && !substance.platform.inElectron && !substance.platform.isFF) {
         el.append(
-          $$(PinnedMessage, { icon: 'fa-warning', label: 'Attention! Current version of Texture supports only Chrome browser.' })
+          $$(PinnedMessage, { icon: 'fa-warning', label: 'This editor may may not work fully in your browser. If you experience problems, please try loading the editor in Firefox or Chrome.' })
         );
       }
       return el

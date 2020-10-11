@@ -12,6 +12,7 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="jobId" content="{$documentUrl|escape}">
+		<title>{$title|escape}</title>
 
 		{* Texture dependencies (see index.html in Texture distribution) *}
 		<link href="{$textureUrl|escape}/texture.css" rel="stylesheet" type="text/css"/>
@@ -29,7 +30,7 @@
 		<script type="text/javascript" src="{$textureUrl|escape}/substance/substance.min.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/katex/katex.min.js"></script>
 		<script type="text/javascript" src="{$textureUrl|escape}/texture.js"></script>
-		<script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script>
+		<!--script type="text/javascript" src="{$textureUrl|escape}/vfs.js"></script-->
 
 		{* Texture plugin additions *}
 		<script type="text/javascript" src="{$texturePluginUrl|escape}/editor.js"></script>
