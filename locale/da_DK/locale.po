@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-07-14 09:40+0000\n"
+"PO-Revision-Date: 2020-10-13 13:50+0000\n"
 "Last-Translator: Niels Erik Frederiksen <nef@kb.dk>\n"
 "Language-Team: Danish <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/da_DK/>\n"
@@ -21,7 +21,7 @@ msgid "plugins.generic.texture.description"
 msgstr "Plugin til at integrere Texture JATS XML-editoren med OJS."
 
 msgid "plugins.generic.texture.displayName"
-msgstr "Texture Editor Plugin"
+msgstr "Texture editor plugin"
 
 msgid "plugins.generic.texture.notification.extracted"
 msgstr "Fil-udpakning gennemført"
@@ -43,3 +43,6 @@ msgstr "Export DAR"
 
 msgid "plugins.generic.texture.links.extractZipArchive"
 msgstr "Udpak ZIP-arkivet"
+
+msgid "plugins.generic.texture.name"
+msgstr "Texture"
