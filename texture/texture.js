@@ -16289,10 +16289,21 @@
       }
 
       let xmlStr = substance.prettyPrintXML(jats);
+      xmlStr = String(xmlStr)
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/<element-citation(\s)publication-type="(.)*">(\s)*<(.)*>(\s)*<mixed-citation\s/g, '<mixed-citation ')
+          .replace(/<element-citation>(\s)*<(.)*>(\s)*<mixed-citation/g, '<mixed-citation')
+          .replace(/<\/mixed-citation><\/(.)*>(\s)+<\/element-citation>/g, '<\/mixed-citation>');
+
       // for the purpose of debugging
       if (substance.platform.inBrowser) {
         console.info('saving jats', { el: jats.getNativeElement(), xml: xmlStr });
       }
+
+
 
       return xmlStr
     }
@@ -18905,9 +18916,17 @@
       const doc = importer.state.doc;
       let elementCitation = el.find('element-citation');
       if (!elementCitation) {
-        throw new Error('<element-citation> is required')
+        let mixedCitation = el.find('mixed-citation');
+          _importMixedCitation(mixedCitation, node, doc, importer);
+        if (!mixedCitation) {
+         throw new Error('<element-citation> or <mixed-citation> is required')
+        }
       }
-      _importElementCitation(elementCitation, node, doc, importer);
+      else {
+        _importElementCitation(elementCitation, node, doc, importer);
+      }
+
+
     }
 
     export (node, el, exporter) {
@@ -18919,10 +18938,14 @@
     }
   }
 
-  function _importElementCitation (el, node, doc, importer) {
+  function _importMixedCitation (el, node, doc, importer) {
     const type = el.attr('publication-type');
     node.type = JATS_BIBR_TYPES_TO_INTERNAL[type];
+    //_setCitationObjects(node, el);
+    node.title = el.getOuterHTML().toString();
+  }
 
+  function _setCitationObjects(node, el) {
     Object.assign(node, {
       assignee: getText(el, 'collab[collab-type=assignee] > named-content'),
       confName: getText(el, 'conf-name'),
@@ -18955,6 +18978,12 @@
       doi: getText(el, 'pub-id[pub-id-type=doi]'),
       pmid: getText(el, 'pub-id[pub-id-type=pmid]')
     });
+  }
+
+  function _importElementCitation (el, node, doc, importer) {
+    const type = el.attr('publication-type');
+    node.type = JATS_BIBR_TYPES_TO_INTERNAL[type];
+    _setCitationObjects(node, el);
 
     if (type === 'book' || type === 'report' || type === 'software') {
       node.title = getAnnotatedText(importer, el, 'source', [node.id, 'title']);
@@ -21566,12 +21595,16 @@
       }
     }
 
-    _loadDocument (type, record, documents) {
-      let loader = this._config.getDocumentLoader(type);
-      if (loader) {
-        return loader.load(record.data, this._config)
-      } else {
-        throw new Error('Unsupported document type')
+    _loadDocument(type, record, documents) {
+      let config = this._config;
+      if (config) {
+        let loader = config.getDocumentLoader(type);
+        if (loader) {
+          return loader.load(record.data, config)
+        } else {
+          // throw new Error('Unsupported document type')
+          console.info('Unsupported document type');
+        }
       }
     }
 
@@ -21580,7 +21613,8 @@
       if (serializer) {
         return serializer.export(document, this._config)
       } else {
-        throw new Error('Unsupported document type')
+        // throw new Error('Unsupported document type')
+        console.info('Unsupported document type');
       }
     }
 
