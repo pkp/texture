@@ -839,7 +839,7 @@ replacing it with OverlayCanvas, which is more generic, but also more low-level
   background: var(---t-default-button-background);
 }
 
-.sc-affiliations-list {
+.sc-affiliations-list {  
 }
 
 .sc-article-panel {
@@ -1399,7 +1399,7 @@ h3.sc-heading {
   max-height: var(--t-text-font-size);
 }
 
-.sc-inline-graphic .se-error {
+.sc-inline-graphic .se-error { 
   border: 1px solid #d95859;
   padding: 2px 4px;
   color: #d95859;
@@ -2059,8 +2059,8 @@ TODO: remove this if so
 }
 
 /*
-  TODO: When we will have a better understanding of
-  validation UI we should tidyup error popups or
+  TODO: When we will have a better understanding of 
+  validation UI we should tidyup error popups or 
   replace them with something more general
 */
 
