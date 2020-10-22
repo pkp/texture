@@ -520,11 +520,11 @@ class TextureHandler extends Handler {
 	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user) {
 
 		$editedManuscriptXml = $resources[DAR_MANUSCRIPT_FILE]->data;
-		$editedManuscriptXmlDom = new DOMDocument;
+		$editedManuscriptXmlDom = new DOMDocument();
 		$editedManuscriptXmlDom->loadXML($editedManuscriptXml);
 		$xpath = new DOMXpath($editedManuscriptXmlDom);
 
-		$manuscriptXmlDom = new DOMDocument;
+		$manuscriptXmlDom = new DOMDocument();
 		$filePath = $submissionFile->getFilePath();
 		$manuscriptXml = file_get_contents($filePath);
 		$manuscriptXmlDom->loadXML($manuscriptXml);
