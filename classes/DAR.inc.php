@@ -91,6 +91,14 @@ class DAR {
 			$editableManuscriptDom->documentElement->appendChild($node);
 		}
 
+		$refTypes = array("mixed-citation","element-citation");
+		foreach ($refTypes as $ref) {
+			foreach ($xpath->query("/article/back/ref-list/ref/" . $ref . "") as $content) {
+				if (empty($content->getAttribute("publication-type"))) {
+					$content->setAttribute('publication-type', 'journal');
+				}
+			}
+		}
 		$manuscriptBack = $xpath->query("/article/back");
 		foreach ($manuscriptBack as $content){
 			$node = $editableManuscriptDom->importNode($content, true);
