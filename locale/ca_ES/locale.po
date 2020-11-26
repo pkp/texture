@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-06-13 09:39+0000\n"
+"PO-Revision-Date: 2020-10-26 13:01+0000\n"
 "Last-Translator: Jordi LC <jordi.lacruz@uab.cat>\n"
 "Language-Team: Catalan <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/ca_ES/>\n"
@@ -12,7 +12,7 @@ msgstr ""
 "X-Generator: Weblate 3.9.1\n"
 
 msgid "plugins.generic.texture.notification.extracted"
-msgstr "L'arxiu DAR s'ha extret correctament"
+msgstr "L'arxiu s'ha extret correctament"
 
 msgid "plugins.generic.texture.notification.noValidDarFile"
 msgstr "No hi ha cap arxiu DAR vàlid"
@@ -40,3 +40,9 @@ msgstr "Mòdul per integrar l'editor Texture JATS XML amb OJS."
 
 msgid "plugins.generic.texture.displayName"
 msgstr "Mòdul editor Texture"
+
+msgid "plugins.generic.texture.name"
+msgstr "Texture"
+
+msgid "plugins.generic.texture.links.extractZipArchive"
+msgstr "Extreure l'arxiu ZIP"
