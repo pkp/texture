@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-07-24 14:47+0000\n"
+"PO-Revision-Date: 2020-11-04 16:50+0000\n"
 "Last-Translator: Marie-Hélène Vézina [UdeMontréal] <marie-"
 "helene.vezina@umontreal.ca>\n"
 "Language-Team: French (Canada) <http://translate.pkp.sfu.ca/projects/plugins/"
@@ -44,3 +44,6 @@ msgstr "Exporter le fichier DAR"
 
 msgid "plugins.generic.texture.links.extractZipArchive"
 msgstr "Extraire le fichier ZIP"
+
+msgid "plugins.generic.texture.name"
+msgstr "Texture"
