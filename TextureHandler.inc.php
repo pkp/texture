@@ -14,7 +14,7 @@
  */
 
 import('classes.handler.Handler');
-import('lib.pkp.classes.file.SubmissionFileManager');
+
 
 
 class TextureHandler extends Handler {
@@ -59,9 +59,9 @@ class TextureHandler extends Handler {
 	 * @copydoc PKPHandler::authorize()
 	 */
 	function authorize($request, &$args, $roleAssignments) {
-
+		$submissionFileId = $request->getUserVar('fileId');
 		import('lib.pkp.classes.security.authorization.SubmissionFileAccessPolicy');
-		$this->addPolicy(new SubmissionFileAccessPolicy($request, $args, $roleAssignments, SUBMISSION_FILE_ACCESS_READ));
+		$this->addPolicy(new SubmissionFileAccessPolicy($request, $args, $roleAssignments, SUBMISSION_FILE_ACCESS_MODIFY, $submissionFileId));
 		return parent::authorize($request, $args, $roleAssignments);
 	}
 
@@ -96,7 +96,7 @@ class TextureHandler extends Handler {
 		$html_types = array('html');
 
 		$zip = new ZipArchive;
-		if ($zip->open($submissionFile->getFilePath()) === TRUE) {
+		if ($zip->open($submissionFile->getData('path')) === TRUE) {
 			$submissionDao = Application::getSubmissionDAO();
 			$submissionId = (int)$request->getUserVar('submissionId');
 			$submission = $submissionDao->getById($submissionId);
@@ -104,7 +104,7 @@ class TextureHandler extends Handler {
 			$zip->extractTo($archivePath);
 			$genreId = GENRE_CATEGORY_DOCUMENT;
 			$fileStage = $submissionFile->getFileStage();
-			$sourceFileId = $submissionFile->getFileId();
+			$sourceFileId = $submissionFile->getData('fileId');
 			if ($zipType == TEXTURE_DAR_FILE_TYPE) {
 				$manifestFileDom = new DOMDocument();
 				$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . DAR_MANIFEST_FILE;
@@ -240,7 +240,7 @@ class TextureHandler extends Handler {
 
 		$context = $request->getContext();
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$filePath = $submissionFile->getFilePath();
+		$filePath = $submissionFile->getData('path');
 		$manuscriptXml = file_get_contents($filePath);
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
 
@@ -323,7 +323,7 @@ class TextureHandler extends Handler {
 		}
 		$submission = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION);
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$filePath = $submissionFile->getFilePath();
+		$filePath = $submissionFile->getData('path');
 		$manuscriptXml = file_get_contents($filePath);
 		$manuscriptXmlDom = new DOMDocument;
 		$manuscriptXmlDom->loadXML($manuscriptXml);
@@ -377,13 +377,13 @@ class TextureHandler extends Handler {
 			$postData = file_get_contents('php://input');
 			$media = (array)json_decode($postData);
 			if (!empty($media)) {
-				$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-				$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
-					ASSOC_TYPE_SUBMISSION_FILE,
-					$submissionFile->getFileId(),
-					$submissionFile->getSubmissionId(),
-					SUBMISSION_FILE_DEPENDENT
-				);
+				$dependentFiles = Services::get('submissionFile')->getMany([
+					'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
+					'assocIds' => [$submissionFile->getData('fileId')],
+					'submissionIds' => [$submissionFile->getData('submissionId')],
+					'fileStages' => [SUBMISSION_FILE_DEPENDENT],
+					'includeDependentFiles' => true,
+				]);
 				foreach ($dependentFiles as $dependentFile) {
 					if ($dependentFile->getOriginalFileName() === $media['fileName']) {
 						$fileId = $dependentFile->getFileId();
@@ -442,7 +442,7 @@ class TextureHandler extends Handler {
 					$fileType = $media["fileType"];
 					$fileName = $media["fileName"];
 
-					$insertedSubmissionFile = $this->_createDependentFile($genreId, $submission, $submissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getFileId(), false, $tmpfname);
+					$insertedSubmissionFile = $this->_createDependentFile($genreId, $submission, $submissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getData('fileId'), false, $tmpfname);
 
 				} elseif (!empty($resources) && isset($resources[DAR_MANUSCRIPT_FILE]) && is_object($resources[DAR_MANUSCRIPT_FILE])) {
 					$genreId = $submissionFile->getGenreId();
@@ -479,10 +479,11 @@ class TextureHandler extends Handler {
 		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
 		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
 			ASSOC_TYPE_SUBMISSION_FILE,
-			$submissionFile->getFileId(),
-			$submissionFile->getSubmissionId(),
+			$submissionFile->getData('fileId'),
+			$submissionFile->getData('submissionId'),
 			SUBMISSION_FILE_DEPENDENT
 		);
+
 
 		// make sure this is an xml document
 		if (!in_array($submissionFile->getFileType(), array('text/xml', 'application/xml'))) {
@@ -526,7 +527,7 @@ class TextureHandler extends Handler {
 		$xpath = new DOMXpath($modifiedDocument);
 
 		$origDocument = new DOMDocument('1.0', 'utf-8');
-		$origDocument->loadXML(file_get_contents($submissionFile->getFilePath()));
+		$origDocument->loadXML(file_get_contents($submissionFile->getData('path')));
 
 
 		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);
@@ -571,8 +572,8 @@ class TextureHandler extends Handler {
 		$newSubmissionFile->setOriginalFileName($fileName);
 		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
 
-		$newSubmissionFile->setFileId($submissionFile->getFileId());
-		$newSubmissionFile->setSourceFileId($submissionFile->getFileId());
+		$newSubmissionFile->setFileId($submissionFile->getData('fileId'));
+		$newSubmissionFile->setSourceFileId($submissionFile->getData('fileId'));
 		$newSubmissionFile->setRevision($submissionFile->getRevision() + 1);
 		$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
 		unlink($tmpfname);

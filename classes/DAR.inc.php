@@ -20,7 +20,7 @@ class DAR {
 	public function construct(DAR $dar, $request, $submissionFile): array {
 
 		$assets = array();
-		$filePath = $submissionFile->getFilePath();
+		$filePath = $submissionFile->getData('path');
 		$manuscriptXml = file_get_contents($filePath);
 		$manuscriptXml = $dar->createManuscript($manuscriptXml);
 
@@ -237,14 +237,15 @@ class DAR {
 	 */
 	public function getDependentFilePaths($submissionId, $fileId): array {
 
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
-		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
-			ASSOC_TYPE_SUBMISSION_FILE,
-			$fileId,
-			$submissionId,
-			SUBMISSION_FILE_DEPENDENT
-		);
+		$dependentFiles = Services::get('submissionFile')->getMany([
+			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
+			'assocIds' => [$fileId],
+			'submissionIds' => [$submissionId],
+			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
+			'includeDependentFiles' => true,
+		]);
+
 		$assetsFilePaths = array();
 		foreach ($dependentFiles as $dFile) {
 			$assetsFilePaths[$dFile->getOriginalFileName()] = $dFile->getFilePath();

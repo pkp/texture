@@ -118,7 +118,7 @@ class TextureArticleGalleyForm extends Form {
 		// Create galley XML file from the production XML  source file
 		import('lib.pkp.classes.file.SubmissionFileManager');
 		$submissionFileManager = new SubmissionFileManager($context->getId(), $submissionFile);
-		$fileId = $submissionFile->getFileId();
+		$fileId = $submissionFile->getData('fileId');
 		$revision = $submissionFile->getRevision();
 
 		list($newFileId, $newRevision) = $submissionFileManager->copyFileToFileStage($fileId, $revision, $fileStage, null, true);
@@ -138,8 +138,8 @@ class TextureArticleGalleyForm extends Form {
 		// Get dependent files of the XML source file
 		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
 			ASSOC_TYPE_SUBMISSION_FILE,
-			$submissionFile->getFileId(),
-			$submissionFile->getSubmissionId(),
+			$submissionFile->getData('fileId'),
+			$submissionFile->getData(),
 			SUBMISSION_FILE_DEPENDENT
 		);
 
