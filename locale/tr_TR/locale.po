@@ -1,0 +1,48 @@
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2020-10-13 13:50+0000\n"
+"Last-Translator: Hüseyin Körpeoğlu <yoruyenturk@hotmail.com>\n"
+"Language-Team: Turkish <http://translate.pkp.sfu.ca/projects/plugins/"
+"texture-plugin/tr_TR/>\n"
+"Language: tr_TR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 3.9.1\n"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "Dosya çıkarma işlemi başarılı"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Geçerli bir DAR dosyası yok"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Manifest dosyası yok"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Kullanılabilir makale dosyası yok"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "DAR'ı dışarı çıkart"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "DAR olarak Dışarı Aktar"
+
+msgid "plugins.generic.texture.links.editWithTexture"
+msgstr "Texture ile Düzenle"
+
+msgid "plugins.generic.texture.links.createGalley"
+msgstr "Dizgi Yarat"
+
+msgid "plugins.generic.texture.description"
+msgstr "Bu eklenti OJS dergi sistemine Texture JATS XML editörünü entegre eder."
+
+msgid "plugins.generic.texture.displayName"
+msgstr "Texture Editör Eklentisi"
+
+msgid "plugins.generic.texture.links.extractZipArchive"
+msgstr "ZIP'ı dışarı çıkart"
+
+msgid "plugins.generic.texture.name"
+msgstr "Texture"

@@ -519,36 +519,35 @@ class TextureHandler extends Handler {
 	 */
 	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user) {
 
-		$editedManuscriptXml = $resources[DAR_MANUSCRIPT_FILE]->data;
-		$editedManuscriptXmlDom = new DOMDocument();
-		$editedManuscriptXmlDom->loadXML($editedManuscriptXml);
-		$xpath = new DOMXpath($editedManuscriptXmlDom);
+		$modifiedDocument =  new DOMDocument('1.0', 'utf-8');
+		$modifiedData = $resources[DAR_MANUSCRIPT_FILE]->data;
 
-		$manuscriptXmlDom = new DOMDocument();
-		$filePath = $submissionFile->getFilePath();
-		$manuscriptXml = file_get_contents($filePath);
-		$manuscriptXmlDom->loadXML($manuscriptXml);
+		$modifiedDocument->loadXML($modifiedData);
+		$xpath = new DOMXpath($modifiedDocument);
+
+		$origDocument = new DOMDocument('1.0', 'utf-8');
+		$origDocument->loadXML(file_get_contents($submissionFile->getFilePath()));
 
 
-		$body = $manuscriptXmlDom->documentElement->getElementsByTagName('body')->item(0);
-		$manuscriptXmlDom->documentElement->removeChild($body);
+		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);
+		$origDocument->documentElement->removeChild($body);
 
-		$manuscriptBody = $xpath->query("/article/body");
+		$manuscriptBody = $xpath->query("//article/body");
 		foreach ($manuscriptBody as $content) {
-			$node = $manuscriptXmlDom->importNode($content, true);
-			$manuscriptXmlDom->documentElement->appendChild($node);
+			$node = $origDocument->importNode($content, true);
+			$origDocument->documentElement->appendChild($node);
 		}
 
-		$back = $manuscriptXmlDom->documentElement->getElementsByTagName('back')->item(0);
-		$manuscriptXmlDom->documentElement->removeChild($back);
+		$back = $origDocument->documentElement->getElementsByTagName('back')->item(0);
+		$origDocument->documentElement->removeChild($back);
 
-		$manuscriptBack = $xpath->query("/article/back");
+		$manuscriptBack = $xpath->query("//article/back");
 		foreach ($manuscriptBack as $content) {
-			$node = $manuscriptXmlDom->importNode($content, true);
-			$manuscriptXmlDom->documentElement->appendChild($node);
+			$node = $origDocument->importNode($content, true);
+			$origDocument->documentElement->appendChild($node);
 		}
 
-		$editedManuscriptXML = $manuscriptXmlDom->saveXML();
+		$editedManuscriptXML = $origDocument->saveXML();
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $editedManuscriptXML);
 

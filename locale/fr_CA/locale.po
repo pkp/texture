@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-02-28 13:36+0000\n"
+"PO-Revision-Date: 2020-11-04 16:50+0000\n"
 "Last-Translator: Marie-Hélène Vézina [UdeMontréal] <marie-"
 "helene.vezina@umontreal.ca>\n"
 "Language-Team: French (Canada) <http://translate.pkp.sfu.ca/projects/plugins/"
@@ -25,7 +25,7 @@ msgid "plugins.generic.texture.displayName"
 msgstr "Plugiciel de l'outil d'édition Texture"
 
 msgid "plugins.generic.texture.notification.extracted"
-msgstr "Fichier DAR extrait avec succès"
+msgstr "Fichier extrait avec succès"
 
 msgid "plugins.generic.texture.notification.noValidDarFile"
 msgstr "Il n'y a pas de fichier DAR valide"
@@ -41,3 +41,9 @@ msgstr "Extraire le fichier DAR"
 
 msgid "plugins.generic.texture.links.exportDarArchive"
 msgstr "Exporter le fichier DAR"
+
+msgid "plugins.generic.texture.links.extractZipArchive"
+msgstr "Extraire le fichier ZIP"
+
+msgid "plugins.generic.texture.name"
+msgstr "Texture"
