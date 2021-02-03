@@ -60,8 +60,14 @@ class TextureHandler extends Handler {
 	 */
 	function authorize($request, &$args, $roleAssignments) {
 		$submissionFileId = $request->getUserVar('fileId');
-		import('lib.pkp.classes.security.authorization.SubmissionFileAccessPolicy');
-		$this->addPolicy(new SubmissionFileAccessPolicy($request, $args, $roleAssignments, SUBMISSION_FILE_ACCESS_MODIFY, $submissionFileId));
+
+		import('lib.pkp.classes.security.authorization.WorkflowStageAccessPolicy');
+		$this->addPolicy(new WorkflowStageAccessPolicy($request, $args, $roleAssignments, 'submissionId', WORKFLOW_STAGE_ID_PRODUCTION));
+
+		import('lib.pkp.classes.security.authorization.PublicationAccessPolicy');
+		$this->addPolicy(new PublicationAccessPolicy($request, $args, $roleAssignments));
+
+
 		return parent::authorize($request, $args, $roleAssignments);
 	}
 
