@@ -26,6 +26,8 @@ class DAR {
 
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
+		$submissionDao = DAORegistry::getDAO('SubmissionDAO'); /* @var $submissionDao SubmissionDAO */
+		$submission = $submissionDao->getById($submissionFile->getData("submissionId"));
 
 
 		$resources = array(
@@ -45,7 +47,7 @@ class DAR {
 			),
 		);
 		$mediaBlob = array(
-			'version' => $submissionFile->getSourceRevision(),
+			'version' => 1,
 			'resources' => array_merge($resources, $mediaInfos)
 		);
 		return $mediaBlob;

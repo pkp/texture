@@ -475,14 +475,15 @@ class TextureHandler extends Handler {
 			fatalError('Invalid request');
 		}
 
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
-		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
-			ASSOC_TYPE_SUBMISSION_FILE,
-			$submissionFile->getData('fileId'),
-			$submissionFile->getData('submissionId'),
-			SUBMISSION_FILE_DEPENDENT
-		);
+		$dependentFiles = Services::get('submissionFile')->getMany([
+			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
+			'assocIds' => [$submissionFile->getData('fileId')],
+			'submissionIds' => [$submissionFile->getData('submissionId')],
+			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
+			'includeDependentFiles' => true,
+		]);
+
+
 
 
 		// make sure this is an xml document
