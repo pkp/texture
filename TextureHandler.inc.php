@@ -59,15 +59,8 @@ class TextureHandler extends Handler {
 	 * @copydoc PKPHandler::authorize()
 	 */
 	function authorize($request, &$args, $roleAssignments) {
-		$submissionFileId = $request->getUserVar('fileId');
-
 		import('lib.pkp.classes.security.authorization.WorkflowStageAccessPolicy');
-		$this->addPolicy(new WorkflowStageAccessPolicy($request, $args, $roleAssignments, 'submissionId', WORKFLOW_STAGE_ID_PRODUCTION));
-
-		import('lib.pkp.classes.security.authorization.PublicationAccessPolicy');
-		$this->addPolicy(new PublicationAccessPolicy($request, $args, $roleAssignments));
-
-
+		$this->addPolicy(new WorkflowStageAccessPolicy($request, $args, $roleAssignments, 'submissionId', (int) $request->getUserVar('stageId')));
 		return parent::authorize($request, $args, $roleAssignments);
 	}
 
