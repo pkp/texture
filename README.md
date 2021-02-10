@@ -5,7 +5,7 @@ Table of Contents
    * [Introduction](#introduction)
    * [Handbook](#handbook)
    * [Installation](#installation)
-   * [Suppoted JATS  Tags](#suppoted-jats--tags)
+   * [Supported JATS Tags](#supported-jats-tags)
    * [Usage](#usage)
    * [Issues](#issues)
    * [Technical documentation](#technical-documentation)
@@ -46,7 +46,8 @@ Texture is available under Plugin gallery
 
 
 
-# Suppoted JATS  Tags
+# Supported JATS Tags
+
 Tag| Definition| Support
 | --- | --- | --- 
 | <img width=800/>| <img width=800/>| <img width=800/>
@@ -84,11 +85,7 @@ Tag| Definition| Support
 
 # Usage
 
-
-
 Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/1.1/) XML standard.
-
-
 
 * After plugin installation,  go to a `Production Stage` of the submission
 
@@ -111,27 +108,15 @@ Please find any issues here
 * https://github.com/pkp/texture/issues
 # Technical documentation
 
-
-
 ## Backend Integration
 
-
-
- Texture Plugin creates a  Backend URL endpoint for the Editor client to send `GET`, `PUT`, `DELETE` Requests.
-
-    
+Texture Plugin creates a  Backend URL endpoint for the Editor client to send `GET`, `PUT`, `DELETE` Requests.
 
 ###  GET DAR File 
 
-
-
  `GET /texture/json`
 
-
-
 Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
-
-
 
   * Parameters: 
 
@@ -153,19 +138,13 @@ Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&file
 
         ```
 
-
-
 ###  Update DAR File 
 
  `PUT /texture/json`
 
 Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
 
-  
-
   * Payload : `DAR File` 
-
-  
 
   * Parameters: 
 
@@ -186,8 +165,6 @@ Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&file
         {"status":true,"content":"","elementId":"0","events":null}
 
        ```
-
-            
 
 ###  GET Media File
 
@@ -238,7 +215,3 @@ Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fil
       {"status":true,"content":{"submissionId":4,"fileId":4,"fileRevision":1,"delete_stauts":true},"elementId":"0","events":null}
 
      ```   
-
-     
-
-   
