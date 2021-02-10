@@ -167,7 +167,7 @@ class TexturePlugin extends GenericPlugin {
 				$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'export', null,
 					array(
 						'submissionId' => $submissionFile->getData('submissionId'),
-						'fileId' => $submissionFile->getData('fileId'),
+						'submissionFileId' => $submissionFile->getData('id'),
 						'stageId' => $stageId
 					)
 				)
@@ -194,7 +194,7 @@ class TexturePlugin extends GenericPlugin {
 
 		$actionArgs = array(
 			'submissionId' => $submissionFile->getData('submissionId'),
-			'fileId' => $submissionFile->getData('fileId'),
+			'submissionFileId' => $submissionFile->getData('id'),
 			'stageId' => $stageId,
 			'zipType' => $zipType
 		);
@@ -226,6 +226,7 @@ class TexturePlugin extends GenericPlugin {
 				$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'editor', null,
 					array(
 						'submissionId' => $submissionFile->getData('submissionId'),
+						'submissionFileId' => $submissionFile->getData('id'),
 						'fileId' => $submissionFile->getData('fileId'),
 						'stageId' => $stageId
 					)
@@ -250,7 +251,7 @@ class TexturePlugin extends GenericPlugin {
 			'submissionId' => $submissionFile->getData('submissionId'),
 			'stageId' => $stageId,
 			'fileStage' => $fileStage,
-			'fileId' => $submissionFile->getData('fileId')
+			'submissionFileId' => $submissionFile->getData('id')
 		);
 		$row->addAction(new LinkAction(
 			'createGalleyForm',

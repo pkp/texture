@@ -16,7 +16,7 @@
 </script>
 
 
-<form class="pkp_form" id="textureGalleyForm" method="post" action="{url op="createGalley" submissionId=$submissionId stageId=$stageId fileStage=$fileStage fileId=$fileId}">
+<form class="pkp_form" id="textureGalleyForm" method="post" action="{url op="createGalley" submissionId=$submissionId stageId=$stageId fileStage=$fileStage submissionFileId=$fileId}">
 
     {csrf}
 

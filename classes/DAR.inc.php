@@ -20,14 +20,11 @@ class DAR {
 	public function construct(DAR $dar, $request, $submissionFile): array {
 
 		$assets = array();
-		$filePath = $submissionFile->getData('path');
-		$manuscriptXml = file_get_contents($filePath);
+		$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
 		$manuscriptXml = $dar->createManuscript($manuscriptXml);
 
 		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
-		$submissionDao = DAORegistry::getDAO('SubmissionDAO'); /* @var $submissionDao SubmissionDAO */
-		$submission = $submissionDao->getById($submissionFile->getData("submissionId"));
 
 
 		$resources = array(
@@ -204,7 +201,7 @@ class DAR {
 		$router = $request->getRouter();
 		$dispatcher = $router->getDispatcher();
 
-		$fileId = $request->getUserVar('fileId');
+		$submissionFileId = $request->getUserVar('submissionFileId');
 		$stageId = $request->getUserVar('stageId');
 		$submissionId = $request->getUserVar('submissionId');
 		// build mapping to assets file paths
@@ -216,7 +213,7 @@ class DAR {
 				$filePath = $assetsFilePaths[$path];
 				$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
 					'submissionId' => $submissionId,
-					'fileId' => $fileId,
+					'submissionFileId' => $fileId,
 					'stageId' => $stageId,
 					'fileName' => $path,
 				));

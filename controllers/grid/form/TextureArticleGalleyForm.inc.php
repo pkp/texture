@@ -72,7 +72,7 @@ class TextureArticleGalleyForm extends Form {
 			'submissionId' => $this->_submission->getId(),
 			'stageId' => $request->getUserVar('stageId'),
 			'fileStage' => $request->getUserVar('fileStage'),
-			'fileId' => $request->getUserVar('fileId'),
+			'submissionFileId' => $request->getUserVar('submissionFileId'),
 			'publicationId' => $this->_publication->getId(),
 
 		));
@@ -88,7 +88,7 @@ class TextureArticleGalleyForm extends Form {
 			array(
 				'label',
 				'galleyLocale',
-				'fileId',
+				'submissionFileId',
 				'fileStage'
 			)
 		);
@@ -113,12 +113,12 @@ class TextureArticleGalleyForm extends Form {
 
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		$fileStage = $this->getData('fileStage');
-		$submissionFile = $submissionFileDao->getLatestRevision( $this->getData('fileId'), $fileStage, $submissionId);
+		$submissionFile = $submissionFileDao->getLatestRevision( $this->getData('submissionFileId'), $fileStage, $submissionId);
 
 		// Create galley XML file from the production XML  source file
 		import('lib.pkp.classes.file.SubmissionFileManager');
 		$submissionFileManager = new SubmissionFileManager($context->getId(), $submissionFile);
-		$fileId = $submissionFile->getData('fileId');
+		$fileId = $submissionFile->getData('submissionFileId');
 		$revision = $submissionFile->getRevision();
 
 		list($newFileId, $newRevision) = $submissionFileManager->copyFileToFileStage($fileId, $revision, $fileStage, null, true);
@@ -138,7 +138,7 @@ class TextureArticleGalleyForm extends Form {
 		// Get dependent files of the XML source file
 		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
 			ASSOC_TYPE_SUBMISSION_FILE,
-			$submissionFile->getData('fileId'),
+			$submissionFile->getData('submissionFileId'),
 			$submissionFile->getData(),
 			SUBMISSION_FILE_DEPENDENT
 		);

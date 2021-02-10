@@ -103,7 +103,7 @@ class TextureHandler extends Handler {
 			$zip->extractTo($archivePath);
 			$genreId = GENRE_CATEGORY_DOCUMENT;
 			$fileStage = $submissionFile->getFileStage();
-			$sourceFileId = $submissionFile->getData('fileId');
+			$sourceFileId = $submissionFile->getData('submissionFileId');
 			if ($zipType == TEXTURE_DAR_FILE_TYPE) {
 				$manifestFileDom = new DOMDocument();
 				$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . DAR_MANIFEST_FILE;
@@ -148,7 +148,7 @@ class TextureHandler extends Handler {
 								$fileType = pathinfo($fileName, PATHINFO_EXTENSION);
 
 								$genreId = $this->_getGenreId($request, $fileType);
-								$this->_createDependentFile($genreId, $submission, $insertedSubmissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $insertedSubmissionFile->getFileId(), false, $dependentFilePath);
+								$this->_createDependentFile($genreId, $submission, $insertedSubmissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $insertedSubmissionFile->getFileId(), false, $dependentFilePath, $request);
 							}
 						} else {
 							return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noManuscript'));
@@ -205,7 +205,7 @@ class TextureHandler extends Handler {
 						foreach ($dependentFiles as $asset) {
 
 							$genreId = $this->_getGenreId($request, $asset->getType());
-							$this->_createDependentFile($genreId, $submission, $insertedSubmissionFile, $user, $asset->getType(), $asset->getFileName(), SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $insertedSubmissionFile->getFileId(), $sourceFileId, $asset->getPathname());
+							$this->_createDependentFile($genreId, $submission, $insertedSubmissionFile, $user, $asset->getType(), $asset->getFileName(), SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $insertedSubmissionFile->getFileId(), $sourceFileId, $asset->getPathname(),$request);
 						}
 
 					} else {
@@ -315,22 +315,36 @@ class TextureHandler extends Handler {
 
 
 		$stageId = (int)$request->getUserVar('stageId');
+		$submissionFileId = (int)$request->getUserVar('submissionFileId');
 		$fileId = (int)$request->getUserVar('fileId');
 		$submissionId = (int)$request->getUserVar('submissionId');;
-		if (!$submissionId || !$stageId || !$fileId) {
+		if (!$submissionId || !$stageId || !$submissionFileId || !$fileId) {
 			fatalError('Invalid request');
 		}
 		$submission = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION);
-		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$filePath = $submissionFile->getData('path');
-		$manuscriptXml = file_get_contents($filePath);
-		$manuscriptXmlDom = new DOMDocument;
-		$manuscriptXmlDom->loadXML($manuscriptXml);
+		/*
+				$submissionFilesIterator = Services::get('submissionFile')->getMany([
+					'submissionIds' => [$submissionId],
+					'fileId' =>  [$fileId],
+					'submissionFileIds' =>  [$submissionFileId],
+					'includeDependentFiles' => false,
+
+				]);
+
+				$manuscriptXml = null;
+				foreach ($submissionFilesIterator as $submissionFile) {
+					$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
+					break;
+				}
+				$manuscriptXmlDom = new DOMDocument;
+				$manuscriptXmlDom->loadXML($manuscriptXml);
+				*/
 		$editorTemplateFile = method_exists($this->_plugin, 'getTemplateResource') ? $this->_plugin->getTemplateResource('editor.tpl') : ($this->_plugin->getTemplateResourceName() . ':templates/editor.tpl');
 		$router = $request->getRouter();
 		$documentUrl = $router->url($request, null, 'texture', 'json', null,
 			array(
 				'submissionId' => $submissionId,
+				'submissionFileId' => $submissionFileId,
 				'fileId' => $fileId,
 				'stageId' => $stageId
 			)
@@ -361,7 +375,12 @@ class TextureHandler extends Handler {
 
 		import('plugins.generic.texture.classes.DAR');
 		$dar = new DAR();
-		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
+		$stageId = (int)$request->getUserVar('stageId');
+		$submissionFileId = (int)$request->getUserVar('submissionFileId');
+		$fileId = (int)$request->getUserVar('fileId');
+		$submissionId = (int)$request->getUserVar('submissionId');;
+
+		$submissionFile = Services::get('submissionFile')->get($submissionFileId);
 
 		if (!$submissionFile) {
 			fatalError('Invalid request');
@@ -378,7 +397,7 @@ class TextureHandler extends Handler {
 			if (!empty($media)) {
 				$dependentFiles = Services::get('submissionFile')->getMany([
 					'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
-					'assocIds' => [$submissionFile->getData('fileId')],
+					'assocIds' => [$submissionFile->getData('submissionFileId')],
 					'submissionIds' => [$submissionFile->getData('submissionId')],
 					'fileStages' => [SUBMISSION_FILE_DEPENDENT],
 					'includeDependentFiles' => true,
@@ -388,11 +407,12 @@ class TextureHandler extends Handler {
 						$fileId = $dependentFile->getFileId();
 						$submissionId = (int)$request->getUserVar('submissionId');
 						$fileStage = $dependentFile->getFileStage();
+						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 						$fileRevision = $submissionFileDao->deleteLatestRevisionById($fileId, $fileStage, $submissionId);
 						if ($fileRevision > 0) {
 							return new JSONMessage(true, array(
 								'submissionId' => $submissionId,
-								'fileId' => $submissionId,
+								'submissionFileId' => $submissionId,
 								'fileRevision' => $fileRevision,
 								'delete_stauts' => true
 							));
@@ -441,13 +461,13 @@ class TextureHandler extends Handler {
 					$fileType = $media["fileType"];
 					$fileName = $media["fileName"];
 
-					$insertedSubmissionFile = $this->_createDependentFile($genreId, $submission, $submissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getData('fileId'), false, $tmpfname);
+					$insertedSubmissionFile = $this->_createDependentFile($genreId, $submission, $submissionFile, $user, $fileType, $fileName, SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, false, true, $submissionFile->getData('submissionFileId'), false, $tmpfname, $request);
 
 				} elseif (!empty($resources) && isset($resources[DAR_MANUSCRIPT_FILE]) && is_object($resources[DAR_MANUSCRIPT_FILE])) {
 					$genreId = $submissionFile->getGenreId();
 					$fileStage = $submissionFile->getFileStage();
 
-					$insertedSubmissionFile = $this->_updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user);
+					$insertedSubmissionFile = $this->_updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user, $request);
 				} else {
 					return new JSONMessage(false);
 				}
@@ -476,7 +496,7 @@ class TextureHandler extends Handler {
 
 		$dependentFiles = Services::get('submissionFile')->getMany([
 			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
-			'assocIds' => [$submissionFile->getData('fileId')],
+			'assocIds' => [$submissionFile->getData('submissionFileId')],
 			'submissionIds' => [$submissionFile->getData('submissionId')],
 			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
 			'includeDependentFiles' => true,
@@ -518,7 +538,7 @@ class TextureHandler extends Handler {
 	 * @param $user User
 	 * @return SubmissionFile
 	 */
-	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user) {
+	protected function _updateManuscriptFile($fileStage, $genreId, $resources, $submission, $submissionFile, $user, $request) {
 
 		$modifiedDocument =  new DOMDocument('1.0', 'utf-8');
 		$modifiedData = $resources[DAR_MANUSCRIPT_FILE]->data;
@@ -527,7 +547,9 @@ class TextureHandler extends Handler {
 		$xpath = new DOMXpath($modifiedDocument);
 
 		$origDocument = new DOMDocument('1.0', 'utf-8');
-		$origDocument->loadXML(file_get_contents($submissionFile->getData('path')));
+		$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
+
+		$origDocument->loadXML($manuscriptXml);
 
 
 		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);
@@ -552,30 +574,23 @@ class TextureHandler extends Handler {
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
 		file_put_contents($tmpfname, $editedManuscriptXML);
 
-		$fileType = $submissionFile->getFileType();
-		$fileName = $submissionFile->getOriginalFileName();
 
-		$fileSize = filesize($tmpfname);
 
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-		$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
-		$newSubmissionFile->setSubmissionId($submission->getId());
-		$newSubmissionFile->setSubmissionLocale($submission->getLocale());
-		$newSubmissionFile->setGenreId($genreId);
-		$newSubmissionFile->setFileStage($fileStage);
-		$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
-		$newSubmissionFile->setDateModified(Core::getCurrentDate());
-		$newSubmissionFile->setUploaderUserId($user->getId());
-		$newSubmissionFile->setFileSize($fileSize);
-		$newSubmissionFile->setFileType($fileType);
 
-		$newSubmissionFile->setOriginalFileName($fileName);
-		$newSubmissionFile->setSourceRevision($submissionFile->getRevision());
+		$fileId = $submissionFile->getData("submissionFileId");
+		$newSubmissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
+		$newSubmissionFile->setData('submissionFileId', $fileId);
+		$newSubmissionFile->setData('fileStage', $fileStage);
+		$newSubmissionFile->setData('name', "edited", $request->getContext()->getPrimaryLocale());
+		$newSubmissionFile->setData('submissionId', $submission->getData('id'));
+		$newSubmissionFile->setData('uploaderUserId', $user->getId());
+		$newSubmissionFile->setData('genreId', (int) $genreId);
+		$newSubmissionFile->setData('mimetype', $submissionFile->getData("mimetype"));
 
-		$newSubmissionFile->setFileId($submissionFile->getData('fileId'));
-		$newSubmissionFile->setSourceFileId($submissionFile->getData('fileId'));
-		$newSubmissionFile->setRevision($submissionFile->getRevision() + 1);
-		$insertedSubmissionFile = $submissionFileDao->insertObject($newSubmissionFile, $tmpfname);
+
+		$insertedSubmissionFile = Services::get('submissionFile')->add($newSubmissionFile, $request);
+		Services::get('submissionFile')->edit($insertedSubmissionFile, ['submissionFileId' => $fileId], $request);
+
 		unlink($tmpfname);
 
 		return $insertedSubmissionFile;
@@ -596,32 +611,24 @@ class TextureHandler extends Handler {
 	 * @param bool $deletePath
 	 * @param bool $assocId
 	 * @param bool $sourceFileId
-	 * @param $filePath string
+	 * @param bool $filePath string
+	 * @param $request
 	 * @return void
 	 */
-	protected function _createDependentFile($genreId, $submission, $submissionFile, $user, $fileType, $fileName, $fileStage = false, $assocType = false, $sourceRevision = false, $deletePath = false, $assocId = false, $sourceFileId = false, $filePath=false) {
+	protected function _createDependentFile($genreId, $submission, $submissionFile, $user, $fileType, $fileName, $fileStage = false, $assocType = false, $sourceRevision = false, $deletePath = false, $assocId = false, $sourceFileId = false, $filePath=false, $request) {
 
-		$fileSize = filesize($filePath);
 
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-		$newFile = $submissionFileDao->newDataObjectByGenreId($genreId);
-		$newFile->setSubmissionId($submission->getId());
-		$newFile->setSubmissionLocale($submission->getLocale());
-		$newFile->setGenreId($genreId);
-		$newFile->setFileStage($fileStage);
-		$newFile->setDateUploaded(Core::getCurrentDate());
-		$newFile->setDateModified(Core::getCurrentDate());
-		$newFile->setUploaderUserId($user->getId());
-		$newFile->setFileSize($fileSize);
-		$newFile->setFileType($fileType);
+		$submissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
 
-		if (isset($fileName)) $newFile->setOriginalFileName($fileName);
-		if (isset($assocType)) $newFile->setAssocType($assocType);
-		if (isset($sourceRevision)) $newFile->setSourceRevision($sourceRevision);
-		if (isset($assocId)) $newFile->setAssocId($assocId);
-		if (isset($sourceFileId)) $newFile->setSourceFileId($sourceFileId);
-
-		$insertedMediaFile = $submissionFileDao->insertObject($newFile, $filePath);
+		$submissionFile->setData('submissionFileId', $submissionFile->getData("submissionFileId"));
+		$submissionFile->setData('fileStage', $fileStage);
+		$submissionFile->setData('name', $_FILES['uploadedFile']['name'], $request->getContext()->getPrimaryLocale());
+		$submissionFile->setData('submissionId', $submission->getData('submissionId'));
+		$submissionFile->setData('uploaderUserId', $user->getId());
+		$submissionFile->setData('assocType', $assocType);
+		$submissionFile->setData('assocId', $assocId);
+		$submissionFile->setData('genreId', (int) $genreId);
+		Services::get('submissionFile')->add($submissionFile, $request);
 		if ($deletePath) unlink($filePath);
 
 	}
