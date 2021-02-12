@@ -227,7 +227,6 @@ class TexturePlugin extends GenericPlugin {
 					array(
 						'submissionId' => $submissionFile->getData('submissionId'),
 						'submissionFileId' => $submissionFile->getData('id'),
-						'fileId' => $submissionFile->getData('fileId'),
 						'stageId' => $stageId
 					)
 				)

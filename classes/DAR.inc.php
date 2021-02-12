@@ -20,25 +20,25 @@ class DAR {
 	public function construct(DAR $dar, $request, $submissionFile): array {
 
 		$assets = array();
-		$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
-		$manuscriptXml = $dar->createManuscript($manuscriptXml);
+		$manuscript = Services::get('file')->fs->read($submissionFile->getData('path'));
+		$manuscript = $dar->createManuscript($manuscript);
 
-		$manifestXml = $dar->createManifest($manuscriptXml, $assets);
+		$contents = $dar->createManifest($manuscript, $assets);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
 
 
 		$resources = array(
 			DAR_MANIFEST_FILE => array(
 				'encoding' => 'utf8',
-				'data' => $manifestXml,
-				'size' => strlen($manifestXml),
+				'data' => $contents,
+				'size' => strlen($contents),
 				'createdAt' => 0,
 				'updatedAt' => 0,
 			),
 			DAR_MANUSCRIPT_FILE => array(
 				'encoding' => 'utf8',
-				'data' => $manuscriptXml,
-				'size' => strlen($manuscriptXml),
+				'data' => $manuscript,
+				'size' => strlen($manuscript),
 				'createdAt' => 0,
 				'updatedAt' => 0,
 			),
@@ -51,7 +51,7 @@ class DAR {
 	}
 
 
-	public function createManuscript($manuscriptXml) {
+	public function createManuscript($manuscript) {
 		$domImpl = new DOMImplementation();
 		$dtd = $domImpl->createDocumentType("article", "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.2 20190208//EN", "JATS-archivearticle1.dtd");
 		$editableManuscriptDom = $domImpl->createDocument("", "", $dtd);
@@ -59,7 +59,7 @@ class DAR {
 
 
 		$manuscriptXmlDom = new DOMDocument;
-		$manuscriptXmlDom->loadXML($manuscriptXml);
+		$manuscriptXmlDom->loadXML($manuscript);
 
 		$xpath = new DOMXpath($manuscriptXmlDom);
 
