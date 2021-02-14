@@ -85,12 +85,12 @@ class DAR {
 		$this->createEmptyMetadata($editableManuscriptDom);
 
 		$manuscriptBody = $xpath->query("/article/body");
-		foreach ($manuscriptBody as $content){
+		foreach ($manuscriptBody as $content) {
 			$node = $editableManuscriptDom->importNode($content, true);
 			$editableManuscriptDom->documentElement->appendChild($node);
 		}
 
-		$refTypes = array("mixed-citation","element-citation");
+		$refTypes = array("mixed-citation", "element-citation");
 		foreach ($refTypes as $ref) {
 			foreach ($xpath->query("/article/back/ref-list/ref/" . $ref . "") as $content) {
 				if (empty($content->getAttribute("publication-type"))) {
@@ -99,33 +99,12 @@ class DAR {
 			}
 		}
 		$manuscriptBack = $xpath->query("/article/back");
-		foreach ($manuscriptBack as $content){
+		foreach ($manuscriptBack as $content) {
 			$node = $editableManuscriptDom->importNode($content, true);
 			$editableManuscriptDom->documentElement->appendChild($node);
 		}
 
 		return $editableManuscriptDom->saveXML();
-	}
-
-	/**
-	 * @param DOMDocument $dom
-	 */
-	protected function createEmptyMetadata(DOMDocument $dom): void {
-		$dom->front = $dom->createElement('front');
-		$dom->article->appendChild($dom->front);
-
-		$dom->articleMeta = $dom->createElement('article-meta');
-		$dom->front->appendChild($dom->articleMeta);
-
-		$dom->titleGroup = $dom->createElement('title-group');
-		$dom->articleTitle = $dom->createElement('article-title');
-
-		$dom->titleGroup->appendChild($dom->articleTitle);
-		$dom->articleMeta->appendChild($dom->titleGroup);
-
-
-		$dom->abstract = $dom->createElement('abstract');
-		$dom->articleMeta->appendChild($dom->abstract);
 	}
 
 	/**
@@ -206,27 +185,51 @@ class DAR {
 		$submissionId = $request->getUserVar('submissionId');
 		// build mapping to assets file paths
 
-		$assetsFilePaths = $this->getDependentFilePaths($submissionId, $fileId);
-		foreach ($assets as $asset) {
-			$path = str_replace('media/', '', $asset['path']);
-			if (array_key_exists($path, $assetsFilePaths)) {
-				$filePath = $assetsFilePaths[$path];
-				$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
-					'submissionId' => $submissionId,
-					'submissionFileId' => $fileId,
-					'stageId' => $stageId,
-					'fileName' => $path,
-				));
-				$infos[$asset['path']] = array(
-					'encoding' => 'url',
-					'data' => $url,
-					'size' => filesize($filePath),
-					'createdAt' => filemtime($filePath),
-					'updatedAt' => filectime($filePath),
-				);
-			}
+		$dependentFilesIterator = Services::get('submissionFile')->getMany([
+			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
+			'assocIds' => [$submissionFileId],
+			'submissionIds' => [$submissionId],
+			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
+			'includeDependentFiles' => true,
+		]);
+
+		foreach ($dependentFilesIterator as $asset) {
+			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media',null, array(
+				'submissionId' => $submissionId,
+				'stageId' => $stageId,
+				'assocId' => $submissionFileId,
+				'fileId' => $asset->getData('fileId')
+
+			));
+
+			$infos[$asset->getData('path')] = array(
+				'encoding' => 'url',
+				'data' => $url
+			);
+
 		}
 		return $infos;
+	}
+
+	/**
+	 * @param DOMDocument $dom
+	 */
+	protected function createEmptyMetadata(DOMDocument $dom): void {
+		$dom->front = $dom->createElement('front');
+		$dom->article->appendChild($dom->front);
+
+		$dom->articleMeta = $dom->createElement('article-meta');
+		$dom->front->appendChild($dom->articleMeta);
+
+		$dom->titleGroup = $dom->createElement('title-group');
+		$dom->articleTitle = $dom->createElement('article-title');
+
+		$dom->titleGroup->appendChild($dom->articleTitle);
+		$dom->articleMeta->appendChild($dom->titleGroup);
+
+
+		$dom->abstract = $dom->createElement('abstract');
+		$dom->articleMeta->appendChild($dom->abstract);
 	}
 
 	/**

@@ -432,6 +432,7 @@ class TextureHandler extends Handler {
 					$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $media["data"]));
 					$tempMediaFile = tempnam(sys_get_temp_dir(), 'texture');
 					file_put_contents($tempMediaFile, $mediaBlob);
+
 					import('lib.pkp.classes.file.FileManager');
 					$fileManager = new FileManager();
 					$extension = $fileManager->parseFileExtension($media['fileName']);
@@ -441,7 +442,6 @@ class TextureHandler extends Handler {
 
 					$newSubmissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
 					$newSubmissionFile->setData('fileId', $fileId);
-
 					$newSubmissionFile->setData('name', $media["fileName"]);
 					$newSubmissionFile->setData('submissionId', $submission->getData('id'));
 					$newSubmissionFile->setData('uploaderUserId', $request->getUser()->getId());
@@ -476,43 +476,46 @@ class TextureHandler extends Handler {
 	 */
 	public function media($args, $request) {
 
-		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
+		$submissionFileId = (int)$request->getUserVar('submissionFileId');
+		$submissionFile = Services::get('submissionFile')->get($submissionFileId);
 		if (!$submissionFile) {
 			fatalError('Invalid request');
 		}
 
+
+		// make sure submission file is an xml document
+		if (!in_array($submissionFile->getData('mimetype'), array('text/xml', 'application/xml'))) {
+			fatalError('Invalid request');
+		}
+
+		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
 		$dependentFiles = Services::get('submissionFile')->getMany([
 			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
-			'assocIds' => [$submissionFile->getData('submissionFileId')],
+			'assocIds' => [$submissionFile->getData('id')],
 			'submissionIds' => [$submissionFile->getData('submissionId')],
 			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
 			'includeDependentFiles' => true,
 		]);
 
 
-
-
-		// make sure this is an xml document
-		if (!in_array($submissionFile->getFileType(), array('text/xml', 'application/xml'))) {
-			fatalError('Invalid request');
-		}
-
-		$mediaSubmissionFile = null;
+		$mediaFile = null;
 		foreach ($dependentFiles as $dependentFile) {
-			if ($dependentFile->getOriginalFileName() == $request->getUserVar('fileName')) {
-				$mediaSubmissionFile = $dependentFile;
+			if ($dependentFile->getData('fileId') == $request->getUserVar('fileId')) {
+				$mediaFile = $dependentFile;
 				break;
 			}
 		}
 
-		if (!$mediaSubmissionFile) {
+		if (!$mediaFile) {
 			$request->getDispatcher()->handle404();
 		}
 
-		$filePath = $mediaSubmissionFile->getFilePath();
-		header('Content-Type:' . $mediaSubmissionFile->getFileType());
-		header('Content-Length: ' . $mediaSubmissionFile->getFileSize());
-		readfile($filePath);
+
+		header('Content-Type:' . $mediaFile->getData('mimetype'));
+		$mediaFileContent = Services::get('file')->fs->read($mediaFile->getData('path'));
+		header('Content-Length: ' . strlen($mediaFileContent));
+		return $mediaFileContent;
+
 	}
 
 	/**
