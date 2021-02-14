@@ -359,6 +359,7 @@ class TextureHandler extends Handler {
 
 		$submissionFileId = (int)$request->getUserVar('submissionFileId');
 		$submissionFile = Services::get('submissionFile')->get($submissionFileId);
+		$context = $request->getContext();
 
 		if (!$submissionFile) {
 			fatalError('Invalid request');
@@ -418,22 +419,39 @@ class TextureHandler extends Handler {
 				//todo extract media correctly
 				$media = isset($postDataJson->media) ? (array)$postDataJson->media : [];
 
-				if (!empty($media)) {
-					import('classes.file.PublicFileManager');
-					$publicFileManager = new PublicFileManager();
+				if (!empty($media) && array_key_exists("data",$media) ) {
+					import('lib.pkp.classes.file.FileManager');
+					$fileManager = new FileManager();
+					$extension = $fileManager->parseFileExtension($media["fileName"]);
 
-					$genreId = null;
-					$extension = $publicFileManager->getImageExtension($media["fileType"]);
 					$genreId = $this->_getGenreId($request, $extension);
 					if (!$genreId) {
-						// Could not identify the genre -- it's an error condition
 						return new JSONMessage(false);
 					}
 
 					$mediaBlob = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $media["data"]));
 					$tempMediaFile = tempnam(sys_get_temp_dir(), 'texture');
 					file_put_contents($tempMediaFile, $mediaBlob);
-					$this->_createDependentFile($genreId, $submission, $media["fileName"], SUBMISSION_FILE_DEPENDENT, ASSOC_TYPE_SUBMISSION_FILE, true, $submissionFile->getData('submissionFileId'), $tempMediaFile, $request);
+					import('lib.pkp.classes.file.FileManager');
+					$fileManager = new FileManager();
+					$extension = $fileManager->parseFileExtension($media['fileName']);
+					$submissionDir = Services::get('submissionFile')->getSubmissionDir($context->getData('id'), $submission->getData('id'));
+					$fileId = Services::get('file')->add($tempMediaFile, $submissionDir . '/' . uniqid() . '.' . $extension);
+					unlink($tempMediaFile);
+
+					$newSubmissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
+					$newSubmissionFile->setData('fileId', $fileId);
+
+					$newSubmissionFile->setData('name', $media["fileName"]);
+					$newSubmissionFile->setData('submissionId', $submission->getData('id'));
+					$newSubmissionFile->setData('uploaderUserId', $request->getUser()->getId());
+					$newSubmissionFile->setData('assocType', ASSOC_TYPE_SUBMISSION_FILE);
+					$newSubmissionFile->setData('assocId', $submissionFile->getData('id'));
+					$newSubmissionFile->setData('genreId', $this->_getGenreId($request, $extension));
+					$newSubmissionFile->setData('fileStage', SUBMISSION_FILE_DEPENDENT);
+
+					Services::get('submissionFile')->add($newSubmissionFile, $request);
+
 
 				} elseif (!empty($resources) && isset($resources[DAR_MANUSCRIPT_FILE]) && is_object($resources[DAR_MANUSCRIPT_FILE])) {
 					$this->_updateManuscriptFile($request, $resources, $submission, $submissionFile);
@@ -608,7 +626,7 @@ class TextureHandler extends Handler {
 	 * @return mixed
 	 */
 	private function _getGenreId($request, $extension) {
-
+		$genreId = null;
 		$journal = $request->getJournal();
 		$genreDao = DAORegistry::getDAO('GenreDAO');
 		$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
