@@ -109,6 +109,7 @@ class TexturePlugin extends GenericPlugin {
 		return false;
 	}
 
+
 	/**
 	 * Adds additional links to submission files grid row
 	 * @param $hookName string The name of the invoked hook

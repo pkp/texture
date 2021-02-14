@@ -476,7 +476,7 @@ class TextureHandler extends Handler {
 	 */
 	public function media($args, $request) {
 
-		$submissionFileId = (int)$request->getUserVar('submissionFileId');
+		$submissionFileId = (int)$request->getUserVar('assocId');
 		$submissionFile = Services::get('submissionFile')->get($submissionFileId);
 		if (!$submissionFile) {
 			fatalError('Invalid request');
