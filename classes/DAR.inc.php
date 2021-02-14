@@ -26,7 +26,6 @@ class DAR {
 		$contents = $dar->createManifest($manuscript, $assets);
 		$mediaInfos = $dar->createMediaInfo($request, $assets);
 
-
 		$resources = array(
 			DAR_MANIFEST_FILE => array(
 				'encoding' => 'utf8',
@@ -202,7 +201,7 @@ class DAR {
 
 			));
 
-			$infos[$asset->getData('path')] = array(
+			$infos[$asset->getData('name')] = array(
 				'encoding' => 'url',
 				'data' => $url
 			);
