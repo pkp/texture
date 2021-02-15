@@ -14,7 +14,7 @@
 <version>
 	<application>texture</application>
 	<type>plugins.generic</type>
-	<release>2.4.3.5</release>
+	<release>2.4.3.6</release>
 	<date>2021-02-15</date>
 	<lazy-load>1</lazy-load>
 	<class>TexturePlugin</class>
