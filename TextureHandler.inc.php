@@ -16,16 +16,13 @@
 import('classes.handler.Handler');
 
 
-
 class TextureHandler extends Handler {
-	/** @var MarkupPlugin The Texture plugin */
-	protected $_plugin;
-
 	/** @var Submission * */
 	public $submission;
-
 	/** @var Publication * */
 	public $publication;
+	/** @var MarkupPlugin The Texture plugin */
+	protected $_plugin;
 
 	/**
 	 * Constructor
@@ -60,7 +57,7 @@ class TextureHandler extends Handler {
 	 */
 	function authorize($request, &$args, $roleAssignments) {
 		import('lib.pkp.classes.security.authorization.WorkflowStageAccessPolicy');
-		$this->addPolicy(new WorkflowStageAccessPolicy($request, $args, $roleAssignments, 'submissionId', (int) $request->getUserVar('stageId')));
+		$this->addPolicy(new WorkflowStageAccessPolicy($request, $args, $roleAssignments, 'submissionId', (int)$request->getUserVar('stageId')));
 		return parent::authorize($request, $args, $roleAssignments);
 	}
 
@@ -77,6 +74,15 @@ class TextureHandler extends Handler {
 
 		$galleyForm->initData();
 		return new JSONMessage(true, $galleyForm->fetch($request));
+	}
+
+	/**
+	 * Get the plugin.
+	 * @return TexuturePlugin
+	 */
+	function getPlugin() {
+
+		return $this->_plugin;
 	}
 
 	/**
@@ -226,6 +232,105 @@ class TextureHandler extends Handler {
 	}
 
 	/**
+	 * @param $genres
+	 * @param $extension
+	 * @return mixed
+	 */
+	private function _getGenreId($request, $extension) {
+		$genreId = null;
+		$journal = $request->getJournal();
+		$genreDao = DAORegistry::getDAO('GenreDAO');
+		$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
+
+		while ($candidateGenre = $genres->next()) {
+			if ($extension) {
+				if ($candidateGenre->getKey() == 'IMAGE') {
+					$genreId = $candidateGenre->getId();
+					break;
+				}
+			} else {
+				if ($candidateGenre->getKey() == 'MULTIMEDIA') {
+					$genreId = $candidateGenre->getId();
+					break;
+				}
+			}
+		}
+		return $genreId;
+	}
+
+	/**
+	 * Creates a dependent file
+	 *
+	 * @param $genreId  int
+	 * @param $submission Submission
+	 * @param $fileName string
+	 * @param bool $fileStage
+	 * @param bool $assocType
+	 * @param bool $deletePath
+	 * @param bool $assocId
+	 * @param bool $filePath string
+	 * @param $request
+	 * @return void
+	 */
+	protected function _createDependentFile($genreId, $submission, $fileName, $fileStage = false, $assocType = false, $deletePath = false, $assocId = false, $filePath = false, $request) {
+
+
+		$submissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
+
+		$submissionFile->setData('submissionFileId', $submissionFile->getData("submissionFileId"));
+		$submissionFile->setData('fileStage', $fileStage);
+		$submissionFile->setData('name', $fileName);
+		$submissionFile->setData('submissionId', $submission->getData('submissionId'));
+		$submissionFile->setData('uploaderUserId', $request->getUser()->getId());
+		$submissionFile->setData('assocType', $assocType);
+		$submissionFile->setData('assocId', $assocId);
+		$submissionFile->setData('genreId', (int)$genreId);
+		Services::get('submissionFile')->add($submissionFile, $request);
+		if ($deletePath) unlink($filePath);
+
+	}
+
+	/**
+	 * Remove files and notify
+	 * @param ZipArchive $zip
+	 * @param string $archivePath
+	 * @param $user
+	 * @param  $message
+	 * @param $errorType
+	 * @param bool $status
+	 * @return JSONMessage
+	 */
+	private function removeFilesAndNotify(ZipArchive $zip, string $archivePath, $user, $message, $errorType = NOTIFICATION_TYPE_ERROR, $status = False): JSONMessage {
+
+		$notificationMgr = new NotificationManager();
+		$zip->close();
+		$this->rrmdir($archivePath);
+		$notificationMgr->createTrivialNotification($user->getId(), $errorType, array('contents' => $message));
+		return new JSONMessage($status);
+	}
+
+	/**
+	 * Delete folder and its contents
+	 * @note Adapted from https://www.php.net/manual/de/function.rmdir.php#117354
+	 */
+	private function rrmdir($src) {
+
+		$dir = opendir($src);
+		while (false !== ($file = readdir($dir))) {
+			if (($file != '.') && ($file != '..')) {
+				$full = $src . '/' . $file;
+				if (is_dir($full)) {
+					$this->rrmdir($full);
+				} else {
+					unlink($full);
+				}
+			}
+		}
+		closedir($dir);
+		rmdir($src);
+	}
+
+	/**
 	 * Exports a DAR Archive
 	 * @param $args
 	 * @param $request PKPRequest
@@ -281,6 +386,15 @@ class TextureHandler extends Handler {
 	}
 
 	/**
+	 * Return true if the zip extension is loaded.
+	 * @return boolean
+	 */
+	static function zipFunctional() {
+
+		return (extension_loaded('zip'));
+	}
+
+	/**
 	 * @param $args
 	 * @param $request PKPRequest
 	 * @return JSONMessage
@@ -316,7 +430,7 @@ class TextureHandler extends Handler {
 
 		$stageId = (int)$request->getUserVar('stageId');
 		$submissionFileId = (int)$request->getUserVar('submissionFileId');
-		$submissionId = (int)$request->getUserVar('submissionId');;
+		$submissionId = (int)$request->getUserVar('submissionId');
 		if (!$submissionId || !$stageId || !$submissionFileId) {
 			fatalError('Invalid request');
 		}
@@ -385,7 +499,7 @@ class TextureHandler extends Handler {
 
 					$fileName = $dependentFile->getData('name');
 					foreach ($fileName as $lang => $name) {
-						if ($name ===  $media['fileName']) {
+						if ($name === $media['fileName']) {
 							Services::get('file')->delete($fileId);
 
 						}
@@ -411,7 +525,7 @@ class TextureHandler extends Handler {
 				//todo extract media correctly
 				$media = isset($postDataJson->media) ? (array)$postDataJson->media : [];
 
-				if (!empty($media) && array_key_exists("data",$media) ) {
+				if (!empty($media) && array_key_exists("data", $media)) {
 					import('lib.pkp.classes.file.FileManager');
 					$fileManager = new FileManager();
 					$extension = $fileManager->parseFileExtension($media["fileName"]);
@@ -456,6 +570,61 @@ class TextureHandler extends Handler {
 		} else {
 			return new JSONMessage(false);
 		}
+	}
+
+	/**
+	 * Update manuscript XML file
+	 * @param $request
+	 * @param $resources  array
+	 * @param $submission Article
+	 * @param $submissionFile SubmissionFile
+	 * @return SubmissionFile
+	 */
+	protected function _updateManuscriptFile($request, $resources, $submission, $submissionFile) {
+
+		$modifiedDocument = new DOMDocument('1.0', 'utf-8');
+		$modifiedData = $resources[DAR_MANUSCRIPT_FILE]->data;
+		$context = $request->getContext();
+
+		// write metada back from  original file
+		$modifiedDocument->loadXML($modifiedData);
+		$xpath = new DOMXpath($modifiedDocument);
+
+		$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
+		$origDocument = new DOMDocument('1.0', 'utf-8');
+		$origDocument->loadXML($manuscriptXml);
+
+		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);
+		$origDocument->documentElement->removeChild($body);
+
+		$manuscriptBody = $xpath->query("//article/body");
+		foreach ($manuscriptBody as $content) {
+			$node = $origDocument->importNode($content, true);
+			$origDocument->documentElement->appendChild($node);
+		}
+
+		$back = $origDocument->documentElement->getElementsByTagName('back')->item(0);
+		$origDocument->documentElement->removeChild($back);
+
+		$manuscriptBack = $xpath->query("//article/back");
+		foreach ($manuscriptBack as $content) {
+			$node = $origDocument->importNode($content, true);
+			$origDocument->documentElement->appendChild($node);
+		}
+
+		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
+		file_put_contents($tmpfname, $origDocument->saveXML());
+		import('lib.pkp.classes.file.FileManager');
+		$fileManager = new FileManager();
+		$extension = $fileManager->parseFileExtension($submissionFile->getData('path'));
+		$submissionDir = Services::get('submissionFile')->getSubmissionDir($context->getData('id'), $submission->getData('id'));
+		$fileId = Services::get('file')->add($tmpfname, $submissionDir . '/' . uniqid() . '.' . $extension);
+
+		Services::get('submissionFile')->edit($submissionFile, ['fileId' => $fileId, 'uploaderUserId' => $request->getUser()->getId(),], $request);
+
+		unlink($tmpfname);
+
+		return $fileId;
 	}
 
 	/**
@@ -508,178 +677,6 @@ class TextureHandler extends Handler {
 		header('Content-Length: ' . strlen($mediaFileContent));
 		return $mediaFileContent;
 
-	}
-
-	/**
-	 * Update manuscript XML file
-	 * @param $request
-	 * @param $resources  array
-	 * @param $submission Article
-	 * @param $submissionFile SubmissionFile
-	 * @return SubmissionFile
-	 */
-	protected function _updateManuscriptFile($request, $resources, $submission, $submissionFile) {
-
-		$modifiedDocument =  new DOMDocument('1.0', 'utf-8');
-		$modifiedData = $resources[DAR_MANUSCRIPT_FILE]->data;
-		$context =  $request->getContext();
-
-		// write metada back from  original file
-		$modifiedDocument->loadXML($modifiedData);
-		$xpath = new DOMXpath($modifiedDocument);
-
-		$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
-		$origDocument = new DOMDocument('1.0', 'utf-8');
-		$origDocument->loadXML($manuscriptXml);
-
-		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);
-		$origDocument->documentElement->removeChild($body);
-
-		$manuscriptBody = $xpath->query("//article/body");
-		foreach ($manuscriptBody as $content) {
-			$node = $origDocument->importNode($content, true);
-			$origDocument->documentElement->appendChild($node);
-		}
-
-		$back = $origDocument->documentElement->getElementsByTagName('back')->item(0);
-		$origDocument->documentElement->removeChild($back);
-
-		$manuscriptBack = $xpath->query("//article/back");
-		foreach ($manuscriptBack as $content) {
-			$node = $origDocument->importNode($content, true);
-			$origDocument->documentElement->appendChild($node);
-		}
-
-		$tmpfname = tempnam(sys_get_temp_dir(), 'texture');
-		file_put_contents($tmpfname, $origDocument->saveXML());
-		import('lib.pkp.classes.file.FileManager');
-		$fileManager = new FileManager();
-		$extension = $fileManager->parseFileExtension($submissionFile->getData('path'));
-		$submissionDir = Services::get('submissionFile')->getSubmissionDir($context->getData('id'), $submission->getData('id'));
-		$fileId = Services::get('file')->add($tmpfname, $submissionDir . '/' . uniqid() . '.' . $extension);
-
-		Services::get('submissionFile')->edit($submissionFile, ['fileId' => $fileId, 'uploaderUserId' => $request->getUser()->getId(),], $request);
-
-		unlink($tmpfname);
-
-		return $fileId;
-	}
-
-	/**
-	 * Creates a dependent file
-	 *
-	 * @param $genreId  int
-	 * @param $submission Submission
-	 * @param $fileName string
-	 * @param bool $fileStage
-	 * @param bool $assocType
-	 * @param bool $deletePath
-	 * @param bool $assocId
-	 * @param bool $filePath string
-	 * @param $request
-	 * @return void
-	 */
-	protected function _createDependentFile($genreId, $submission, $fileName, $fileStage = false, $assocType = false, $deletePath = false, $assocId = false, $filePath=false, $request) {
-
-
-		$submissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
-
-		$submissionFile->setData('submissionFileId', $submissionFile->getData("submissionFileId"));
-		$submissionFile->setData('fileStage', $fileStage);
-		$submissionFile->setData('name', $fileName);
-		$submissionFile->setData('submissionId', $submission->getData('submissionId'));
-		$submissionFile->setData('uploaderUserId', $request->getUser()->getId());
-		$submissionFile->setData('assocType', $assocType);
-		$submissionFile->setData('assocId', $assocId);
-		$submissionFile->setData('genreId', (int) $genreId);
-		Services::get('submissionFile')->add($submissionFile, $request);
-		if ($deletePath) unlink($filePath);
-
-	}
-
-	/**
-	 * Get the plugin.
-	 * @return TexuturePlugin
-	 */
-	function getPlugin() {
-
-		return $this->_plugin;
-	}
-
-	/**
-	 * Return true if the zip extension is loaded.
-	 * @return boolean
-	 */
-	static function zipFunctional() {
-
-		return (extension_loaded('zip'));
-	}
-
-	/**
-	 * @param $genres
-	 * @param $extension
-	 * @return mixed
-	 */
-	private function _getGenreId($request, $extension) {
-		$genreId = null;
-		$journal = $request->getJournal();
-		$genreDao = DAORegistry::getDAO('GenreDAO');
-		$genres = $genreDao->getByDependenceAndContextId(true, $journal->getId());
-
-		while ($candidateGenre = $genres->next()) {
-			if ($extension) {
-				if ($candidateGenre->getKey() == 'IMAGE') {
-					$genreId = $candidateGenre->getId();
-					break;
-				}
-			} else {
-				if ($candidateGenre->getKey() == 'MULTIMEDIA') {
-					$genreId = $candidateGenre->getId();
-					break;
-				}
-			}
-		}
-		return $genreId;
-	}
-
-	/**
-	 * Delete folder and its contents
-	 * @note Adapted from https://www.php.net/manual/de/function.rmdir.php#117354
-	 */
-	private function rrmdir($src) {
-
-		$dir = opendir($src);
-		while (false !== ($file = readdir($dir))) {
-			if (($file != '.') && ($file != '..')) {
-				$full = $src . '/' . $file;
-				if (is_dir($full)) {
-					$this->rrmdir($full);
-				} else {
-					unlink($full);
-				}
-			}
-		}
-		closedir($dir);
-		rmdir($src);
-	}
-
-	/**
-	 * Remove files and notify
-	 * @param ZipArchive $zip
-	 * @param string $archivePath
-	 * @param $user
-	 * @param  $message
-	 * @param $errorType
-	 * @param bool $status
-	 * @return JSONMessage
-	 */
-	private function removeFilesAndNotify(ZipArchive $zip, string $archivePath, $user, $message, $errorType = NOTIFICATION_TYPE_ERROR, $status = False): JSONMessage {
-
-		$notificationMgr = new NotificationManager();
-		$zip->close();
-		$this->rrmdir($archivePath);
-		$notificationMgr->createTrivialNotification($user->getId(), $errorType, array('contents' => $message));
-		return new JSONMessage($status);
 	}
 
 }
