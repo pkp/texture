@@ -193,7 +193,7 @@ class DAR {
 		]);
 
 		foreach ($dependentFilesIterator as $asset) {
-			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media',null, array(
+			$url = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'media', null, array(
 				'submissionId' => $submissionId,
 				'stageId' => $stageId,
 				'assocId' => $submissionFileId,

@@ -360,7 +360,7 @@ class TextureHandler extends Handler {
 		$submissionFileId = (int)$request->getUserVar('submissionFileId');
 		$submissionFile = Services::get('submissionFile')->get($submissionFileId);
 		$context = $request->getContext();
-
+		$submissionId = (int)$request->getUserVar('submissionId');
 		if (!$submissionFile) {
 			fatalError('Invalid request');
 		}
@@ -374,31 +374,23 @@ class TextureHandler extends Handler {
 			$postData = file_get_contents('php://input');
 			$media = (array)json_decode($postData);
 			if (!empty($media)) {
-				$dependentFiles = Services::get('submissionFile')->getMany([
+				$dependentFilesIterator = Services::get('submissionFile')->getMany([
 					'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
-					'assocIds' => [$submissionFile->getData('submissionFileId')],
-					'submissionIds' => [$submissionFile->getData('submissionId')],
+					'assocIds' => [$submissionFileId],
+					'submissionIds' => [$submissionId],
 					'fileStages' => [SUBMISSION_FILE_DEPENDENT],
 					'includeDependentFiles' => true,
 				]);
-				foreach ($dependentFiles as $dependentFile) {
-					if ($dependentFile->getOriginalFileName() === $media['fileName']) {
-						$fileId = $dependentFile->getFileId();
-						$submissionId = (int)$request->getUserVar('submissionId');
-						$fileStage = $dependentFile->getFileStage();
-						$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-						$fileRevision = $submissionFileDao->deleteLatestRevisionById($fileId, $fileStage, $submissionId);
-						if ($fileRevision > 0) {
-							return new JSONMessage(true, array(
-								'submissionId' => $submissionId,
-								'submissionFileId' => $submissionId,
-								'fileRevision' => $fileRevision,
-								'delete_stauts' => true
-							));
-						} else {
-							return new JSONMessage(false);
+				foreach ($dependentFilesIterator as $dependentFile) {
+
+					$fileName = $dependentFile->getData('name');
+					foreach ($fileName as $lang => $name) {
+						if ($name ===  $media['fileName']) {
+							Services::get('file')->delete($fileId);
+
 						}
-						break;
+
+
 					}
 				}
 			}
