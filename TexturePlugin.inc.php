@@ -137,8 +137,8 @@ class TexturePlugin extends GenericPlugin {
 				if (strtolower($fileExtension) == 'text/xml') {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
-					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
-					$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					//$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					//$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				} elseif (strtolower($fileExtension) == TEXTURE_DAR_FILE_TYPE) {
 					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_DAR_FILE_TYPE);
 				} elseif (strtolower($fileExtension) == TEXTURE_ZIP_FILE_TYPE) {
