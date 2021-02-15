@@ -498,12 +498,9 @@ class TextureHandler extends Handler {
 				foreach ($dependentFilesIterator as $dependentFile) {
 
 					$fileName = $dependentFile->getData('name');
-					foreach ($fileName as $lang => $name) {
-						if ($name === $media['fileName']) {
-							Services::get('file')->delete($fileId);
 
-						}
-
+						if ($fileName == $media['fileName']) {
+							Services::get('submissionFile')->delete($dependentFile);
 
 					}
 				}
