@@ -2,18 +2,18 @@
 Table of Contents
 =================
 
-   * [Introduction](#introduction)
-   * [Handbook](#handbook)
-   * [Installation](#installation)
-   * [Supported JATS Tags](#supported-jats-tags)
-   * [Usage](#usage)
-   * [Issues](#issues)
-   * [Technical documentation](#technical-documentation)
-      * [Backend Integration](#backend-integration)
-         * [GET DAR File](#get-dar-file)
-         * [Update DAR File](#update-dar-file)
-         * [GET Media File](#get-media-file)
-         * [DELETE Media File](#delete-media-file)
+* [Introduction](#introduction)
+* [Handbook](#handbook)
+* [Installation](#installation)
+* [Supported JATS Tags](#supported-jats-tags)
+* [Usage](#usage)
+* [Issues](#issues)
+* [Technical documentation](#technical-documentation)
+	* [Backend Integration](#backend-integration)
+		* [GET DAR File](#get-dar-file)
+		* [Update DAR File](#update-dar-file)
+		* [GET Media File](#get-media-file)
+		* [DELETE Media File](#delete-media-file)
 
 # Introduction
 
@@ -37,9 +37,9 @@ OJS Texture Plugin integrates the Texture editor with OJS workflow for direct ed
 
 Texture is available under Plugin gallery
 
- 
 
-* Settings -> Web site -> Plugins -> Plugin gallery 
+
+* Settings -> Web site -> Plugins -> Plugin gallery
 
 ![texture_plugin](docs/plugin_gallery.png)
 
@@ -49,7 +49,7 @@ Texture is available under Plugin gallery
 # Supported JATS Tags
 
 Tag| Definition| Support
-| --- | --- | --- 
+| --- | --- | ---
 | <img width=800/>| <img width=800/>| <img width=800/>
 [code](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/code.html)| A container element for technical contentsuch as programming language code, pseudo-code, schemas, or a markup fragment.| :ok:
 [disp-formula](https://jats.nlm.nih.gov/archiving/tag-library/1.3d1/element/disp-formula.html)| Mathematical equation, expression, or formula that is to be displayed as a block            (callout) within the narrative flow.| :ok:
@@ -99,11 +99,11 @@ Texture supports editing XML files in [JATS](https://jats.nlm.nih.gov/archiving/
 
 ![gallery_edit](docs/galley_edit.png)
 
-* In the editing modal, upload the same images as dependent files you uploaded for texture.  
+* In the editing modal, upload the same images as dependent files you uploaded for texture.
 
 # Issues
 
-Please find any issues here 
+Please find any issues here
 
 * https://github.com/pkp/texture/issues
 # Technical documentation
@@ -112,67 +112,67 @@ Please find any issues here
 
 Texture Plugin creates a  Backend URL endpoint for the Editor client to send `GET`, `PUT`, `DELETE` Requests.
 
-###  GET DAR File 
+###  GET DAR File
 
- `GET /texture/json`
-
-Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
-
-  * Parameters: 
-
-    1. `submissionId` : integer
-
-    2. `fileId` : integer
-
-    3. `stageId` : integer 
-
-  * Return:
-
-     `DAR File` : json
-
-    * Example:
-
-        ```json
-
-          {"version":18,"resources":{"manifest.xml":{"encoding":"utf8","data":"XML PAYLOAD","size":22087,"createdAt":0,"updatedAt":0},"placeholder_2.jpg":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg","size":39385,"createdAt":1592229618,"updatedAt":1592229618},"coverimage_2.png":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=coverimage_2.png","size":48334,"createdAt":1594576206,"updatedAt":1594576206}}}
-
-        ```
-
-###  Update DAR File 
-
- `PUT /texture/json`
+`GET /texture/json`
 
 Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
 
-  * Payload : `DAR File` 
+* Parameters:
 
-  * Parameters: 
+	1. `submissionId` : integer
 
-    1. `submissionId` : integer
+	2. `fileId` : integer
 
-    2. `fileId` : integer
+	3. `stageId` : integer
 
-    3. `stageId` : integer 
+* Return:
 
-  * Return:
+  `DAR File` : json
 
-      `String` : json
+	* Example:
 
-    * Example:
+	    ```json
 
-      ```json
+		  {"version":18,"resources":{"manifest.xml":{"encoding":"utf8","data":"XML PAYLOAD","size":22087,"createdAt":0,"updatedAt":0},"placeholder_2.jpg":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg","size":39385,"createdAt":1592229618,"updatedAt":1592229618},"coverimage_2.png":{"encoding":"url","data":"http://localhost:8000/index.php/stable-3_2_0/texture/media?submissionId=4&fileId=29&stageId=5&fileName=coverimage_2.png","size":48334,"createdAt":1594576206,"updatedAt":1594576206}}}
 
-        {"status":true,"content":"","elementId":"0","events":null}
+		```
 
-       ```
+###  Update DAR File
+
+`PUT /texture/json`
+
+Example : http://localhost/index.php/my_journal/texture/json?submissionId=4&fileId=29&stageId=5
+
+* Payload : `DAR File`
+
+* Parameters:
+
+	1. `submissionId` : integer
+
+	2. `fileId` : integer
+
+	3. `stageId` : integer
+
+* Return:
+
+  `String` : json
+
+	* Example:
+
+	  ```json
+
+		{"status":true,"content":"","elementId":"0","events":null}
+
+	   ```
 
 ###  GET Media File
 
-    `GET /texture/media`   
+    `GET /texture/media`
 
 Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fileId=29&stageId=5&fileName=placeholder_2.jpg
 
-   * Parameters: 
+* Parameters:
 
     1. `submissionId` : integer
 
@@ -180,38 +180,38 @@ Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fil
 
     3. `stageId` : integer
 
-    4. `fileName`: string (should be unique per submission)  
+    4. `fileName`: string (should be unique per submission)
 
-  * Return:
+* Return:
 
-     `Media file` : media file
+  `Media file` : media file
 
 ### DELETE Media File
 
-    `DELETE /texture/media`   
+    `DELETE /texture/media`
 
 Example : http://localhost/index.php/my_journal/texture/media?submissionId=4&fileId=29&stageId=5
 
-   * Parameters: 
+* Parameters:
 
     1. `submissionId` : integer
 
     2. `fileId` : integer
 
-    3. `stageId` : integer  
+    3. `stageId` : integer
 
-  
 
-  * Return:
 
-     `String` : json
+* Return:
 
-     
+  `String` : json
 
-     Example: 
+
+
+     Example:
 
      ```json
 
       {"status":true,"content":{"submissionId":4,"fileId":4,"fileRevision":1,"delete_stauts":true},"elementId":"0","events":null}
 
-     ```   
+     ```

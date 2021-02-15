@@ -109,6 +109,7 @@ class TexturePlugin extends GenericPlugin {
 		return false;
 	}
 
+
 	/**
 	 * Adds additional links to submission files grid row
 	 * @param $hookName string The name of the invoked hook
@@ -127,17 +128,17 @@ class TexturePlugin extends GenericPlugin {
 			$data = $row->getData();
 			if (is_array($data) && (isset($data['submissionFile']))) {
 				$submissionFile = $data['submissionFile'];
-				$fileExtension = strtolower($submissionFile->getExtension());
+				$fileExtension = strtolower($submissionFile->getData('mimetype'));
 
 				// get stage ID
 				$stageId = (int)$request->getUserVar('stageId');
 				$fileStage = SUBMISSION_FILE_PRODUCTION_READY;
 
-				if (strtolower($fileExtension) == 'xml') {
+				if (strtolower($fileExtension) == 'text/xml') {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
-					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
-					$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					//$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					//$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				} elseif (strtolower($fileExtension) == TEXTURE_DAR_FILE_TYPE) {
 					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_DAR_FILE_TYPE);
 				} elseif (strtolower($fileExtension) == TEXTURE_ZIP_FILE_TYPE) {
@@ -166,8 +167,8 @@ class TexturePlugin extends GenericPlugin {
 			new OpenWindowAction(
 				$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'export', null,
 					array(
-						'submissionId' => $submissionFile->getSubmissionId(),
-						'fileId' => $submissionFile->getFileId(),
+						'submissionId' => $submissionFile->getData('submissionId'),
+						'submissionFileId' => $submissionFile->getData('id'),
 						'stageId' => $stageId
 					)
 				)
@@ -193,8 +194,8 @@ class TexturePlugin extends GenericPlugin {
 		$zipLabel = ($zipType == TEXTURE_DAR_FILE_TYPE) ? 'plugins.generic.texture.links.extractDarArchive' : 'plugins.generic.texture.links.extractZipArchive';
 
 		$actionArgs = array(
-			'submissionId' => $submissionFile->getSubmissionId(),
-			'fileId' => $submissionFile->getFileId(),
+			'submissionId' => $submissionFile->getData('submissionId'),
+			'submissionFileId' => $submissionFile->getData('id'),
 			'stageId' => $stageId,
 			'zipType' => $zipType
 		);
@@ -225,8 +226,8 @@ class TexturePlugin extends GenericPlugin {
 			new OpenWindowAction(
 				$dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'editor', null,
 					array(
-						'submissionId' => $submissionFile->getSubmissionId(),
-						'fileId' => $submissionFile->getFileId(),
+						'submissionId' => $submissionFile->getData('submissionId'),
+						'submissionFileId' => $submissionFile->getData('id'),
 						'stageId' => $stageId
 					)
 				)
@@ -247,10 +248,10 @@ class TexturePlugin extends GenericPlugin {
 	private function _createGalleyAction($row, Dispatcher $dispatcher, PKPRequest $request, $submissionFile, int $stageId, int $fileStage): void {
 
 		$actionArgs = array(
-			'submissionId' => $submissionFile->getSubmissionId(),
+			'submissionId' => $submissionFile->getData('submissionId'),
 			'stageId' => $stageId,
 			'fileStage' => $fileStage,
-			'fileId' => $submissionFile->getFileId()
+			'submissionFileId' => $submissionFile->getData('id')
 		);
 		$row->addAction(new LinkAction(
 			'createGalleyForm',
