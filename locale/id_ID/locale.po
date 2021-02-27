@@ -1,9 +1,9 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2020-03-03 09:36+0000\n"
+"PO-Revision-Date: 2021-02-28 07:54+0000\n"
 "Last-Translator: Ramli Baharuddin <ramli.baharuddin@relawanjurnal.id>\n"
 "Language-Team: Indonesian <http://translate.pkp.sfu.ca/projects/plugins/"
-"texture-plugin/id/>\n"
+"texture-plugin/id_ID/>\n"
 "Language: id_ID\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -40,3 +40,9 @@ msgstr "Ekstrak DAR"
 
 msgid "plugins.generic.texture.links.exportDarArchive"
 msgstr "Ekspor DAR"
+
+msgid "plugins.generic.texture.name"
+msgstr "Tekstur"
+
+msgid "plugins.generic.texture.links.extractZipArchive"
+msgstr "Ekstrak Arsip ZIP"
