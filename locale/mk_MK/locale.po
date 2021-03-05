@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2021-03-05 09:37+0000\n"
-"Last-Translator: Teodora Fildishevska <t.fildishevska@gmail.com>\n"
+"PO-Revision-Date: 2021-03-06 04:03+0000\n"
+"Last-Translator: Mirko Spiroski <mspiroski@id-press.eu>\n"
 "Language-Team: Macedonian <http://translate.pkp.sfu.ca/projects/plugins/"
 "texture-plugin/mk_MK/>\n"
 "Language: mk_MK\n"
@@ -33,7 +33,7 @@ msgid "plugins.generic.texture.links.extractDarArchive"
 msgstr "Отпакувајте DAR"
 
 msgid "plugins.generic.texture.links.exportDarArchive"
-msgstr "Експоритрајте DAR"
+msgstr "Експортирајте DAR"
 
 msgid "plugins.generic.texture.links.editWithTexture"
 msgstr "Уредувајте со текстура"
@@ -41,9 +41,8 @@ msgstr "Уредувајте со текстура"
 msgid "plugins.generic.texture.links.createGalley"
 msgstr "Создадете отисок"
 
-#, fuzzy
 msgid "plugins.generic.texture.description"
-msgstr "Плагин за интеграција на Texture JATS XML уредник со OJS."
+msgstr "Плагин за интеграција на текстуалниот JATS XML уредник со OJS."
 
 msgid "plugins.generic.texture.displayName"
 msgstr "Плагин за уредувач на текстура"
