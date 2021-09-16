@@ -102,7 +102,9 @@ class TextureHandler extends Handler {
 			$submission = $submissionDao->getById($submissionId);
 			mkdir($archivePath, 0777, true);
 			$zip->extractTo($archivePath);
-			$genreId = GENRE_CATEGORY_DOCUMENT;
+			$genreDAO = DAORegistry::getDAO('GenreDAO');
+			$genre = $genreDAO->getByKey('SUBMISSION', $submission->getData('contextId'));
+			$submissionFile->setGenreId($genre->getId());
 			$fileStage = $submissionFile->getFileStage();
 			$sourceFileId = $submissionFile->getFileId();
 			if ($zipType == TEXTURE_DAR_FILE_TYPE) {
