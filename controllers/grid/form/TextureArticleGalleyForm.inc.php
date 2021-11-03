@@ -120,12 +120,15 @@ class TextureArticleGalleyForm extends Form {
 		$submissionFileManager = new SubmissionFileManager($context->getId(), $submissionFile);
 		$fileId = $submissionFile->getData('submissionFileId');
 		$revision = $submissionFile->getRevision();
+		$genreDAO = DAORegistry::getDAO('GenreDAO');
+		$genre = $genreDAO->getByKey('SUBMISSION', $this->_submission->getData('contextId'));
+
 
 		list($newFileId, $newRevision) = $submissionFileManager->copyFileToFileStage($fileId, $revision, $fileStage, null, true);
 		$newSubmissionFile = $submissionFileDao->getLatestRevision($newFileId, $fileStage, $submissionId);
 		$newSubmissionFile->setAssocType(ASSOC_TYPE_REPRESENTATION);
 		$newSubmissionFile->setAssocId($newGalleyId);
-		$newSubmissionFile->setGenreId(GENRE_CATEGORY_DOCUMENT);
+		$newSubmissionFile->setGenreId($genre->getId());
 		$newSubmissionFile->setFileStage(SUBMISSION_FILE_PROOF);
 		$submissionFileDao->updateObject($newSubmissionFile);
 
