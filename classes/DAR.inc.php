@@ -201,7 +201,7 @@ class DAR {
 
 			));
 
-			$infos[$asset->getData('name')] = array(
+			$infos[$asset->getLocalizedData('name')] = array(
 				'encoding' => 'url',
 				'data' => $url
 			);
