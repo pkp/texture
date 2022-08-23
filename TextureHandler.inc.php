@@ -107,7 +107,8 @@ class TextureHandler extends Handler {
 			$submission = $submissionDao->getById($submissionId);
 			mkdir($archivePath, 0777, true);
 			$zip->extractTo($archivePath);
-			$genreId = GENRE_CATEGORY_DOCUMENT;
+			$genreDAO = DAORegistry::getDAO('GenreDAO');
+			$genre = $genreDAO->getByKey('SUBMISSION', $submission->getData('contextId'));
 			$fileStage = $submissionFile->getFileStage();
 			$sourceFileId = $submissionFile->getData('submissionFileId');
 			if ($zipType == TEXTURE_DAR_FILE_TYPE) {
@@ -129,10 +130,10 @@ class TextureHandler extends Handler {
 							$fileSize = filesize($darManuscriptFilePath);
 
 							$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-							$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genreId);
+							$newSubmissionFile = $submissionFileDao->newDataObjectByGenreId($genre->getId());
 							$newSubmissionFile->setSubmissionId($submission->getId());
 							$newSubmissionFile->setSubmissionLocale($submission->getLocale());
-							$newSubmissionFile->setGenreId($genreId);
+							$newSubmissionFile->setGenreId($genre->getId());
 							$newSubmissionFile->setFileStage($fileStage);
 							$newSubmissionFile->setDateUploaded(Core::getCurrentDate());
 							$newSubmissionFile->setDateModified(Core::getCurrentDate());
