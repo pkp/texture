@@ -485,6 +485,7 @@ class TextureHandler extends Handler {
 			exit;
 		}
 
+		$formLocales = PKPLocale::getSupportedFormLocales();
 		if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 			$postData = file_get_contents('php://input');
 			$media = (array)json_decode($postData);
@@ -498,7 +499,7 @@ class TextureHandler extends Handler {
 				]);
 				foreach ($dependentFilesIterator as $dependentFile) {
 
-					$fileName = $dependentFile->getData('name');
+					$fileName = $dependentFile->getLocalizedData('name');
 
 						if ($fileName == $media['fileName']) {
 							Services::get('submissionFile')->delete($dependentFile);
@@ -546,7 +547,7 @@ class TextureHandler extends Handler {
 
 					$newSubmissionFile = DAORegistry::getDao('SubmissionFileDAO')->newDataObject();
 					$newSubmissionFile->setData('fileId', $fileId);
-					$newSubmissionFile->setData('name', $media["fileName"]);
+					$newSubmissionFile->setData('name', array_fill_keys(array_keys($formLocales), $media["fileName"]));
 					$newSubmissionFile->setData('submissionId', $submission->getData('id'));
 					$newSubmissionFile->setData('uploaderUserId', $request->getUser()->getId());
 					$newSubmissionFile->setData('assocType', ASSOC_TYPE_SUBMISSION_FILE);

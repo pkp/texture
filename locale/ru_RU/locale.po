@@ -1,0 +1,49 @@
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2021-02-24 11:54+0000\n"
+"Last-Translator: Pavel Pisklakov <ppv1979@mail.ru>\n"
+"Language-Team: Russian <http://translate.pkp.sfu.ca/projects/plugins/"
+"texture-plugin/ru_RU/>\n"
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<="
+"4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 3.9.1\n"
+
+msgid "plugins.generic.texture.notification.extracted"
+msgstr "Файл извлечен успешно"
+
+msgid "plugins.generic.texture.notification.noValidDarFile"
+msgstr "Нет корректного файла DAR"
+
+msgid "plugins.generic.texture.notification.noManifest"
+msgstr "Файл манифеста не доступен"
+
+msgid "plugins.generic.texture.notification.noManuscript"
+msgstr "Файл манускрипта не доступен"
+
+msgid "plugins.generic.texture.name"
+msgstr "Texture"
+
+msgid "plugins.generic.texture.links.extractZipArchive"
+msgstr "Извлечь ZIP-архив"
+
+msgid "plugins.generic.texture.links.extractDarArchive"
+msgstr "Извлечь DAR"
+
+msgid "plugins.generic.texture.links.exportDarArchive"
+msgstr "Экспортировать DAR"
+
+msgid "plugins.generic.texture.links.editWithTexture"
+msgstr "Редактировать в Texture"
+
+msgid "plugins.generic.texture.links.createGalley"
+msgstr "Создать гранку"
+
+msgid "plugins.generic.texture.description"
+msgstr "Плагин интегрирует редактор JATS XML «Texture» с OJS."
+
+msgid "plugins.generic.texture.displayName"
+msgstr "Плагин «Редактор Texture»"
