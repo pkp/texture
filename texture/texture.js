@@ -9182,6 +9182,7 @@
       'article-magazine': MAGAZINE_ARTICLE_REF,
       'article-newspaper': NEWSPAPER_ARTICLE_REF,
       'article-journal': JOURNAL_ARTICLE_REF,
+      'journal-article': JOURNAL_ARTICLE_REF,
       // "bill"
       'book': BOOK_REF,
       // "broadcast"
@@ -15704,7 +15705,7 @@
   exports.serializeXMLSchema = serializeXMLSchema;
   exports.deserializeXMLSchema = deserializeXMLSchema;
 
-  //# sourceMappingURL=./texture-xml-utils.cjs.js.map
+
   });
 
   unwrapExports(textureXmlUtils_cjs);
