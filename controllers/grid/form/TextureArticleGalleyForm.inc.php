@@ -16,7 +16,8 @@
 
 import('lib.pkp.classes.form.Form');
 
-class TextureArticleGalleyForm extends Form {
+class TextureArticleGalleyForm extends Form
+{
 	/** @var the $_submission */
 	var $_submission = null;
 
@@ -31,7 +32,8 @@ class TextureArticleGalleyForm extends Form {
 	 * @param $publication
 	 * @param $submission Submission
 	 */
-	function __construct($request, $plugin, $publication, $submission) {
+	function __construct($request, $plugin, $publication, $submission)
+	{
 		$this->_submission = $submission;
 		$this->_publication = $publication;
 
@@ -52,9 +54,7 @@ class TextureArticleGalleyForm extends Form {
 				'required',
 				'editor.issues.galleyLocaleRequired'
 			),
-			function ($galleyLocale) use ($journal) {
-				return in_array($galleyLocale, $journal->getSupportedSubmissionLocaleNames());
-			}
+
 		);
 	}
 
@@ -63,7 +63,8 @@ class TextureArticleGalleyForm extends Form {
 	 * @param $request
 	 * @return string
 	 */
-	function fetch($request, $template = null, $display = false) {
+	function fetch($request, $template = null, $display = false)
+	{
 		$journal = $request->getJournal();
 		$templateMgr = TemplateManager::getManager($request);
 
@@ -83,7 +84,8 @@ class TextureArticleGalleyForm extends Form {
 	/**
 	 * Assign form data to user-submitted data.
 	 */
-	function readInputData() {
+	function readInputData()
+	{
 		$this->readUserVars(
 			array(
 				'label',
@@ -98,67 +100,96 @@ class TextureArticleGalleyForm extends Form {
 	 * Create article galley and dependent files
 	 * @return ArticleGalley The resulting article galley.
 	 */
-	function execute(...$functionArgs) {
+	function execute(...$functionArgs)
+	{
+		$request = Application::get()->getRequest();
+		$locale = AppLocale::getLocale();
 
-		$context = Application::getRequest()->getJournal();
-		$submissionId = $this->_submission->getId();
+		$sourceFile = Services::get('submissionFile')->get($this->getData('submissionFileId'));
 
+		$submissionDir = Services::get('submissionFile')->getSubmissionDir($this->getSubmission()->getData('contextId'), $this->getSubmission()->getId());
+		$files_dir = Config::getVar('files', 'files_dir') . DIRECTORY_SEPARATOR;
+		$newFileId = Services::get('file')->add(
+			$files_dir . $sourceFile->getData('path'),
+			$files_dir . $submissionDir . DIRECTORY_SEPARATOR . uniqid() . '.xml'
+		);
+
+		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
+		$newSubmissionFile = $submissionFileDao->newDataObject();
+
+		$newSubmissionFile->setAllData(
+			[
+				'fileId' => $newFileId,
+				'assocType' => $sourceFile->getData('assocType'),
+				'assocId' => $sourceFile->getData('assocId'),
+				'fileStage' => SUBMISSION_FILE_PROOF,
+				'mimetype' => $sourceFile->getData('mimetype'),
+				'locale' => $sourceFile->getData('locale'),
+				'genreId' => $sourceFile->getData('genreId'),
+				'name' => $sourceFile->getLocalizedData('name'),
+				'submissionId' => $this->getSubmission()->getId()
+			]
+		);
+
+
+		$newSubmissionFile = Services::get('submissionFile')->add($newSubmissionFile, $request);
+
+		// Associate XML file into galley
 		// Create  new galley
 		$articleGalleyDao = DAORegistry::getDAO('ArticleGalleyDAO');
 		$articleGalley = $articleGalleyDao->newDataObject();
 		$articleGalley->setData('publicationId', $this->_publication->getId());
 		$articleGalley->setLabel($this->getData('label'));
 		$articleGalley->setLocale($this->getData('galleyLocale'));
-		$newGalleyId = $articleGalleyDao->insertObject($articleGalley);
+		$articleGalley->setFileId($newSubmissionFile->getData('id'));
 
-		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
-		$fileStage = $this->getData('fileStage');
-		$submissionFile = $submissionFileDao->getLatestRevision( $this->getData('submissionFileId'), $fileStage, $submissionId);
+		Services::get('galley')->add($articleGalley, $request);
 
-		// Create galley XML file from the production XML  source file
-		import('lib.pkp.classes.file.SubmissionFileManager');
-		$submissionFileManager = new SubmissionFileManager($context->getId(), $submissionFile);
-		$fileId = $submissionFile->getData('submissionFileId');
-		$revision = $submissionFile->getRevision();
-		$genreDAO = DAORegistry::getDAO('GenreDAO');
-		$genre = $genreDAO->getByKey('SUBMISSION', $this->_submission->getData('contextId'));
-
-
-		list($newFileId, $newRevision) = $submissionFileManager->copyFileToFileStage($fileId, $revision, $fileStage, null, true);
-		$newSubmissionFile = $submissionFileDao->getLatestRevision($newFileId, $fileStage, $submissionId);
-		$newSubmissionFile->setAssocType(ASSOC_TYPE_REPRESENTATION);
-		$newSubmissionFile->setAssocId($newGalleyId);
-		$newSubmissionFile->setGenreId($genre->getId());
-		$newSubmissionFile->setFileStage(SUBMISSION_FILE_PROOF);
-		$submissionFileDao->updateObject($newSubmissionFile);
-
-		// Associate XML file into galley
-		if ($articleGalley) {
-			$articleGalley->setFileId($newSubmissionFile->getFileId());
-			$articleGalleyDao->updateObject($articleGalley);
-		}
 
 		// Get dependent files of the XML source file
-		$dependentFiles = $submissionFileDao->getLatestRevisionsByAssocId(
-			ASSOC_TYPE_SUBMISSION_FILE,
-			$submissionFile->getData('submissionFileId'),
-			$submissionFile->getData(),
-			SUBMISSION_FILE_DEPENDENT
-		);
 
-		// Copy dependent files to the galley XML file
+		$dependentFiles = Services::get('submissionFile')->getMany([
+			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
+			'assocIds' => [$sourceFile->getData('id')],
+			'submissionIds' => [$this->getSubmission()->getId()],
+			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
+			'includeDependentFiles' => true,
+		]);
+
+
 		foreach ($dependentFiles as $dependentFile) {
-			$dependentFileId = $dependentFile->getFileId();
-			$dependentFileRevision = $dependentFile->getRevision();
-			$dependentFileStage = $dependentFile->getFileStage();
 
-			list($newDependentFileId, $newDependentFileRevision) = $submissionFileManager->copyFileToFileStage($dependentFileId, $dependentFileRevision, $dependentFileStage, null, true);
-			$newDependentFile = $submissionFileDao->getLatestRevision($newDependentFileId, SUBMISSION_FILE_DEPENDENT, $submissionId);
-			$newDependentFile->setAssocId($newFileId);
-			$submissionFileDao->updateObject($newDependentFile);
+			$newDependentFileId = Services::get('file')->add(
+				$files_dir . $dependentFile->getData('path'),
+				$files_dir . $submissionDir . DIRECTORY_SEPARATOR . uniqid() . '.xml'
+			);
+
+			$newDependentFile = $submissionFileDao->newDataObject();
+
+			$newDependentFile->setAllData(
+				[
+					'fileId' => $newDependentFileId,
+					'assocType' => $dependentFile->getData('assocType'),
+					'assocId' => $newSubmissionFile->getData('id'),
+					'fileStage' => SUBMISSION_FILE_DEPENDENT,
+					'mimetype' => $dependentFile->getData('mimetype'),
+					'locale' => $dependentFile->getData('locale'),
+					'genreId' => $dependentFile->getData('genreId'),
+					'name' => $dependentFile->getLocalizedData('name'),
+					'submissionId' => $this->getSubmission()->getId()
+				]
+			);
+
+			Services::get('submissionFile')->add($newDependentFile, $request);
+
 		}
 
 		return $articleGalley;
+	}
+
+	function getSubmission()
+	{
+		return $this->_submission;
 	}
 
 

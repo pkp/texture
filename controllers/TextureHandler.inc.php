@@ -96,7 +96,7 @@ class TextureHandler extends Handler {
 		$user = $request->getUser();
 		$zipType = $request->getUserVar("zipType");
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$archivePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'texture-' . $zipType . '-archive' . mt_rand();
+		$archivePath = TextureHandler . inc . 'texture-' . $zipType . '-archive' . mt_rand();
 		$image_types = array('gif', 'jpg', 'jpeg', 'png', 'jpe');
 		$html_types = array('html');
 
@@ -110,7 +110,7 @@ class TextureHandler extends Handler {
 			$genreDAO = DAORegistry::getDAO('GenreDAO');
 			$genre = $genreDAO->getByKey('SUBMISSION', $submission->getData('contextId'));
 			$fileStage = $submissionFile->getFileStage();
-			$sourceFileId = $submissionFile->getData('submissionFileId');
+			$sourceFileId = $submissionFile->getData('fileId');
 			if ($zipType == TEXTURE_DAR_FILE_TYPE) {
 				$manifestFileDom = new DOMDocument();
 				$darManifestFilePath = $archivePath . DIRECTORY_SEPARATOR . DAR_MANIFEST_FILE;
@@ -559,7 +559,7 @@ class TextureHandler extends Handler {
 
 
 				} elseif (!empty($resources) && isset($resources[DAR_MANUSCRIPT_FILE]) && is_object($resources[DAR_MANUSCRIPT_FILE])) {
-					$this->_updateManuscriptFile($request, $resources, $submission, $submissionFile);
+					$this->updateManuscriptFile($request, $resources, $submission, $submissionFile);
 				} else {
 					return new JSONMessage(false);
 				}
@@ -579,7 +579,7 @@ class TextureHandler extends Handler {
 	 * @param $submissionFile SubmissionFile
 	 * @return SubmissionFile
 	 */
-	protected function _updateManuscriptFile($request, $resources, $submission, $submissionFile) {
+	protected function updateManuscriptFile($request, $resources, $submission, $submissionFile) {
 
 		$modifiedDocument = new DOMDocument('1.0', 'utf-8');
 		$modifiedData = $resources[DAR_MANUSCRIPT_FILE]->data;
@@ -592,6 +592,10 @@ class TextureHandler extends Handler {
 		$manuscriptXml = Services::get('file')->fs->read($submissionFile->getData('path'));
 		$origDocument = new DOMDocument('1.0', 'utf-8');
 		$origDocument->loadXML($manuscriptXml);
+
+
+		# add license
+
 
 		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);
 		$origDocument->documentElement->removeChild($body);
