@@ -594,7 +594,6 @@ class TextureHandler extends Handler {
 		$origDocument->loadXML($manuscriptXml);
 
 
-		# add license
 
 
 		$body = $origDocument->documentElement->getElementsByTagName('body')->item(0);

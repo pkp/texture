@@ -46,3 +46,10 @@ msgstr "No valid DAR file"
 
 msgid "plugins.generic.texture.notification.extracted"
 msgstr "File extraction successful"
+
+
+msgid "plugins.generic.texture.createGalley.customModifications"
+msgstr "Custom modifications"
+
+msgid "plugins.generic.texture.createGalley.license"
+msgstr "Add License (CC BY 4.0) "

@@ -91,7 +91,8 @@ class TextureArticleGalleyForm extends Form
 				'label',
 				'galleyLocale',
 				'submissionFileId',
-				'fileStage'
+				'fileStage',
+				'createLicense'
 			)
 		);
 	}
@@ -103,17 +104,66 @@ class TextureArticleGalleyForm extends Form
 	function execute(...$functionArgs)
 	{
 		$request = Application::get()->getRequest();
-		$locale = AppLocale::getLocale();
 
 		$sourceFile = Services::get('submissionFile')->get($this->getData('submissionFileId'));
 
 		$submissionDir = Services::get('submissionFile')->getSubmissionDir($this->getSubmission()->getData('contextId'), $this->getSubmission()->getId());
 		$files_dir = Config::getVar('files', 'files_dir') . DIRECTORY_SEPARATOR;
+
+
+		$origDocument = new DOMDocument('1.0', 'utf-8');
+		$sourceFileContent = Services::get('file')->fs->read($sourceFile->getData('path'));
+		$origDocument->loadXML($sourceFileContent);
+
+		$xpath = new DOMXpath($origDocument);
+
+		# add license
+		$permissions = $xpath->query("//article/front/article-meta/permissions");
+		foreach ($permissions as $permission) {
+			$origDocument->documentElement->removeChild($permission);
+		}
+
+		// add licnese
+		$articleMeta = $xpath->query("//article/front/article-meta");
+		if($this->getData('createLicense') and  count($articleMeta) > 0) {
+
+			$permissionNode = $origDocument->createElement('permissions');
+
+			$copyrightStatementNode = $origDocument->createElement('copyright-statement','© 2021 The Author(s)');
+			$permissionNode->appendChild($copyrightStatementNode);
+
+			$copyrightYearNode = $origDocument->createElement('copyright-year','2021');
+			$permissionNode->appendChild($copyrightYearNode);
+
+			$copyrightLicenseNode = $origDocument->createElement('copyright-license');
+			$copyrightLicenseNode->setAttribute('license-type','open-access');
+			$copyrightLicenseNode->setAttribute('xlink:href','http://creativecommons.org/licenses/by/4.0/');
+			$copyrightLicenseNode->setAttribute('xml:lang','en');
+
+			$copyrightLicensePNode = $origDocument->createElement('license-p');
+
+			$inlineGraphicNode =  $origDocument->createElement('inline-graphic');
+			$inlineGraphicNode->setAttribute('xlink:href','http://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by.svg');
+			$copyrightLicensePNode->appendChild($inlineGraphicNode);
+			$licensePTextNode = $origDocument->createTextNode("This work is published under the Creative Commons License 4.0 (CC BY 4.0).");
+			$copyrightLicensePNode->appendChild($licensePTextNode);
+			$copyrightLicenseNode->appendChild($copyrightLicensePNode);
+			$permissionNode->appendChild($copyrightLicenseNode);
+			$articleMeta[0]->appendChild($permissionNode);
+		}
+
+
+
+
+		$tmpfname = tempnam(sys_get_temp_dir(), 'texture-update-xml');
+		file_put_contents($tmpfname, $origDocument->saveXML());
+
+
 		$newFileId = Services::get('file')->add(
-			$files_dir . $sourceFile->getData('path'),
+			$tmpfname,
 			$files_dir . $submissionDir . DIRECTORY_SEPARATOR . uniqid() . '.xml'
 		);
-
+		unlink($tmpfname);
 		$submissionFileDao = DAORegistry::getDAO('SubmissionFileDAO');
 		$newSubmissionFile = $submissionFileDao->newDataObject();
 
@@ -130,6 +180,9 @@ class TextureArticleGalleyForm extends Form
 				'submissionId' => $this->getSubmission()->getId()
 			]
 		);
+
+
+
 
 
 		$newSubmissionFile = Services::get('submissionFile')->add($newSubmissionFile, $request);

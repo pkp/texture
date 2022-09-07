@@ -16,7 +16,7 @@
 </script>
 
 
-<form class="pkp_form" id="textureGalleyForm" method="post" action="{url op="createGalley" submissionId=$submissionId stageId=$stageId fileStage=$fileStage submissionFileId=$fileId}">
+<form class="pkp_form" id="textureGalleyForm" method="post" action="{url op="createGalley" submissionId=$submissionId stageId=$stageId fileStage=$fileStage submissionFileId=$submissionFileId}">
 
     {csrf}
 
@@ -27,6 +27,14 @@
 	{fbvFormSection}
 	{fbvElement type="select" id="galleyLocale" label="common.language" from=$supportedLocales selected=$galleyLocale|default:$formLocale size=$fbvStyles.size.MEDIUM translate=false inline=true required=true}
 	{/fbvFormSection}
+
+
+    {fbvFormSection list="true" title="plugins.generic.texture.createGalley.customModifications"}
+    {fbvElement type="checkbox" id="createLicense" checked=false label="plugins.generic.texture.createGalley.license"}
+
+    {/fbvFormSection}
+
+
 
     {/fbvFormArea}
 
