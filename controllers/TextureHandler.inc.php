@@ -96,7 +96,7 @@ class TextureHandler extends Handler {
 		$user = $request->getUser();
 		$zipType = $request->getUserVar("zipType");
 		$submissionFile = $this->getAuthorizedContextObject(ASSOC_TYPE_SUBMISSION_FILE);
-		$archivePath = TextureHandler . inc . 'texture-' . $zipType . '-archive' . mt_rand();
+		$archivePath = '';//TextureHandler . inc . 'texture-' . $zipType . '-archive' . mt_rand();
 		$image_types = array('gif', 'jpg', 'jpeg', 'png', 'jpe');
 		$html_types = array('html');
 

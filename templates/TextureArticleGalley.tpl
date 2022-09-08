@@ -29,12 +29,24 @@
 	{/fbvFormSection}
 
 
-    {fbvFormSection list="true" title="plugins.generic.texture.createGalley.customModifications"}
-    {fbvElement type="checkbox" id="createLicense" checked=false label="plugins.generic.texture.createGalley.license"}
+    {fbvFormSection title="plugins.generic.texture.createGalley.customModifications"}
+
+		{fbvFormSection list="true"}
+			{fbvElement type="checkbox" id="createJournalMeta" checked=false label="plugins.generic.texture.createGalley.journalMeta"}
+		{/fbvFormSection}
+
+		{fbvFormSection}
+			{fbvElement type="text" label="plugins.generic.texture.createGalley.fpage" name="createFpage" id="createFpage" maxlength="4" inline=true size=$fbvStyles.size.SMALL required=true}
+			{fbvElement type="text" label="plugins.generic.texture.createGalley.lpage" name="createPpage" id="createPpage" maxlength="4" inline=true size=$fbvStyles.size.SMALL required=true}
+		{/fbvFormSection}
+
+       {fbvFormSection}
+	        {fbvElement type="text" label="plugins.generic.texture.createGalley.datePublished" name="createPpage" id="createDatePublished" value=$datePublished maxlength="10" inline=true size=$fbvStyles.size.SMALL required=true}
+       {/fbvFormSection}
+
+
 
     {/fbvFormSection}
-
-
 
     {/fbvFormArea}
 

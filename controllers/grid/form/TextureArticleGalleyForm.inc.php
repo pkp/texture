@@ -65,16 +65,19 @@ class TextureArticleGalleyForm extends Form
 	 */
 	function fetch($request, $template = null, $display = false)
 	{
-		$journal = $request->getJournal();
+		$context = $request->getJournal();
 		$templateMgr = TemplateManager::getManager($request);
 
 		$templateMgr->assign(array(
-			'supportedLocales' => $journal->getSupportedSubmissionLocaleNames(),
+			'supportedLocales' => $context->getSupportedSubmissionLocaleNames(),
 			'submissionId' => $this->_submission->getId(),
 			'stageId' => $request->getUserVar('stageId'),
 			'fileStage' => $request->getUserVar('fileStage'),
 			'submissionFileId' => $request->getUserVar('submissionFileId'),
 			'publicationId' => $this->_publication->getId(),
+			'datePublished' => $this->_publication->getData('datePublished'),
+			'publisherInstitution' => $context->getData('publisherInstitution'),
+			'onlineIssn' => $context->getData('onlineIssn')
 
 		));
 
@@ -92,7 +95,12 @@ class TextureArticleGalleyForm extends Form
 				'galleyLocale',
 				'submissionFileId',
 				'fileStage',
-				'createLicense'
+				'createJournalMeta',
+				'createFpage',
+				'createLpage',
+				'datePublished',
+				'onlineIssn',
+				'publisherInstitution'
 			)
 		);
 	}
@@ -104,7 +112,7 @@ class TextureArticleGalleyForm extends Form
 	function execute(...$functionArgs)
 	{
 		$request = Application::get()->getRequest();
-
+		$context = $request->getJournal();
 		$sourceFile = Services::get('submissionFile')->get($this->getData('submissionFileId'));
 
 		$submissionDir = Services::get('submissionFile')->getSubmissionDir($this->getSubmission()->getData('contextId'), $this->getSubmission()->getId());
@@ -125,34 +133,84 @@ class TextureArticleGalleyForm extends Form
 
 		// add licnese
 		$articleMeta = $xpath->query("//article/front/article-meta");
-		if($this->getData('createLicense') and  count($articleMeta) > 0) {
+		$licenseUrl = $context->getData('licenseUrl');
+		if (count($articleMeta) > 0 and $licenseUrl) {
+			$copyrightYear = date('Y');
+			switch ($context->getData('copyrightYearBasis')) {
+				case 'submission':
+					$copyrightYear = date('Y', strtotime($this->_publication->getData('datePublished')));
+					break;
+				case 'issue':
+					if ($this->_publication->getData('issueId')) {
+						$issueDao =& DAORegistry::getDAO('IssueDAO');
+						$issue = $issueDao->getBySubmissionId($this->_submission->getId());
+						if ($issue && $issue->getDatePublished()) {
+							$copyrightYear = date('Y', strtotime($issue->getDatePublished()));
+						}
+					}
+					break;
+			}
 
-			$permissionNode = $origDocument->createElement('permissions');
+			PKPString::regexp_match_get('/http[s]?:(www\.)?\/\/creativecommons.org\/licenses\/([a-z]+(-[a-z]+)*)\/(\d.0)\/*([a-z]*).*/i', $licenseUrl, $matches);
+			if (count($matches) > 5 and $matches[2] and $matches[4]) {
+				$permissionNode = $origDocument->createElement('permissions');
+				$copyrightStatementNode = $origDocument->createElement('copyright-statement', '© ' . $copyrightYear . ' The Author(s)');
+				$permissionNode->appendChild($copyrightStatementNode);
+				$copyrightYearNode = $origDocument->createElement('copyright-year', $copyrightYear);
+				$permissionNode->appendChild($copyrightYearNode);
 
-			$copyrightStatementNode = $origDocument->createElement('copyright-statement','© 2021 The Author(s)');
-			$permissionNode->appendChild($copyrightStatementNode);
+				$copyrightLicenseNode = $origDocument->createElement('copyright-license');
+				$copyrightLicenseNode->setAttribute('license-type', 'open-access');
+				$copyrightLicenseNode->setAttribute('xlink:href', $licenseUrl);
+				$copyrightLicenseNode->setAttribute('xml:lang', 'en');
 
-			$copyrightYearNode = $origDocument->createElement('copyright-year','2021');
-			$permissionNode->appendChild($copyrightYearNode);
+				$copyrightLicensePNode = $origDocument->createElement('license-p');
 
-			$copyrightLicenseNode = $origDocument->createElement('copyright-license');
-			$copyrightLicenseNode->setAttribute('license-type','open-access');
-			$copyrightLicenseNode->setAttribute('xlink:href','http://creativecommons.org/licenses/by/4.0/');
-			$copyrightLicenseNode->setAttribute('xml:lang','en');
+				$inlineGraphicNode = $origDocument->createElement('inline-graphic');
+				$inlineGraphicNode->setAttribute('xlink:href', 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/' . $matches[2] . '.svg');
+				$copyrightLicensePNode->appendChild($inlineGraphicNode);
 
-			$copyrightLicensePNode = $origDocument->createElement('license-p');
+				$countryCode = $matches[5] ? strtoupper($matches[5]) : '';
+				$isoCodes = new \Sokil\IsoCodes\IsoCodesFactory();
+				$country = $isoCodes->getCountries()->getByAlpha2($countryCode) ? $isoCodes->getCountries()->getByAlpha2($countryCode)->getName() : '';
+				$licensePTextNode = $origDocument->createTextNode("This work is published under the Creative Commons  {$country} License {$matches[4]} (CC BY {$matches[4]} {$countryCode}).");
 
-			$inlineGraphicNode =  $origDocument->createElement('inline-graphic');
-			$inlineGraphicNode->setAttribute('xlink:href','http://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by.svg');
-			$copyrightLicensePNode->appendChild($inlineGraphicNode);
-			$licensePTextNode = $origDocument->createTextNode("This work is published under the Creative Commons License 4.0 (CC BY 4.0).");
-			$copyrightLicensePNode->appendChild($licensePTextNode);
-			$copyrightLicenseNode->appendChild($copyrightLicensePNode);
-			$permissionNode->appendChild($copyrightLicenseNode);
-			$articleMeta[0]->appendChild($permissionNode);
+				$copyrightLicensePNode->appendChild($licensePTextNode);
+				$copyrightLicenseNode->appendChild($copyrightLicensePNode);
+				$permissionNode->appendChild($copyrightLicenseNode);
+				$articleMeta[0]->appendChild($permissionNode);
+			}
 		}
 
+		// add date
 
+		// add journal meta
+		$journalMeta = $xpath->query("//article/front/journal-meta");
+		foreach ($journalMeta as $journalMetaEntry) {
+			$origDocument->documentElement->removeChild($journalMetaEntry);
+		}
+
+		if ($this->getData('createJournalMeta') and count($journalMeta) > 0) {
+
+			$journalMeta = $origDocument->createElement('journal-meta');
+
+			$journalIdType = $origDocument->createElement('journal-id', $context->getLocalizedAcronym());
+			$journalIdType->setAttribute('journal-id-type', 'publisher-id');
+			$journalMeta->appendChild($journalIdType);
+			$issn = new $origDocument->createElement('issn');
+			$issn->setAttribute('pub-type', 'epub');
+
+		}
+
+		/***
+		 * <journal-meta>
+		 * <journal-id journal-id-type="publisher-id">XXX</journal-id>
+		 * <issn pub-type="epub">XXX-XXX</issn>
+		 * <publisher>
+		 * <publisher-name>TIB Open Publishing</publisher-name>
+		 * </publisher>
+		 * </journal-meta>
+		 */
 
 
 		$tmpfname = tempnam(sys_get_temp_dir(), 'texture-update-xml');
@@ -180,9 +238,6 @@ class TextureArticleGalleyForm extends Form
 				'submissionId' => $this->getSubmission()->getId()
 			]
 		);
-
-
-
 
 
 		$newSubmissionFile = Services::get('submissionFile')->add($newSubmissionFile, $request);
