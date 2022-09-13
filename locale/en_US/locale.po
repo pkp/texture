@@ -62,3 +62,9 @@ msgstr "Published date"
 
 msgid "plugins.generic.texture.createGalley.journalMeta"
 msgstr "Add Journal metadata"
+
+msgid "plugins.generic.texture.createGalley.createArticlelMetaLicense"
+msgstr "Update Journal license"
+
+msgid "plugins.generic.texture.createGalley.createArticlelMetaHistory"
+msgstr "Update Article publication history"

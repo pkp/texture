@@ -33,15 +33,17 @@
 
 		{fbvFormSection list="true"}
 			{fbvElement type="checkbox" id="createJournalMeta" checked=false label="plugins.generic.texture.createGalley.journalMeta"}
+			{fbvElement type="checkbox" id="createArticlelMetaLicense" checked=false label="plugins.generic.texture.createGalley.createArticlelMetaLicense"}
+			{fbvElement type="checkbox" id="createArticlelMetaHistory" checked=false label="plugins.generic.texture.createGalley.createArticlelMetaHistory"}
 		{/fbvFormSection}
 
 		{fbvFormSection}
-			{fbvElement type="text" label="plugins.generic.texture.createGalley.fpage" name="createFpage" id="createFpage" maxlength="4" inline=true size=$fbvStyles.size.SMALL required=true}
-			{fbvElement type="text" label="plugins.generic.texture.createGalley.lpage" name="createPpage" id="createPpage" maxlength="4" inline=true size=$fbvStyles.size.SMALL required=true}
+			{fbvElement type="text" label="plugins.generic.texture.createGalley.fpage" name="createFpage" id="createFpage" maxlength="4" inline=true size=$fbvStyles.size.SMALL}
+			{fbvElement type="text" label="plugins.generic.texture.createGalley.lpage" name="createLpage" id="createLpage" maxlength="4" inline=true size=$fbvStyles.size.SMALL}
 		{/fbvFormSection}
 
        {fbvFormSection}
-	        {fbvElement type="text" label="plugins.generic.texture.createGalley.datePublished" name="createPpage" id="createDatePublished" value=$datePublished maxlength="10" inline=true size=$fbvStyles.size.SMALL required=true}
+	        {fbvElement type="text" label="plugins.generic.texture.createGalley.datePublished" name="createDatePublished" id="createDatePublished" value=$datePublished maxlength="10" inline=true size=$fbvStyles.size.SMALL required=true}
        {/fbvFormSection}
 
 
