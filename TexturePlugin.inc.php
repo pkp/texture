@@ -102,7 +102,7 @@ class TexturePlugin extends GenericPlugin {
 			case 'texture/media':
 				define('HANDLER_CLASS', 'TextureHandler');
 				define('TEXTURE_PLUGIN_NAME', $this->getName());
-				$args[2] = $this->getPluginPath() . '/' . 'TextureHandler.inc.php';
+				$args[2] = $this->getPluginPath() .DIRECTORY_SEPARATOR.'controllers'.DIRECTORY_SEPARATOR. 'TextureHandler.inc.php';
 				break;
 		}
 
@@ -137,12 +137,12 @@ class TexturePlugin extends GenericPlugin {
 				if (strtolower($fileExtension) == 'text/xml') {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
-					//$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
-					//$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
+					#$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				} elseif (strtolower($fileExtension) == TEXTURE_DAR_FILE_TYPE) {
-					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_DAR_FILE_TYPE);
+				//	$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_DAR_FILE_TYPE);
 				} elseif (strtolower($fileExtension) == TEXTURE_ZIP_FILE_TYPE) {
-					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_ZIP_FILE_TYPE);
+				//	$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_ZIP_FILE_TYPE);
 				} elseif (strtolower($fileExtension) == TEXTURE_HTML_FILE_TYPE) {
 					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
