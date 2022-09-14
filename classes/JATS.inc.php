@@ -106,9 +106,12 @@ class JATS extends \DOMDocument
 		$year = $origDocument->createElement('year', date('Y', $timestamp));
 		$pubDate->appendChild($year);
 
+
 		$issue = $issueDao->getBySubmissionId($submission->getId(), $context->getId());
-		$volume = $origDocument->createElement('volume', $issue->getVolume());
-		$pubDate->appendChild($volume);
+		if($issue) {
+			$volume = $origDocument->createElement('volume', $issue->getVolume());
+			$pubDate->appendChild($volume);
+		}
 
 		if ($firstPage) {
 			$pubDate->appendChild($origDocument->createElement('fpage',$firstPage));
