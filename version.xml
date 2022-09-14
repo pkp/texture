@@ -4,8 +4,8 @@
 <!--
   * version.xml
   *
-  * Copyright (c) 2003-2019 Simon Fraser University
-  * Copyright (c) 2003-2019 John Willinsky
+  * Copyright (c) 2003-2022 Simon Fraser University
+  * Copyright (c) 2003-2022 John Willinsky
   * Distributed under the GNU GPL v2. For full terms see the file docs/COPYING.
   *
   * Plugin version information.
@@ -14,8 +14,8 @@
 <version>
 	<application>texture</application>
 	<type>plugins.generic</type>
-	<release>2.4.3.8</release>
-	<date>2021-02-17</date>
+	<release>2.4.3.9</release>
+	<date>2022-09-13</date>
 	<lazy-load>1</lazy-load>
 	<class>TexturePlugin</class>
 </version>
