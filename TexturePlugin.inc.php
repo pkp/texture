@@ -14,7 +14,10 @@
  *
  */
 
-import('lib.pkp.classes.plugins.GenericPlugin');
+use PKP\linkAction\LinkAction;
+use PKP\plugins\GenericPlugin;
+use PKP\linkAction\request\OpenWindowAction;
+use PKP\linkAction\request\PostAndRedirectAction;
 
 define('DAR_MANIFEST_FILE', 'manifest.xml');
 define('DAR_MANUSCRIPT_FILE', 'manuscript.xml');
@@ -135,7 +138,6 @@ class TexturePlugin extends GenericPlugin {
 				$fileStage = SUBMISSION_FILE_PRODUCTION_READY;
 
 				if (strtolower($fileExtension) == 'text/xml') {
-					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_editWithTextureAction($row, $dispatcher, $request, $submissionFile, $stageId);
 					//$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 					//$this->_exportAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
@@ -144,7 +146,6 @@ class TexturePlugin extends GenericPlugin {
 				} elseif (strtolower($fileExtension) == TEXTURE_ZIP_FILE_TYPE) {
 					$this->_extractAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage, TEXTURE_ZIP_FILE_TYPE);
 				} elseif (strtolower($fileExtension) == TEXTURE_HTML_FILE_TYPE) {
-					import('lib.pkp.classes.linkAction.request.OpenWindowAction');
 					$this->_createGalleyAction($row, $dispatcher, $request, $submissionFile, $stageId, $fileStage);
 				}
 			}
@@ -202,7 +203,6 @@ class TexturePlugin extends GenericPlugin {
 
 		$path = $dispatcher->url($request, ROUTE_PAGE, null, 'texture', 'extract', null, $actionArgs);
 		$pathRedirect = $dispatcher->url($request, ROUTE_PAGE, null, 'workflow', 'access', $actionArgs);
-		import('lib.pkp.classes.linkAction.request.PostAndRedirectAction');
 		$row->addAction(new LinkAction(
 			'texture_import',
 			new PostAndRedirectAction($path, $pathRedirect),

@@ -6,6 +6,9 @@
  *
  * @brief DAR Archive format
  */
+
+use PKP\submission\SubmissionFile;
+
 class DAR {
 
 
@@ -238,12 +241,11 @@ class DAR {
 	 */
 	public function getDependentFilePaths($submissionId, $fileId): array {
 
-		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
 		$dependentFiles = Services::get('submissionFile')->getMany([
 			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
 			'assocIds' => [$fileId],
 			'submissionIds' => [$submissionId],
-			'fileStages' => [SUBMISSION_FILE_DEPENDENT],
+			'fileStages' => [SubmissionFile::SUBMISSION_FILE_DEPENDENT],
 			'includeDependentFiles' => true,
 		]);
 

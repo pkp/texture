@@ -13,8 +13,11 @@
  * @brief Handle requests for Texture plugin
  */
 
-import('classes.handler.Handler');
+use PKP\notification\PKPNotification;
+use PKP\security\Role;
 
+use APP\handler\Handler;
+use APP\notification\NotificationManager;
 
 class TextureHandler extends Handler {
 	/** @var Submission * */
@@ -33,7 +36,7 @@ class TextureHandler extends Handler {
 
 		$this->_plugin = PluginRegistry::getPlugin('generic', TEXTURE_PLUGIN_NAME);
 		$this->addRoleAssignment(
-			array(ROLE_ID_MANAGER, ROLE_ID_SUB_EDITOR, ROLE_ID_ASSISTANT, ROLE_ID_REVIEWER, ROLE_ID_AUTHOR),
+			array(Role::ROLE_ID_MANAGER, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT, Role::ROLE_ID_REVIEWER, Role::ROLE_ID_AUTHOR),
 			array('editor', 'export', 'json', 'extract', 'media', 'createGalleyForm', 'createGalley')
 		);
 	}
@@ -229,7 +232,7 @@ class TextureHandler extends Handler {
 			return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.noValidDarFile'));
 		}
 
-		return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.extracted'), NOTIFICATION_TYPE_SUCCESS, true);
+		return $this->removeFilesAndNotify($zip, $archivePath, $user, __('plugins.generic.texture.notification.extracted'), PKPNotification::NOTIFICATION_TYPE_SUCCESS, true);
 	}
 
 	/**
@@ -301,7 +304,7 @@ class TextureHandler extends Handler {
 	 * @param bool $status
 	 * @return JSONMessage
 	 */
-	private function removeFilesAndNotify(ZipArchive $zip, string $archivePath, $user, $message, $errorType = NOTIFICATION_TYPE_ERROR, $status = False): JSONMessage {
+	private function removeFilesAndNotify(ZipArchive $zip, string $archivePath, $user, $message, $errorType = PKPNotification::NOTIFICATION_TYPE_ERROR, $status = False): JSONMessage {
 
 		$notificationMgr = new NotificationManager();
 		$zip->close();
@@ -648,7 +651,6 @@ class TextureHandler extends Handler {
 			fatalError('Invalid request');
 		}
 
-		import('lib.pkp.classes.submission.SubmissionFile'); // Constants
 		$dependentFiles = Services::get('submissionFile')->getMany([
 			'assocTypes' => [ASSOC_TYPE_SUBMISSION_FILE],
 			'assocIds' => [$submissionFile->getData('id')],

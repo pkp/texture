@@ -14,7 +14,7 @@
  * @brief Article galley editing form.
  */
 
-import('lib.pkp.classes.form.Form');
+use PKP\form\Form;
 
 class TextureArticleGalleyForm extends Form {
 	/** @var the $_submission */
@@ -39,14 +39,14 @@ class TextureArticleGalleyForm extends Form {
 
 		AppLocale::requireComponents(LOCALE_COMPONENT_APP_EDITOR, LOCALE_COMPONENT_PKP_SUBMISSION);
 
-		$this->addCheck(new FormValidator($this, 'label', 'required', 'editor.issues.galleyLabelRequired'));
-		$this->addCheck(new FormValidatorPost($this));
-		$this->addCheck(new FormValidatorCSRF($this));
+		$this->addCheck(new \PKP\form\validation\FormValidator($this, 'label', 'required', 'editor.issues.galleyLabelRequired'));
+		$this->addCheck(new \PKP\form\validation\FormValidatorPost($this));
+		$this->addCheck(new \PKP\form\validation\FormValidatorCSRF($this));
 
 		// Ensure a locale is provided and valid
 		$journal = $request->getJournal();
 		$this->addCheck(
-			new FormValidator(
+			new \PKP\form\validation\FormValidator(
 				$this,
 				'galleyLocale',
 				'required',
