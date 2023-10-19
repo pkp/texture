@@ -15,6 +15,7 @@
  */
 
 import('lib.pkp.classes.plugins.GenericPlugin');
+import('lib.pkp.classes.linkAction.request.AjaxModal');
 
 define('DAR_MANIFEST_FILE', 'manifest.xml');
 define('DAR_MANUSCRIPT_FILE', 'manuscript.xml');
