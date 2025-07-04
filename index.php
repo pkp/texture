@@ -9,7 +9,7 @@
  *
  * Copyright (c) 2003-2019 Simon Fraser University
  * Copyright (c) 2003-2019 John Willinsky
- * Distributed under the GNU GPL v2. For full terms see the file docs/COPYING.
+ * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
  *
  * @ingroup plugins_generic_texture
  * @brief Wrapper for Texture plugin.
