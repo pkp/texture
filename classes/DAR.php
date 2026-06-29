@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2025 Simon Fraser University
  * Copyright (c) 2025 John Willinsky
- * Distributed under the GNU GPL v2. For full terms see the file docs/COPYING.
+ * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
  *
  * @class DAR
  *
