@@ -17997,7 +17997,7 @@
       // These labels are used by the AddReferenceWorkflow only
       config.addLabel('add-reference-title', 'Add Reference(s)');
       config.addLabel('add-ref-manually', 'Or create manually');
-      config.addLabel('fetch-datacite', 'Fetch from DataCite');
+      config.addLabel('fetch-datacite', 'Fetch by DOI from DataCite or Crossref');
       config.addLabel('enter-doi-placeholder', 'Enter one or more DOIs');
       config.addLabel('import-refs', 'Import');
 

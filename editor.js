@@ -8,26 +8,40 @@
 	window.addEventListener('load', () => {
 		substance.substanceGlobals.DEBUG_RENDERING = substance.platform.devtools;
 		setTimeout(() => {
-			var props = {
-				storageType: 'remote',
-				storageUrl: document.querySelector('meta[name=jobId').getAttribute('content'),
-				archiveId: '',
-			};
-			var app = OJSTextureEditor.mount(props, window.document.body);
-			setTimeout(() => {
-				window.app = app;
-			}, 500);
+			var storageUrl = document.querySelector('meta[name=jobId').getAttribute('content');
+
+			// Verify the document is accessible before mounting the editor
+			fetch(storageUrl).then(function(response) {
+				if (!response.ok) {
+					document.body.innerHTML = '<div style="padding:2em;color:#c00;font-family:sans-serif;">' +
+						'<h2>Error</h2><p>The XML file could not be loaded. It may have been deleted or moved.</p>' +
+						'<p>HTTP status: ' + response.status + '</p></div>';
+					return;
+				}
+				var props = {
+					storageType: 'remote',
+					storageUrl: storageUrl,
+					archiveId: '',
+				};
+				var app = OJSTextureEditor.mount(props, window.document.body);
+				setTimeout(() => {
+					window.app = app;
+				}, 500);
+			}).catch(function(err) {
+				document.body.innerHTML = '<div style="padding:2em;color:#c00;font-family:sans-serif;">' +
+					'<h2>Error</h2><p>Failed to connect to the server: ' + err.message + '</p></div>';
+			});
 		});
 	});
 
 	class OJSTextureStorage extends substanceTexture.HttpStorageClient {
-		write (archiveId, data, cb) {
+		write(archiveId, data, cb) {
 			var url = this.apiUrl;
 			if (archiveId) {
 				url = url + '/' + archiveId;
 			}
 
-			function _createImages () {
+			function _createImages() {
 				substance.forEach(data.resources, (record, filePath) => {
 					if (record.encoding === 'blob') {
 						var binaries = new FileReader();
@@ -49,7 +63,6 @@
 							}).catch(err => {
 								cb(err);
 							});
-
 						};
 						binaries.readAsDataURL(record.data);
 					}
@@ -65,7 +78,7 @@
 				});
 			}
 
-			function _deleteImage (op) {
+			function _deleteImage(op) {
 				if (op.type === 'delete') {
 					if (op.val) {
 						if (op.val.type === 'graphic' || op.val.type === 'supplementary-file') {
@@ -84,14 +97,13 @@
 										cb(err);
 									});
 								}
-
 							}
 						}
 					}
 				}
 			}
 
-			function _deleteImages () {
+			function _deleteImages() {
 				if (data) {
 					if (data.diff) {
 						if (data.diff) {
@@ -114,13 +126,11 @@
 
 			_createImages();
 			_deleteImages();
-
 		}
-
 	}
 
 	class OJSTextureEditor extends substanceTexture.TextureWebApp {
-		_getStorage (storageType) {
+		_getStorage(storageType) {
 			var storage = super._getStorage(storageType);
 			return new OJSTextureStorage(this.props.storageUrl);
 		}

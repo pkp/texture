@@ -46,3 +46,46 @@ msgstr "No valid DAR file"
 
 msgid "plugins.generic.texture.notification.extracted"
 msgstr "File extraction successful"
+
+
+msgid "plugins.generic.texture.createGalley.customModifications"
+msgstr "Custom modifications"
+
+msgid "plugins.generic.texture.createGalley.fpage"
+msgstr "First page"
+
+msgid "plugins.generic.texture.createGalley.lpage"
+msgstr "Last page"
+
+msgid "plugins.generic.texture.createGalley.datePublished"
+msgstr "Published date"
+
+msgid "plugins.generic.texture.createGalley.journalMeta"
+msgstr "Add Journal metadata"
+
+msgid "plugins.generic.texture.createGalley.createArticlelMetaLicense"
+msgstr "Update Journal license"
+
+msgid "plugins.generic.texture.createGalley.createArticlelMetaHistory"
+msgstr "Update Article publication history"
+
+msgid "plugins.generic.texture.createServiceFile.upload"
+msgstr "Upload A file from a service"
+
+msgid "plugins.generic.texture.createServiceFile.file.name"
+msgstr "File name or file URL"
+
+msgid "plugins.generic.texture.createServiceFile.file.description"
+msgstr "Choose the path of the file or URL to upload"
+
+msgid "plugins.generic.texture.createServiceFile.orkg"
+msgstr "Open Research Knowledge Graph"
+
+msgid "plugins.generic.texture.createServiceFile.oai"
+msgstr "OJS OAI-PMH Interface"
+
+msgid "plugins.generic.texture.createServiceFile.add_file"
+msgstr "Add external File"
+
+msgid "plugins.generic.texture.error.fileNotFound"
+msgstr "The XML file associated with this submission could not be found on the server."
