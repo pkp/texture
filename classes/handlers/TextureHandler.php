@@ -81,6 +81,9 @@ class TextureHandler extends Handler
 	{
 		$submissionFileId = (int)$request->getUserVar('submissionFileId');
 		$submissionFile = Repo::submissionFile()->get($submissionFileId);
+		if (!$submissionFile || (int)$submissionFile->getData('submissionId') !== $this->submission->getId()) {
+			return response(__('api.404.resourceNotFound'), Response::HTTP_NOT_FOUND);
+		}
 		$stageId = $submissionFile->getData('fileStage');
 		$submissionId = $submissionFile->getData('submissionId');
 		if (!$submissionId || !$stageId || !$submissionFileId) {
@@ -114,7 +117,7 @@ class TextureHandler extends Handler
 
 		$submissionFileId = (int)$request->getUserVar('submissionFileId');
 		$submissionFile = Repo::submissionFile()->get($submissionFileId);
-		if (empty($submissionFile)) {
+		if (empty($submissionFile) || (int)$submissionFile->getData('submissionId') !== $this->submission->getId()) {
 			return response(__('api.404.resourceNotFound'), Response::HTTP_NOT_FOUND);
 		}
 
